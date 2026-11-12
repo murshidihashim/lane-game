@@ -133,6 +133,59 @@
       "delivery": "not started",
       "reports": [],
       "reviewTrigger": "None."
+    },
+    {
+      "id": "DEC-006",
+      "title": "World theme for heroes and names",
+      "question": "Should heroes come from a rainforest world inspired by Southeast Asian folk tales, with Malay working names, or a generic fantasy world with English names?",
+      "options": [
+        "Southeast Asian folk-tale world, Malay working names",
+        "Generic fantasy world, English names"
+      ],
+      "choice": "Proposed: Southeast Asian folk-tale inspired world with original characters and Malay working names",
+      "rationale": "A look of its own next to medieval-fantasy card battlers, and it speaks to the first market (Malaysia, Indonesia, Philippines). Folklore inspires original characters; no religious figures, real people, spirits of the dead, or folk figures another game already uses.",
+      "impact": {
+        "user": "Hero, mana and Core names change (e.g. mana becomes Semangat).",
+        "technical": "Text and art only.",
+        "data": "None."
+      },
+      "cost": "none (names need roster and MyIPO checks before launch)",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "proposed"
+      },
+      "delivery": "not started",
+      "reports": [
+        "REP-003"
+      ],
+      "reviewTrigger": "Names fail a roster or trademark check, or playtesters outside the region find them hard to remember."
+    },
+    {
+      "id": "DEC-007",
+      "title": "Hero power system v1",
+      "question": "How do hero kits work?",
+      "options": [
+        "Trait + Power + Ultimate at level 4 (once per life) + best-order bonus",
+        "One power only (as in the prototype)",
+        "Manual ultimate button"
+      ],
+      "choice": "Proposed: Trait (always on) + Power (automatic, ranks at level 1-3) + Ultimate (level 4, once per life, automatic) + best-order bonus (+15% damage); pick 2 heroes before a match; no random effects",
+      "rationale": "Dota-style growth during a match with Clash Royale-style readability; keeps powers automatic as decided in DEC-004, so the player plays heroes through orders.",
+      "impact": {
+        "user": "Heroes get stronger in steps; level 4 is a power spike; a pick-2-heroes screen before matches.",
+        "technical": "Ultimate flag per life, cooldown and ultimate rings on portraits, new effects (pull, stun, shield, reveal, transform).",
+        "data": "None."
+      },
+      "cost": "none until built",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "proposed"
+      },
+      "delivery": "not started",
+      "reports": [
+        "REP-003"
+      ],
+      "reviewTrigger": "Playtests show powers firing at bad moments too often."
     }
   ],
   "history": [
@@ -231,6 +284,22 @@
     {
       "at": "2026-11-12 10:59",
       "text": "REP-002 written: PLAN-001 prototype built."
+    },
+    {
+      "at": "2026-11-12 11:49",
+      "text": "DEC-006 proposed: World theme for heroes and names."
+    },
+    {
+      "at": "2026-11-12 11:49",
+      "text": "DEC-007 proposed: Hero power system v1."
+    },
+    {
+      "at": "2026-11-12 11:49",
+      "text": "REP-003 written: Hero concept v1: roster and powers."
+    },
+    {
+      "at": "2026-11-12 11:49",
+      "text": "Hero concept v1 written (docs/design/characters-v1.md) and shown to the owner as a private roster page."
     }
   ]
 }

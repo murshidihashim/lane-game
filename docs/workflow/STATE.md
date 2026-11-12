@@ -40,6 +40,8 @@ Updated 2026-11-12 (Asia/Kuala_Lumpur) by Claude.
   - release-ready: not claimed.
 
 ## Open items
+- Hero concept v1 (`docs/design/characters-v1.md`, REP-003): 12 heroes and a power system. Waiting for
+  the owner on DEC-006 (theme) and DEC-007 (power system). Then the next plan: the first six heroes.
 - Game name: none yet ("Lane Game" is a working title). Check any name with MyIPO before using it.
 - Balance: in bot-vs-bot play, 56 of 100 matches end in a draw. Retune after the owner's playtest.
 - Permanent preview hosting: chosen later. GitHub Pages needs a public repo or a paid plan.
@@ -52,7 +54,8 @@ Updated 2026-11-12 (Asia/Kuala_Lumpur) by Claude.
 - **Active approval:** PLAN-001.
 - **Checks:** verify, soak and phone check all pass.
 - **Blocker:** owner playtest (T1, T6).
-- **Next step:** the owner plays 5+ matches and reports. Then tune numbers or propose the next plan.
+- **Next step:** the owner plays 5+ matches and reports, and decides DEC-006 and DEC-007. Then tune
+  numbers and propose the next plan (the first six heroes).
 
 ## Resume instruction
 "Read the project instructions and current state. Inspect the current Git state. Tell me where we
@@ -61,5 +64,6 @@ stopped and recommend the next small task. Wait for my approval before implement
 <!-- appkit:pending:start (generated) -->
 ## Pending approvals (generated)
 
-- None.
+- DEC-006: World theme for heroes and names (proposed)
+- DEC-007: Hero power system v1 (proposed)
 <!-- appkit:pending:end -->

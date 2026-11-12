@@ -6,7 +6,10 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 
 ## Pending approvals
 
-None.
+| ID | What | Status |
+|---|---|---|
+| DEC-006 | World theme for heroes and names | Proposed |
+| DEC-007 | Hero power system v1 | Proposed |
 
 ## Decisions
 
@@ -17,6 +20,8 @@ None.
 | DEC-003 | Middle lane shape | Approved (owner, 2026-11-12) | Not started |
 | DEC-004 | Hero abilities | Approved (owner, 2026-11-12) | Not started |
 | DEC-005 | Where the game lives | Approved (owner, 2026-11-12) | Not started |
+| DEC-006 | World theme for heroes and names | Proposed | Not started |
+| DEC-007 | Hero power system v1 | Proposed | Not started |
 
 ## Work packages
 
@@ -96,6 +101,34 @@ None.
 - **Delivery:** Not started
 - **Review trigger:** None.
 
+### DEC-006 · World theme for heroes and names
+
+- **Question:** Should heroes come from a rainforest world inspired by Southeast Asian folk tales, with Malay working names, or a generic fantasy world with English names?
+- **Options:** Southeast Asian folk-tale world, Malay working names · Generic fantasy world, English names
+- **Choice:** Proposed: Southeast Asian folk-tale inspired world with original characters and Malay working names
+- **Rationale:** A look of its own next to medieval-fantasy card battlers, and it speaks to the first market (Malaysia, Indonesia, Philippines). Folklore inspires original characters; no religious figures, real people, spirits of the dead, or folk figures another game already uses.
+- **User impact:** Hero, mana and Core names change (e.g. mana becomes Semangat).
+- **Technical impact:** Text and art only.
+- **Data and privacy:** None.
+- **Cost:** none (names need roster and MyIPO checks before launch)
+- **Approval:** Proposed
+- **Delivery:** Not started
+- **Review trigger:** Names fail a roster or trademark check, or playtesters outside the region find them hard to remember.
+
+### DEC-007 · Hero power system v1
+
+- **Question:** How do hero kits work?
+- **Options:** Trait + Power + Ultimate at level 4 (once per life) + best-order bonus · One power only (as in the prototype) · Manual ultimate button
+- **Choice:** Proposed: Trait (always on) + Power (automatic, ranks at level 1-3) + Ultimate (level 4, once per life, automatic) + best-order bonus (+15% damage); pick 2 heroes before a match; no random effects
+- **Rationale:** Dota-style growth during a match with Clash Royale-style readability; keeps powers automatic as decided in DEC-004, so the player plays heroes through orders.
+- **User impact:** Heroes get stronger in steps; level 4 is a power spike; a pick-2-heroes screen before matches.
+- **Technical impact:** Ultimate flag per life, cooldown and ultimate rings on portraits, new effects (pull, stun, shield, reveal, transform).
+- **Data and privacy:** None.
+- **Cost:** none until built
+- **Approval:** Proposed
+- **Delivery:** Not started
+- **Review trigger:** Playtests show powers firing at bad moments too often.
+
 ## History (oldest first)
 
 - 2026-11-12 08:49 · Project records started for Lane Game.
@@ -122,3 +155,7 @@ None.
 - 2026-11-12 10:59 · PLAN-001 delivery: implemented.
 - 2026-11-12 10:59 · PLAN-001 prototype published as a private preview page for the owner to play (owner-only access).
 - 2026-11-12 10:59 · REP-002 written: PLAN-001 prototype built.
+- 2026-11-12 11:49 · DEC-006 proposed: World theme for heroes and names.
+- 2026-11-12 11:49 · DEC-007 proposed: Hero power system v1.
+- 2026-11-12 11:49 · REP-003 written: Hero concept v1: roster and powers.
+- 2026-11-12 11:49 · Hero concept v1 written (docs/design/characters-v1.md) and shown to the owner as a private roster page.

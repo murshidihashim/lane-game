@@ -486,6 +486,64 @@
         "REP-011"
       ],
       "reviewTrigger": "The paper look reads poorly on the owner's phone, phones slow down, or the owner changes direction."
+    },
+    {
+      "id": "DEC-019",
+      "title": "Map view fills the screen width",
+      "question": "Should the map be shown whole (narrow, with empty sides) or fill the screen's width and scroll?",
+      "options": [
+        "Keep the whole map in view (narrow on phones whose browser bars take height)",
+        "Fill the screen width and scroll up and down, with a whole-map view on the corner button (chosen)",
+        "Reshape the map to be wider and shorter (changes the game rules and balance)"
+      ],
+      "choice": "The map fills the screen's width (the usual view), starting at your side; drag up and down to look around. The corner button shows the whole map and comes back; double-tap or pinch zooms closer. Tapping a hero's panel scrolls to that hero if it is off-screen. Updates DEC-016's zoom: zoom 1 is now the whole-map overview, not the starting view.",
+      "rationale": "The owner asked for it. On a phone browser the whole map was often only about 260 px wide on a 390 px screen. The world, lanes and balance are unchanged; only the camera changes.",
+      "impact": {
+        "user": "A bigger map that fills the screen; drag to see the far side; corner button for the whole map.",
+        "technical": "Camera and layout only (src/ui/layout.ts, game.ts, render.ts, art.ts map painter). No change to src/game.",
+        "data": "None."
+      },
+      "cost": "RM0.",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "approved",
+        "evidence": "lets expand the map now so it fits the width of the screen",
+        "date": "2026-11-12"
+      },
+      "delivery": "implemented",
+      "reports": [
+        "REP-013"
+      ],
+      "reviewTrigger": "Players lose track of the far side of the map (then add a mini-map), or the owner prefers the whole-map view."
+    },
+    {
+      "id": "DEC-020",
+      "title": "Make the map more engaging",
+      "question": "Which of five map ideas should be built next?",
+      "options": [
+        "1. Monsoon, dry season and night: the map changes every 90 s or so (flooded river, walkable shallows, shorter sight at night), each announced 10 s ahead",
+        "2. Kampung outposts: two or three jungle villages a hero captures by standing in them; they give vision, a little Semangat and a place to heal, and can be retaken",
+        "3. Pasar malam merchant: a travelling night-market stall appears in the jungle now and then, selling one rare item to the first hero who reaches it",
+        "4. Lalang grass and startled birds: tall-grass patches beside the lanes hide whoever stands in them; birds burst out of the grass and trees when hidden heroes pass, a readable tell through the fog",
+        "5. A living paper map: fireflies, river ripples, kitchen smoke, towers that collapse into paper scraps and battle marks that stay (no rules change)"
+      ],
+      "choice": "Not chosen yet. Suggested start: 5 (cheap, no rules change) plus 1 (the biggest change to how matches feel).",
+      "rationale": "Each idea adds a decision or a moment rather than more buttons, in line with the research finding that hybrids failed by adding load. Details, effort and risks: REP-013.",
+      "impact": {
+        "user": "More reasons to move around the map and more changing moments in a match.",
+        "technical": "Options 1-4 change the game rules (deterministic, need new tests and a balance run); 5 is drawing only.",
+        "data": "None."
+      },
+      "cost": "RM0 (code-drawn).",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "awaiting approval"
+      },
+      "delivery": "not started",
+      "reports": [
+        "REP-013"
+      ],
+      "reviewTrigger": "The owner picks one or more, or playtests show the map already has enough going on."
     }
   ],
   "history": [
@@ -1108,6 +1166,66 @@
     {
       "at": "2026-11-12 22:58",
       "text": "REP-012 written: PLAN-009: the batik paper-cut look."
+    },
+    {
+      "at": "2026-11-12 23:14",
+      "text": "DEC-019 proposed: Map view fills the screen width."
+    },
+    {
+      "at": "2026-11-12 23:14",
+      "text": "DEC-020 proposed: Make the map more engaging."
+    },
+    {
+      "at": "2026-11-12 23:14",
+      "text": "PLAN-010 proposed: Full-width map and paper ultimate effects."
+    },
+    {
+      "at": "2026-11-12 23:14",
+      "text": "Owner approved DEC-019: \"lets expand the map now so it fits the width of the screen\"."
+    },
+    {
+      "at": "2026-11-12 23:14",
+      "text": "Owner approved PLAN-010: \"lets expand the map now so it fits the width of the screen ... redraw the ultimate effects in paper style too\"."
+    },
+    {
+      "at": "2026-11-12 23:14",
+      "text": "PLAN-010 delivery: in progress."
+    },
+    {
+      "at": "2026-11-12 23:21",
+      "text": "PLAN-010 T1: PASS (Phone check: the map fills the screen width (390 px; the whole map was 260 px on this screen); dragging looks up and down; the corner button shows the whole map and comes back; double-tap zooms in 1.8x and back; pinch zooms; orders work while zoomed; PHONE CHECK OK.)."
+    },
+    {
+      "at": "2026-11-12 23:21",
+      "text": "PLAN-010 T2: PASS (Effect sheet of all 20 ultimate bursts, the five auras and both banners reviewed: paper strips and pieces with white cut edges and crisp shadows, tissue-paper glows, paper confetti, a clean crescent for Senja; screenshots of Kail's Riptide in a match checked.)."
+    },
+    {
+      "at": "2026-11-12 23:21",
+      "text": "PLAN-010 T3: PASS (Paper effects: about 1.07 ms per effect against 0.99 ms before (timing forced to finish). The map still paints once, in 11-18 ms. A full frame now takes about 4.3 ms (median) against about 3 ms before, because the map covers 50% more of the screen; 90th percentile about 14 ms after caching the fog layer. Desktop test browser without a graphics card, not a real phone.)."
+    },
+    {
+      "at": "2026-11-12 23:21",
+      "text": "PLAN-010 T4: PASS (npm run verify: 93/93 tests, build, docs and records; npm run soak 3/3; phone check OK; no change in src/game.)."
+    },
+    {
+      "at": "2026-11-12 23:21",
+      "text": "PLAN-010 T5: NOT RUN (Not yet tried on the owner's phone.)."
+    },
+    {
+      "at": "2026-11-12 23:21",
+      "text": "PLAN-010 T6: NOT RUN (Waiting for the owner's verdict.)."
+    },
+    {
+      "at": "2026-11-12 23:21",
+      "text": "PLAN-010 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 23:21",
+      "text": "DEC-019 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 23:21",
+      "text": "REP-013 written: Full-width map, paper ultimates, five map ideas."
     }
   ]
 }

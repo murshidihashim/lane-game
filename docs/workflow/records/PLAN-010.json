@@ -1,0 +1,91 @@
+{
+  "id": "PLAN-010",
+  "title": "Full-width map and paper ultimate effects",
+  "problem": "The owner asked: the map should fill the screen's width (on many phones it showed narrow with empty sides), and the ultimate effects should be redrawn in the paper style.",
+  "scope": [
+    "The map fills the screen width (DEC-019): the field takes the full column; the usual view fits the map's width and starts at your side; drag up and down; the corner button shows the whole map and comes back; double-tap and pinch zoom closer; tapping a hero's panel scrolls to an off-screen hero",
+    "The map is painted once at the full-width scale; the paper board edge frames only the map",
+    "Ultimate effects redrawn in cut paper: paper strips and pieces with white cut edges and crisp shadows, tissue-paper glows, paper confetti, a paper crescent for Senja, a batik-dotted dome for Benteng, a paper wave for Ombak; the banner as a team-coloured paper card",
+    "Five suggestions to make the map more engaging (DEC-020, for the owner to choose)",
+    "Help text, owner checklist, art-style guide, phone check updated"
+  ],
+  "exclusions": [
+    "Changing the map's size or shape in the game rules",
+    "Building any of the five map ideas (waiting for the owner's choice)",
+    "A mini-map"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "The map fills the screen width; drag looks around; the corner button shows the whole map and comes back; double-tap and pinch zoom (phone check)",
+      "result": "PASS",
+      "evidence": "Phone check: the map fills the screen width (390 px; the whole map was 260 px on this screen); dragging looks up and down; the corner button shows the whole map and comes back; double-tap zooms in 1.8x and back; pinch zooms; orders work while zoomed; PHONE CHECK OK."
+    },
+    {
+      "id": "T2",
+      "text": "Every ultimate effect and the banner drawn in cut paper (effect sheet of all 20 reviewed)",
+      "result": "PASS",
+      "evidence": "Effect sheet of all 20 ultimate bursts, the five auras and both banners reviewed: paper strips and pieces with white cut edges and crisp shadows, tissue-paper glows, paper confetti, a clean crescent for Senja; screenshots of Kail's Riptide in a match checked."
+    },
+    {
+      "id": "T3",
+      "text": "Speed: paper effects cost about the same as before per frame; the map still paints once (measured)",
+      "result": "PASS",
+      "evidence": "Paper effects: about 1.07 ms per effect against 0.99 ms before (timing forced to finish). The map still paints once, in 11-18 ms. A full frame now takes about 4.3 ms (median) against about 3 ms before, because the map covers 50% more of the screen; 90th percentile about 14 ms after caching the fog layer. Desktop test browser without a graphics card, not a real phone."
+    },
+    {
+      "id": "T4",
+      "text": "Game unchanged: verify, determinism, soak and phone check pass; no change in src/game",
+      "result": "PASS",
+      "evidence": "npm run verify: 93/93 tests, build, docs and records; npm run soak 3/3; phone check OK; no change in src/game."
+    },
+    {
+      "id": "T5",
+      "text": "On the owner's phone",
+      "result": "NOT RUN",
+      "evidence": "Not yet tried on the owner's phone."
+    },
+    {
+      "id": "T6",
+      "text": "Owner's verdict",
+      "result": "NOT RUN",
+      "evidence": "Waiting for the owner's verdict."
+    }
+  ],
+  "risks": [
+    "The far side of the map is off-screen in the usual view; the tower strip in the top bar and the whole-map button cover it, and a mini-map may be needed later",
+    "Paper effects draw every frame; measured to cost about the same as before"
+  ],
+  "cost": "RM0.",
+  "decisions": [
+    "DEC-019",
+    "DEC-020"
+  ],
+  "reports": [
+    "REP-013"
+  ],
+  "changes": {
+    "added": [
+      "Whole-map view on the corner button; scroll to a hero when its panel is tapped"
+    ],
+    "changed": [
+      "The map fills the screen width and scrolls (DEC-019)",
+      "Ultimate effects and banners in cut paper",
+      "Fog of war's dyed layer cached (one pass a frame)",
+      "Board edge shadow crisp instead of blurred"
+    ],
+    "fixed": [],
+    "removed": []
+  },
+  "userNotes": [
+    "The map now fills the screen's width; drag up and down to look around, and tap the magnifier to see the whole map.",
+    "Ultimate effects and banners redrawn in cut paper."
+  ],
+  "approval": {
+    "status": "approved",
+    "evidence": "lets expand the map now so it fits the width of the screen ... redraw the ultimate effects in paper style too",
+    "date": "2026-11-12"
+  },
+  "delivery": "implemented",
+  "release": "unreleased"
+}

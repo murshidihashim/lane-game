@@ -64,7 +64,7 @@ async function page(browser, query) {
     const st = () => p.evaluate(() => { const g = window.__game; const s = g.sim; return { mana: s.players[0].mana, heroes: s.heroes(0).map((h) => h.hero), L: g.layout }; });
     let s = await st();
     const c = (r) => [r.x + r.w / 2, r.y + r.h / 2];
-    const w2s = (wx, wy) => [s.L.field.x + wx * s.L.scale, s.L.field.y + (wy - 500) * s.L.scale];
+    const w2s = (wx, wy) => [s.L.field.x + (wx - s.L.vx) * s.L.scale, s.L.field.y + (wy - s.L.vy) * s.L.scale];
     const drag = async (a, b) => {
       await p.mouse.move(a[0], a[1]); await p.mouse.down();
       for (let k = 1; k <= 8; k++) await p.mouse.move(a[0] + (b[0] - a[0]) * k / 8, a[1] + (b[1] - a[1]) * k / 8);
@@ -185,21 +185,40 @@ async function page(browser, query) {
     if (await p.evaluate(() => window.__game.sim.heroOf(0, 'kail').ultReady)) fail('the called ultimate did not fire when enemies came');
     else console.log('PASS the called ultimate fires at a good moment (banner and effect on screen)');
 
-    // Zoom and pan (DEC-016): zoom button, drag to look around, an order while zoomed, double-tap out, pinch.
-    const cam = () => p.evaluate(() => { const L = window.__game.layout; return { scale: L.scale, base: L.baseScale, vx: L.vx, vy: L.vy, field: L.field, zoomBtn: L.zoomBtn }; });
+    // The camera (DEC-016, DEC-019): the map fills the width; drag to look around; the corner button
+    // shows the whole map and comes back; double-tap zooms in and back; an order while zoomed; pinch.
+    const cam = () => p.evaluate(() => { const L = window.__game.layout; return { scale: L.scale, base: L.baseScale, home: L.homeScale, vx: L.vx, vy: L.vy, field: L.field, col: L.col, zoomBtn: L.zoomBtn }; });
     let v = await cam();
+    if (Math.abs(3900 * v.scale - v.field.w) > 1.5 || Math.abs(v.field.w - v.col.w) > 1.5) fail('the map does not fill the screen width: ' + JSON.stringify({ map: 3900 * v.scale, field: v.field.w, col: v.col.w }));
+    else console.log(`PASS the map fills the screen width (${v.field.w.toFixed(0)} px; whole map would be ${(3900 * v.base).toFixed(0)} px)`);
+    const mid = [v.field.x + v.field.w / 2, v.field.y + v.field.h / 2];
+    const tall = 5940 * v.scale > v.field.h + 2;
+    if (tall) {
+      await drag(mid, [mid[0], mid[1] + 120]);
+      await p.waitForTimeout(120);
+      const v2 = await cam();
+      if (!(v2.vy < v.vy - 10)) fail('dragging the map did not look around: ' + JSON.stringify([v.vy, v2.vy]));
+      else console.log('PASS dragging the map looks up and down');
+    } else console.log('NOTE the whole map already fits this screen at full width; no up-and-down dragging needed');
     await p.mouse.click(v.zoomBtn.x + v.zoomBtn.w / 2, v.zoomBtn.y + v.zoomBtn.h / 2);
     await p.waitForTimeout(150);
     v = await cam();
-    if (Math.abs(v.scale / v.base - 1.8) > 0.01) fail('zoom button did not zoom in: ' + (v.scale / v.base));
-    else console.log('PASS the zoom button zooms the map in (1.8x)');
+    if (tall && Math.abs(v.scale - v.base) > 0.001) fail('the corner button did not show the whole map: ' + (v.scale / v.base));
+    else if (tall) console.log('PASS the corner button shows the whole map');
+    await p.screenshot({ path: `${out}/7-overview.png` });
+    await p.mouse.click(v.zoomBtn.x + v.zoomBtn.w / 2, v.zoomBtn.y + v.zoomBtn.h / 2);
+    await p.waitForTimeout(150);
+    v = await cam();
+    if (Math.abs(v.scale - v.home) > 0.001) fail('the corner button did not come back to the full-width view: ' + (v.scale / v.home));
+    else console.log('PASS the corner button comes back to the full-width view');
+    // double-tap zooms in
+    await p.mouse.click(mid[0], mid[1]);
+    await p.mouse.click(mid[0], mid[1]);
+    await p.waitForTimeout(150);
+    v = await cam();
+    if (Math.abs(v.scale / v.home - 1.8) > 0.01) fail('double-tap did not zoom in: ' + (v.scale / v.home));
+    else console.log('PASS double-tap zooms in (1.8x the full-width view)');
     await p.screenshot({ path: `${out}/7-zoomed.png` });
-    const mid = [v.field.x + v.field.w / 2, v.field.y + v.field.h / 2];
-    await drag(mid, [mid[0] + 60, mid[1] + 90]);
-    await p.waitForTimeout(120);
-    const v2 = await cam();
-    if (!(v2.vx < v.vx - 10 && v2.vy < v.vy - 10)) fail('dragging the zoomed map did not pan: ' + JSON.stringify([v.vx, v.vy, v2.vx, v2.vy]));
-    else console.log('PASS dragging the zoomed map looks around');
     // order while zoomed: drop Kail in the middle of the zoomed view; the order must change
     await p.evaluate(() => window.__game.sim.submit({ t: 'order', player: 0, hero: 'kail', order: 'retreat' }));
     await p.waitForTimeout(100);
@@ -213,8 +232,8 @@ async function page(browser, query) {
     await p.mouse.click(mid[0], mid[1]);
     await p.waitForTimeout(150);
     v = await cam();
-    if (Math.abs(v.scale - v.base) > 0.001) fail('double-tap did not zoom back out');
-    else console.log('PASS double-tap zooms back out to the whole map');
+    if (Math.abs(v.scale - v.home) > 0.001) fail('double-tap did not come back to the full-width view');
+    else console.log('PASS double-tap comes back to the full-width view');
     // pinch with two fingers
     await p.evaluate(([x, y]) => {
       const c = document.getElementById('game');
@@ -225,8 +244,8 @@ async function page(browser, query) {
     }, mid);
     await p.waitForTimeout(120);
     v = await cam();
-    if (!(v.scale / v.base > 1.5)) fail('pinch did not zoom in: ' + (v.scale / v.base));
-    else console.log(`PASS a two-finger pinch zooms in (${(v.scale / v.base).toFixed(2)}x)`);
+    if (!(v.scale / v.home > 1.5)) fail('pinch did not zoom in: ' + (v.scale / v.home));
+    else console.log(`PASS a two-finger pinch zooms in (${(v.scale / v.home).toFixed(2)}x the full-width view)`);
     if (errors.length) fail('page errors: ' + errors.join(' | '));
   }
 

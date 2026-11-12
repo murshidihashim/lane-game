@@ -6,7 +6,9 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 
 ## Pending approvals
 
-None.
+| ID | What | Status |
+|---|---|---|
+| DEC-020 | Make the map more engaging | Awaiting approval |
 
 ## Decisions
 
@@ -30,6 +32,8 @@ None.
 | DEC-016 | Slower movement and a zoomable map | Approved (owner, 2026-11-12) | Implemented |
 | DEC-017 | Hero command menu, Attack order and smarter heroes | Approved (owner, 2026-11-12) | Implemented |
 | DEC-018 | Art direction for the full game | Approved (owner, 2026-11-12) | Implemented |
+| DEC-019 | Map view fills the screen width | Approved (owner, 2026-11-12) | Implemented |
+| DEC-020 | Make the map more engaging | Awaiting approval | Not started |
 
 ## Work packages
 
@@ -44,6 +48,7 @@ None.
 | PLAN-007 | Smarter heroes and a tap-to-command menu | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
 | PLAN-008 | Look test: anime heroes with Malay heritage art | Superseded | Not started | 0/7 | Unreleased |
 | PLAN-009 | Batik paper-cut diorama look | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
+| PLAN-010 | Full-width map and paper ultimate effects | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
 
 ## Decision details
 
@@ -299,6 +304,34 @@ None.
 - **Delivery:** Implemented
 - **Review trigger:** The paper look reads poorly on the owner's phone, phones slow down, or the owner changes direction.
 
+### DEC-019 · Map view fills the screen width
+
+- **Question:** Should the map be shown whole (narrow, with empty sides) or fill the screen's width and scroll?
+- **Options:** Keep the whole map in view (narrow on phones whose browser bars take height) · Fill the screen width and scroll up and down, with a whole-map view on the corner button (chosen) · Reshape the map to be wider and shorter (changes the game rules and balance)
+- **Choice:** The map fills the screen's width (the usual view), starting at your side; drag up and down to look around. The corner button shows the whole map and comes back; double-tap or pinch zooms closer. Tapping a hero's panel scrolls to that hero if it is off-screen. Updates DEC-016's zoom: zoom 1 is now the whole-map overview, not the starting view.
+- **Rationale:** The owner asked for it. On a phone browser the whole map was often only about 260 px wide on a 390 px screen. The world, lanes and balance are unchanged; only the camera changes.
+- **User impact:** A bigger map that fills the screen; drag to see the far side; corner button for the whole map.
+- **Technical impact:** Camera and layout only (src/ui/layout.ts, game.ts, render.ts, art.ts map painter). No change to src/game.
+- **Data and privacy:** None.
+- **Cost:** RM0.
+- **Approval:** Approved: “lets expand the map now so it fits the width of the screen” (2026-11-12)
+- **Delivery:** Implemented
+- **Review trigger:** Players lose track of the far side of the map (then add a mini-map), or the owner prefers the whole-map view.
+
+### DEC-020 · Make the map more engaging
+
+- **Question:** Which of five map ideas should be built next?
+- **Options:** 1. Monsoon, dry season and night: the map changes every 90 s or so (flooded river, walkable shallows, shorter sight at night), each announced 10 s ahead · 2. Kampung outposts: two or three jungle villages a hero captures by standing in them; they give vision, a little Semangat and a place to heal, and can be retaken · 3. Pasar malam merchant: a travelling night-market stall appears in the jungle now and then, selling one rare item to the first hero who reaches it · 4. Lalang grass and startled birds: tall-grass patches beside the lanes hide whoever stands in them; birds burst out of the grass and trees when hidden heroes pass, a readable tell through the fog · 5. A living paper map: fireflies, river ripples, kitchen smoke, towers that collapse into paper scraps and battle marks that stay (no rules change)
+- **Choice:** Not chosen yet. Suggested start: 5 (cheap, no rules change) plus 1 (the biggest change to how matches feel).
+- **Rationale:** Each idea adds a decision or a moment rather than more buttons, in line with the research finding that hybrids failed by adding load. Details, effort and risks: REP-013.
+- **User impact:** More reasons to move around the map and more changing moments in a match.
+- **Technical impact:** Options 1-4 change the game rules (deterministic, need new tests and a balance run); 5 is drawing only.
+- **Data and privacy:** None.
+- **Cost:** RM0 (code-drawn).
+- **Approval:** Awaiting approval
+- **Delivery:** Not started
+- **Review trigger:** The owner picks one or more, or playtests show the map already has enough going on.
+
 ## History (oldest first)
 
 - 2026-11-12 08:49 · Project records started for Lane Game.
@@ -456,3 +489,18 @@ None.
 - 2026-11-12 22:58 · PLAN-009 delivery: implemented.
 - 2026-11-12 22:58 · DEC-018 delivery: implemented.
 - 2026-11-12 22:58 · REP-012 written: PLAN-009: the batik paper-cut look.
+- 2026-11-12 23:14 · DEC-019 proposed: Map view fills the screen width.
+- 2026-11-12 23:14 · DEC-020 proposed: Make the map more engaging.
+- 2026-11-12 23:14 · PLAN-010 proposed: Full-width map and paper ultimate effects.
+- 2026-11-12 23:14 · Owner approved DEC-019: "lets expand the map now so it fits the width of the screen".
+- 2026-11-12 23:14 · Owner approved PLAN-010: "lets expand the map now so it fits the width of the screen ... redraw the ultimate effects in paper style too".
+- 2026-11-12 23:14 · PLAN-010 delivery: in progress.
+- 2026-11-12 23:21 · PLAN-010 T1: PASS (Phone check: the map fills the screen width (390 px; the whole map was 260 px on this screen); dragging looks up and down; the corner button shows the whole map and comes back; double-tap zooms in 1.8x and back; pinch zooms; orders work while zoomed; PHONE CHECK OK.).
+- 2026-11-12 23:21 · PLAN-010 T2: PASS (Effect sheet of all 20 ultimate bursts, the five auras and both banners reviewed: paper strips and pieces with white cut edges and crisp shadows, tissue-paper glows, paper confetti, a clean crescent for Senja; screenshots of Kail's Riptide in a match checked.).
+- 2026-11-12 23:21 · PLAN-010 T3: PASS (Paper effects: about 1.07 ms per effect against 0.99 ms before (timing forced to finish). The map still paints once, in 11-18 ms. A full frame now takes about 4.3 ms (median) against about 3 ms before, because the map covers 50% more of the screen; 90th percentile about 14 ms after caching the fog layer. Desktop test browser without a graphics card, not a real phone.).
+- 2026-11-12 23:21 · PLAN-010 T4: PASS (npm run verify: 93/93 tests, build, docs and records; npm run soak 3/3; phone check OK; no change in src/game.).
+- 2026-11-12 23:21 · PLAN-010 T5: NOT RUN (Not yet tried on the owner's phone.).
+- 2026-11-12 23:21 · PLAN-010 T6: NOT RUN (Waiting for the owner's verdict.).
+- 2026-11-12 23:21 · PLAN-010 delivery: implemented.
+- 2026-11-12 23:21 · DEC-019 delivery: implemented.
+- 2026-11-12 23:21 · REP-013 written: Full-width map, paper ultimates, five map ideas.

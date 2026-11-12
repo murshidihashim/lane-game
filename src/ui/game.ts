@@ -3,7 +3,7 @@ import { Bot, type BotLevel } from '../game/bot';
 import { LANE_NAMES, type LaneId } from '../game/map';
 import { CLASSES, HEROES, ITEMS, MANA, SPECIES, TICKS_PER_SECOND, type HeroKind, type ItemId, type SpeciesId } from '../game/rules';
 import { type Command, DEFAULT_PICKS, Sim, randomPicks, randomSpecies } from '../game/sim';
-import { type Layout, type View, MAX_ZOOM, applyView, clampView, computeLayout, homeView, inField, inRect, toScreen, toWorld } from './layout';
+import { type Layout, type View, applyView, clampView, computeLayout, homeView, homeZoom, inField, inRect, maxZoom, overviewView, toScreen, toWorld } from './layout';
 import { COMMAND_ORDERS, type CommandAction, commandTargets, moveCommand, orderCommand, orderLabel, orderTargets, resolveCommand } from './placement';
 import { DRAG_LIFT, Renderer, type UiState, nearestTarget } from './render';
 
@@ -15,7 +15,7 @@ export interface Settings {
 
 const STEP_MS = 1000 / TICKS_PER_SECOND;
 const TAP_SLOP = 10;
-const ZOOM_IN = 1.8; // the zoom button and double-tap zoom (DEC-016)
+const ZOOM_IN = 1.8; // double-tap zoom, relative to the usual full-width view (DEC-016, DEC-019)
 const DOUBLE_TAP_MS = 320;
 
 export class Game {
@@ -33,7 +33,8 @@ export class Game {
   private autoBot: Bot | null = null;
   /** The screen layout with the whole map in view, and the camera on top of it (DEC-016). */
   private base!: Layout;
-  private view: View = homeView();
+  private view: View = overviewView();
+  private viewSet = false; // the first layout puts the camera on the usual view
   private layout!: Layout;
   /** Pointers on the canvas (two of them = a pinch), a field drag that may become a pan, the last tap. */
   private pointers = new Map<number, { x: number; y: number }>();
@@ -79,7 +80,7 @@ export class Game {
     this.autoBot = this.opts.autoplay ? new Bot(0, s ^ 0x5bd1e995, 'normal') : null;
     this.log = [];
     this.renderer.reset();
-    if (this.base) this.setView(homeView());
+    if (this.base) this.setView(homeView(this.base));
     this.ui = { dragHero: null, command: null, hover: null, toast: null };
     this.acc = 0;
     this.resultShown = false;
@@ -99,7 +100,8 @@ export class Game {
     this.canvas.width = Math.round(w * dpr);
     this.canvas.height = Math.round(h * dpr);
     this.base = computeLayout(w, h, dpr);
-    this.setView(this.view);
+    if (!this.viewSet) { this.viewSet = true; this.setView(homeView(this.base)); }
+    else this.setView(this.view);
   }
 
   /** Move the camera (kept inside the map). */
@@ -108,11 +110,32 @@ export class Game {
     this.layout = applyView(this.base, this.view);
   }
 
-  /** Zoom in on a screen point, or back out to the whole map. */
+  /** Double-tap: zoom in on a screen point, or back to the usual full-width view (keeping the height you were looking at). */
   private toggleZoom(sx: number, sy: number): void {
-    if (this.view.zoom > 1.05) { this.setView(homeView()); return; }
+    const home = homeZoom(this.base);
+    if (this.view.zoom > home * 1.05) { this.setView({ zoom: home, cx: this.view.cx, cy: this.view.cy }); return; }
     const [wx, wy] = toWorld(this.layout, sx, sy);
-    this.setView({ zoom: ZOOM_IN, cx: wx, cy: wy });
+    this.setView({ zoom: home * ZOOM_IN, cx: wx, cy: wy });
+  }
+
+  /** If a hero is off the screen, scroll the map up or down to it (DEC-019). */
+  private lookAtHero(kind: HeroKind): void {
+    const h = this.sim.heroOf(0, kind);
+    if (!h || !h.alive) return;
+    const l = this.layout;
+    const [, sy] = toScreen(l, h.x, h.y);
+    const margin = l.field.h * 0.12;
+    if (sy < l.field.y + margin || sy > l.field.y + l.field.h - margin) this.setView({ zoom: this.view.zoom, cx: this.view.cx, cy: h.y });
+  }
+
+  /** The corner button: see the whole map, and come back to the usual view. Where the whole map
+   *  already fills the width, it zooms in and out instead. */
+  private zoomButton(): void {
+    const home = homeZoom(this.base);
+    const f = this.layout.field;
+    if (home <= 1.02) { this.toggleZoom(f.x + f.w / 2, f.y + f.h * 0.62); return; }
+    if (this.view.zoom > 1.02) this.setView(overviewView());
+    else this.setView({ zoom: home, cx: this.view.cx, cy: this.view.cy });
   }
 
   private frame(now: number): void {
@@ -234,7 +257,7 @@ export class Game {
     if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, p);
     if (this.pinch && this.pointers.size >= 2) {
       const [a, b] = [...this.pointers.values()];
-      const zoom = Math.max(1, Math.min(MAX_ZOOM, (this.pinch.zoom0 * Math.hypot(a.x - b.x, a.y - b.y)) / this.pinch.d0));
+      const zoom = Math.max(1, Math.min(maxZoom(this.base), (this.pinch.zoom0 * Math.hypot(a.x - b.x, a.y - b.y)) / this.pinch.d0));
       // keep the world point that started between the fingers under the fingers' midpoint
       const scale = this.base.baseScale * zoom;
       const mx = (a.x + b.x) / 2 - (this.base.field.x + this.base.field.w / 2);
@@ -249,8 +272,8 @@ export class Game {
       if (moved(p)) this.ui.dragHero.moved = true;
       return;
     }
-    // One finger on the field while zoomed in: look around.
-    if (this.pan && this.view.zoom > 1.01 && (this.pan.moved || moved(p))) {
+    // One finger dragged on the field: look around (the camera stays inside the map).
+    if (this.pan && (this.pan.moved || moved(p))) {
       this.pan.moved = true;
       this.setView({ zoom: this.view.zoom, cx: this.pan.cx - (p.x - this.pan.x) / this.layout.scale, cy: this.pan.cy - (p.y - this.pan.y) / this.layout.scale });
       this.ui.hover = null;
@@ -278,7 +301,7 @@ export class Game {
     if (btn && same) {
       this.cancelDrag();
       if (btn.kind === 'gear') document.dispatchEvent(new CustomEvent('open-settings'));
-      else if (btn.kind === 'zoom') this.toggleZoom(this.layout.field.x + this.layout.field.w / 2, this.layout.field.y + this.layout.field.h * 0.62);
+      else if (btn.kind === 'zoom') this.zoomButton();
       else if (btn.kind === 'wave') this.cycleWave(btn.lane);
       else if (btn.kind === 'ult') this.callUlt(btn.hero);
       else if (btn.kind === 'shop') document.dispatchEvent(new CustomEvent('open-shop', { detail: btn.hero ?? this.sim.players[0].picks[0] }));
@@ -294,6 +317,7 @@ export class Game {
         // Tap a hero's panel: open (or close) its command menu.
         const cur = this.ui.command;
         this.ui.command = cur && cur.hero === dh.hero && cur.action === null ? null : { hero: dh.hero, action: null };
+        if (this.ui.command) this.lookAtHero(dh.hero);
         return;
       }
       this.orderHero(dh.hero, p.x, p.y - DRAG_LIFT); // dragging a portrait onto the map: a quick order

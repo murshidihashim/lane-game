@@ -476,37 +476,43 @@ export class MapPainter {
   private canvas: HTMLCanvasElement | null = null;
   private key = '';
   private res = 1;
+  private paintScale = 1;
 
-  /** The painted field for this screen size and lane setup: the whole map at zoom 1, drawn once,
-   *  at extra resolution so it stays sharp when the camera zooms in (DEC-016). */
+  /** The whole map painted once at the usual full-width scale (DEC-019), at extra resolution so it
+   *  stays sharp when the camera zooms in (DEC-016). */
   get(l: Layout, sim: Sim): HTMLCanvasElement {
-    const key = `${Math.round(l.field.w)}x${Math.round(l.field.h)}@${l.dpr}/${sim.laneCount}`;
+    const P = l.homeScale;
+    const ww = (FIELD.maxX - FIELD.minX) * P;
+    const wh = (FIELD.maxY - FIELD.minY) * P;
+    const key = `${Math.round(ww)}x${Math.round(wh)}@${l.dpr}/${sim.laneCount}`;
     if (this.canvas && this.key === key) return this.canvas;
     // Up to 2x the screen density, but no more than ~3.5 million pixels (phone memory).
-    const area = Math.max(1, l.field.w * l.field.h);
-    this.res = Math.max(1, Math.min(l.dpr * 2, Math.sqrt(3_500_000 / area)));
+    this.res = Math.max(1, Math.min(l.dpr * 2, Math.sqrt(3_500_000 / Math.max(1, ww * wh))));
+    this.paintScale = P;
     const c = document.createElement('canvas');
-    c.width = Math.max(1, Math.round(l.field.w * this.res));
-    c.height = Math.max(1, Math.round(l.field.h * this.res));
+    c.width = Math.max(1, Math.round(ww * this.res));
+    c.height = Math.max(1, Math.round(wh * this.res));
     const ctx = c.getContext('2d');
     if (ctx) {
       ctx.setTransform(this.res, 0, 0, this.res, 0, 0);
-      paintField(ctx, { ...l, scale: l.baseScale, vx: FIELD.minX, vy: FIELD.minY }, sim, this.res);
+      paintField(ctx, { ...l, field: { x: 0, y: 0, w: ww, h: wh }, scale: P, vx: FIELD.minX, vy: FIELD.minY }, sim, this.res);
     }
     this.canvas = c;
     this.key = key;
     return c;
   }
 
-  /** Draw the part of the painted map the camera sees into the field. */
+  /** Draw the part of the painted map the camera sees into the field (the map may not cover all of it). */
   draw(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim): void {
     const c = this.get(l, sim);
-    const k = this.res * l.baseScale; // cache pixels per world unit
-    const sx = (l.vx - FIELD.minX) * k;
-    const sy = (l.vy - FIELD.minY) * k;
-    const sw = (l.field.w / l.scale) * k;
-    const sh = (l.field.h / l.scale) * k;
-    ctx.drawImage(c, sx, sy, sw, sh, l.field.x, l.field.y, l.field.w, l.field.h);
+    const k = this.res * this.paintScale; // cache pixels per world unit
+    const x0 = Math.max(FIELD.minX, l.vx);
+    const y0 = Math.max(FIELD.minY, l.vy);
+    const x1 = Math.min(FIELD.maxX, l.vx + l.field.w / l.scale);
+    const y1 = Math.min(FIELD.maxY, l.vy + l.field.h / l.scale);
+    if (x1 <= x0 || y1 <= y0) return;
+    ctx.drawImage(c, (x0 - FIELD.minX) * k, (y0 - FIELD.minY) * k, (x1 - x0) * k, (y1 - y0) * k,
+      l.field.x + (x0 - l.vx) * l.scale, l.field.y + (y0 - l.vy) * l.scale, (x1 - x0) * l.scale, (y1 - y0) * l.scale);
   }
 }
 

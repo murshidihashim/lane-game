@@ -12,7 +12,7 @@ Everything here should work from a phone.
 1. You'll get a message that a change is ready and the checks are green.
 2. Open the preview on your phone (refresh if it looks old) and follow the checklist.
 
-## 2 · Checklist for PLAN-001 to PLAN-007 (about 30 minutes)
+## 2 · Checklist for PLAN-001 to PLAN-010 (about 30 minutes)
 Write down what you **saw**, not just "it's fine".
 - [ ] It opens in portrait. "How to play", then the species step, make sense.
 - [ ] The draft: you and the bot take turns. Tap heroes to see them on the stage (Trait, Power,
@@ -25,8 +25,11 @@ Write down what you **saw**, not just "it's fine".
       go home to heal when badly hurt. Smart enough, or too independent?
 - [ ] Open the Shop and buy items. At level 4, watch for "ULT NOW" and tap it.
 - [ ] Is the fog clear? Can you read the characters and tower health on your phone?
-- [ ] Try the zoom: tap the magnifier (bottom-right of the map), double-tap or pinch; drag to look
-      around. Does the pace feel right now (everyone walks about 30% slower)?
+- [ ] The map fills your screen's width and starts at your side. Drag it up and down to look around.
+      Tap the magnifier (bottom-right) to see the whole map and again to come back; double-tap or
+      pinch to look closer. Is this better than the smaller whole-map view? Does the pace feel right?
+- [ ] The paper look: paper standees, batik board, indigo menus. Ultimates now look like cut paper
+      too. Is everything easy to read on your phone?
 - [ ] Watch the characters: walking, breathing, attacking, flashing when hit. Better than before?
 - [ ] Play 5 or more matches with different species and heroes. Rematch keeps your line-up.
 - [ ] Answer these questions:

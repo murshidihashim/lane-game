@@ -5,7 +5,7 @@ Decisions:
   It replaces the earlier Hikayat look from DEC-010.
 - DEC-013: characters, ultimate effects and tower health.
 
-Plans: PLAN-009 (this look), PLAN-004 and PLAN-006 (characters).
+Plans: PLAN-009 (this look), PLAN-010 (paper ultimate effects), PLAN-004 and PLAN-006 (characters).
 
 Code:
 - `src/ui/art.ts`: palette, batik patterns, the die-cut helper, paper forts, the paper map.
@@ -73,9 +73,11 @@ Order colours and species colours are unchanged; see the code (`ORDER_COLORS` an
    - eight walk frames that follow distance walked;
    - idle breathing and three attack beats;
    - a white flash when hit, and a rise from the base when appearing.
-   - Heroes are about 34 px tall and troops about 21 px; both grow with zoom.
+   - Heroes are about 34 px tall and troops about 21 px in the usual full-width view (DEC-019); both
+     grow when you zoom in, and shrink a little in the whole-map view.
 5. **Draw once, copy every frame.**
-   - The map is painted once at up to twice the screen's sharpness (zoom stays crisp).
+   - The map is painted once at the full-width scale, at up to twice the screen's sharpness (zoom
+     stays crisp).
    - Figures are cached per pose, and forts per size.
    - Per-frame shadows are only crisp offset copies under cards. There is one blurred shadow per
      frame, under the board.
@@ -85,9 +87,15 @@ Order colours and species colours are unchanged; see the code (`ORDER_COLORS` an
 8. **The fog of war is indigo dye.** Everything outside your vision gets an indigo wash with faint
    batik motifs and soft edges. Enemies there are not drawn. Towers, the Pusaka and their health
    stay readable above it.
-9. **Ultimates are big moments:** a banner across the top and the hero's own effect on the map (see
-   `ultfx.ts`). Effects keep their PLAN-004 shapes. A paper-style redraw of the effects is a
-   possible later pass.
+9. **Ultimates are big moments, in cut paper (PLAN-010).** A team-coloured paper card banner runs
+   across the top, and each hero's own effect plays on the map (see `ultfx.ts`):
+   - rings and strokes are paper strips with a white cut edge and a crisp shadow; wide rings get a
+     stitched line;
+   - shapes are paper pieces: Benteng's dome printed with batik dots, Senja's crescent moon, Ombak's
+     wave, feathers, coins, drops and stars;
+   - glows are layered tissue paper with a perforated edge, and sparks are paper confetti.
+
+   There are no blurred shadows or gradients in effects, so they stay cheap every frame.
 10. **No borrowed looks.** No shapes, icons, frames or colours copied from other games.
 
 ## Map pieces
@@ -108,6 +116,5 @@ Order colours and species colours are unchanged; see the code (`ORDER_COLORS` an
 ## What is not done yet
 
 - No sound or music.
-- Ultimate effects keep their earlier shapes; only their colours follow the palette.
 - A real artist pass (hand-cut paper photographed or painted, richer batik) is a later, separate
   plan with its own cost.

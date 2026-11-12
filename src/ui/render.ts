@@ -1,7 +1,7 @@
 // Drawing only, in the batik paper style (DEC-018, DEC-013). Reads the match state and the UI state;
 // never changes the rules. The painted map is cached (see art.ts); characters come from figures.ts,
 // ultimate effects from ultfx.ts; the fog of war (DEC-012) is drawn over everything you can't see.
-import { CORES, LANES, LANE_HALF, pointAt } from '../game/map';
+import { CORES, FIELD, LANES, LANE_HALF, pointAt } from '../game/map';
 import { CLASSES, HEROES, ITEMS, ITEM_SLOTS, MANA, MATCH, TICKS_PER_SECOND, UNITS, WARDS, type HeroKind, type ItemId } from '../game/rules';
 import type { Ent, GameEvent, Sim } from '../game/sim';
 import { MapPainter, PAL, SPECIES_COLORS, batikPattern, glyph, kubu, pusaka, songket, teamColors, type Glyph } from './art';
@@ -40,6 +40,7 @@ export class Renderer {
   private anim = new Map<number, { dist: number; x: number; y: number; hp: number; hurtAt: number; born: number }>();
   private vision: [number, number, number][] = [];
   private fogCanvas: HTMLCanvasElement | null = null;
+  private fogWash: HTMLCanvasElement | null = null;
   private painter = new MapPainter();
   private now = 0;
 
@@ -106,17 +107,24 @@ export class Renderer {
 
   private drawField(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim): void {
     const f = l.field;
-    // the board sits on a sheet of cream paper with a soga-brown border line and a paper shadow
+    // the board sits on a sheet of cream paper with a soga-brown border line and a paper shadow;
+    // in the usual full-width view its sides run off the screen's edges (DEC-019)
+    const [bx0, by0] = toScreen(l, FIELD.minX, FIELD.minY);
+    const [bx1, by1] = toScreen(l, FIELD.maxX, FIELD.maxY);
     ctx.save();
-    ctx.shadowColor = 'rgba(5,8,20,0.55)';
-    ctx.shadowBlur = 8 * l.dpr;
-    ctx.shadowOffsetY = 3 * l.dpr;
+    ctx.beginPath();
+    ctx.rect(f.x, f.y, f.w, f.h);
+    ctx.clip();
+    // a crisp offset shadow (a blurred one over the whole board cost several ms a frame)
+    ctx.fillStyle = 'rgba(5,8,20,0.5)';
+    ctx.fillRect(bx0 - 3, by0 - 1, bx1 - bx0 + 10, by1 - by0 + 10);
     ctx.fillStyle = PAL.paperEdge;
-    ctx.fillRect(f.x - 5, f.y - 5, f.w + 10, f.h + 10);
-    ctx.restore();
+    ctx.fillRect(bx0 - 5, by0 - 5, bx1 - bx0 + 10, by1 - by0 + 10);
+    ctx.shadowColor = 'rgba(0,0,0,0)';
     ctx.strokeStyle = PAL.wood;
     ctx.lineWidth = 1;
-    ctx.strokeRect(f.x - 2.5, f.y - 2.5, f.w + 5, f.h + 5);
+    ctx.strokeRect(bx0 - 2.5, by0 - 2.5, bx1 - bx0 + 5, by1 - by0 + 5);
+    ctx.restore();
     this.painter.draw(ctx, l, sim);
   }
 
@@ -161,12 +169,22 @@ export class Renderer {
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
     const g = c.getContext('2d');
     if (!g) return;
-    g.globalCompositeOperation = 'source-over';
-    g.clearRect(0, 0, w, h);
-    g.fillStyle = 'rgba(14,20,44,0.70)';
-    g.fillRect(0, 0, w, h);
-    g.fillStyle = batikPattern(g, 'fog', k, k);
-    g.fillRect(0, 0, w, h);
+    // the indigo dye with its batik motifs is made once per size, then copied in each frame (one pass)
+    let wash = this.fogWash;
+    if (!wash || wash.width !== w || wash.height !== h) {
+      wash = document.createElement('canvas');
+      wash.width = w; wash.height = h;
+      const wg = wash.getContext('2d');
+      if (wg) {
+        wg.fillStyle = 'rgba(14,20,44,0.70)';
+        wg.fillRect(0, 0, w, h);
+        wg.fillStyle = batikPattern(wg, 'fog', k, k);
+        wg.fillRect(0, 0, w, h);
+      }
+      this.fogWash = wash;
+    }
+    g.globalCompositeOperation = 'copy';
+    g.drawImage(wash, 0, 0);
     g.globalCompositeOperation = 'destination-out';
     for (const [wx, wy, r] of this.vision) {
       const [sx, sy] = toScreen(l, wx, wy);
@@ -397,9 +415,10 @@ export class Renderer {
     };
   }
 
-  /** Characters grow with the zoom, a bit less than the map does, so a zoomed view still fits. */
+  /** Characters keep their size in the usual full-width view and grow (or shrink) with the zoom, a bit
+   *  less than the map does, so a zoomed view still fits. */
   private grow(l: Layout): number {
-    return 1 + (l.scale / l.baseScale - 1) * 0.75;
+    return Math.max(0.7, 1 + (l.scale / l.homeScale - 1) * 0.75);
   }
 
   private drawUnit(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, e: Ent, alpha: number, now: number): void {
@@ -789,7 +808,7 @@ export class Renderer {
     ctx.restore();
   }
 
-  /** The zoom button in the field's corner (DEC-016): + to zoom in, − to see the whole map. */
+  /** The zoom button in the field's corner (DEC-016, DEC-019): − to see the whole map, + to come back in. */
   private drawZoomButton(ctx: CanvasRenderingContext2D, l: Layout): void {
     const r = l.zoomBtn;
     const cx = r.x + r.w / 2;

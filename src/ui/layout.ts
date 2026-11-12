@@ -11,6 +11,7 @@ export interface Layout {
   gear: Rect;
   field: Rect; // the drawn battlefield
   scale: number; // CSS px per world unit
+  waves: Rect[]; // the lane wave chips (left, middle, right)
   heroSlots: [Rect, Rect];
   heroInfo: Rect;
   next: Rect;
@@ -22,13 +23,14 @@ export const TOP_H = 40;
 const HERO_H = 50;
 const CARD_H = 86;
 const MANA_H = 26;
+const WAVE_H = 30;
 const PAD = 8;
 
 export function computeLayout(w: number, h: number, dpr: number): Layout {
   const cw = Math.min(w, Math.round(h * 0.62));
   const cx = Math.round((w - cw) / 2);
   const col: Rect = { x: cx, y: 0, w: cw, h };
-  const hudH = HERO_H + CARD_H + MANA_H + PAD * 2;
+  const hudH = WAVE_H + HERO_H + CARD_H + MANA_H + PAD * 2;
   const fieldAvailH = h - TOP_H - hudH;
   const worldW = FIELD.maxX - FIELD.minX;
   const worldH = FIELD.maxY - FIELD.minY;
@@ -40,7 +42,10 @@ export function computeLayout(w: number, h: number, dpr: number): Layout {
   const gear: Rect = { x: cx + cw - 44, y: 2, w: 40, h: TOP_H - 4 };
 
   const hudY = h - hudH;
-  const heroY = hudY + PAD;
+  const waveY = hudY + PAD;
+  const chipW = (cw - 16 - 12) / 3;
+  const waves: Rect[] = [0, 1, 2].map((i) => ({ x: cx + 8 + i * (chipW + 6), y: waveY, w: chipW, h: WAVE_H - 6 }));
+  const heroY = waveY + WAVE_H;
   const heroSlots: [Rect, Rect] = [
     { x: cx + 10, y: heroY, w: 50, h: HERO_H - 4 },
     { x: cx + 66, y: heroY, w: 50, h: HERO_H - 4 },
@@ -54,7 +59,7 @@ export function computeLayout(w: number, h: number, dpr: number): Layout {
   const cardW = (cx + cw - 8 - cardsX - gap * 3) / 4;
   const cards: Rect[] = [0, 1, 2, 3].map((i) => ({ x: cardsX + i * (cardW + gap), y: cardY, w: cardW, h: CARD_H - 6 }));
   const mana: Rect = { x: cardsX, y: cardY + CARD_H, w: cx + cw - 8 - cardsX, h: 16 };
-  return { w, h, dpr, col, top, gear, field, scale, heroSlots, heroInfo, next, cards, mana };
+  return { w, h, dpr, col, top, gear, field, scale, waves, heroSlots, heroInfo, next, cards, mana };
 }
 
 export function inRect(r: Rect, x: number, y: number): boolean {

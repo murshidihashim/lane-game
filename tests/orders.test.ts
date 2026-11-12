@@ -8,7 +8,7 @@ import { stepN } from './helpers';
 /** A quiet match (no minion waves) where player 0 holds both hero cards and full mana. */
 function quiet(): Sim {
   const sim = new Sim({ seed: 3, waves: false });
-  sim.players[0].hand = ['rimba', 'benteng', 'spearmen', 'imps'];
+  sim.players[0].hand = ['rimba', 'benteng', 'spearmen', 'archers'];
   sim.players[0].mana = MANA.max;
   return sim;
 }
@@ -51,7 +51,7 @@ describe('hero orders', () => {
     const sim = quiet();
     const h = playHero(sim, 'rimba', 1, 2300);
     // The opponent sends Spearmen down the right lane.
-    sim.players[1].hand = ['spearmen', 'archers', 'imps', 'ram'];
+    sim.players[1].hand = ['spearmen', 'archers', 'gotong', 'ram'];
     sim.players[1].mana = MANA.max;
     sim.submit({ t: 'card', player: 1, card: 'spearmen', lane: 2, u: 3400 });
     stepN(sim, 40);

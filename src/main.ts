@@ -1,9 +1,10 @@
 // Entry point: reads test settings from the URL, wires the menus and starts the game.
 // URL options (for testing): ?lanes=2|3 &speed=1|1.5|2 &bot=easy|normal &seed=123 &autoplay=1 &nohelp=1
-//   &picks=kail,seri (your two heroes; with nohelp the pick screen is skipped)
+//   &picks=kail,seri (your two heroes; with nohelp the pick screen is skipped) &species=batu
 import type { BotLevel } from './game/bot';
 import { LANES } from './game/map';
-import { HEROES, HERO_IDS, TICKS_PER_SECOND, type HeroKind } from './game/rules';
+import { CLASS_CARDS, HEROES, HERO_IDS, SPECIES, SPECIES_IDS, SPELLS, TICKS_PER_SECOND, UNITS, type HeroKind, type SpeciesId } from './game/rules';
+import { SPECIES_COLORS } from './ui/art';
 import { randomPicks } from './game/sim';
 import { ORDER_COLORS } from './ui/render';
 import { Game, type Settings } from './ui/game';
@@ -59,8 +60,66 @@ const game = new Game($('game') as HTMLCanvasElement, loadSettings(), {
 // ---------- hero picks ----------
 
 const PICKS_STORE = 'lane-game-picks';
+const SPECIES_STORE = 'lane-game-species';
 let chosen: HeroKind[] = [];
 let shown: HeroKind = HERO_IDS[0];
+let chosenSpecies: SpeciesId = 'kampung';
+
+function loadSpecies(): SpeciesId {
+  const fromUrl = params.get('species');
+  if (fromUrl && fromUrl in SPECIES) return fromUrl as SpeciesId;
+  try {
+    const saved = localStorage.getItem(SPECIES_STORE);
+    if (saved && saved in SPECIES) return saved as SpeciesId;
+  } catch {
+    // ignore: default below
+  }
+  return 'kampung';
+}
+
+function buildSpeciesGrid(): void {
+  const grid = $('species-grid');
+  grid.replaceChildren(...SPECIES_IDS.map((id) => {
+    const d = SPECIES[id];
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tile sp';
+    b.id = `species-${id}`;
+    b.dataset.species = id;
+    b.style.setProperty('--spc', SPECIES_COLORS[id]);
+    b.style.setProperty('--ring', SPECIES_COLORS[id]);
+    b.innerHTML = `<span class="sig"></span><span class="nm"></span><span class="rl"></span>`;
+    (b.querySelector('.sig') as HTMLElement).textContent = d.name.slice(0, 2);
+    (b.querySelector('.nm') as HTMLElement).textContent = d.name;
+    (b.querySelector('.rl') as HTMLElement).textContent = `${d.classes.length} classes`;
+    return b;
+  }));
+}
+
+function refreshSpecies(): void {
+  for (const b of $('species-grid').querySelectorAll<HTMLButtonElement>('.tile')) b.classList.toggle('sel', b.dataset.species === chosenSpecies);
+  const d = SPECIES[chosenSpecies];
+  const det = $('species-detail');
+  const h = document.createElement('h3');
+  h.textContent = `${d.name}, ${d.title}`;
+  const p = document.createElement('p');
+  p.textContent = d.text;
+  const list = document.createElement('p');
+  list.textContent = d.classes.map((c) => `${CLASS_CARDS[c].name} (${CLASS_CARDS[c].cost}): ${UNITS[CLASS_CARDS[c].unit as keyof typeof UNITS].ability ?? ''}`).join(' · ');
+  const spell = document.createElement('p');
+  const b = document.createElement('b');
+  b.textContent = `Spell · ${SPELLS[d.spell].name} (${SPELLS[d.spell].cost})`;
+  spell.append(b, document.createTextNode(`. ${SPELLS[d.spell].text}.`));
+  det.replaceChildren(h, p, list, spell);
+}
+
+$('species-grid').addEventListener('click', (ev) => {
+  const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('.tile');
+  if (!b) return;
+  chosenSpecies = b.dataset.species as SpeciesId;
+  refreshSpecies();
+  refreshPick();
+});
 
 function loadPicks(): HeroKind[] {
   const fromUrl = (params.get('picks') ?? '').split(',').filter((k): k is HeroKind => k in HEROES);
@@ -126,12 +185,14 @@ function refreshPick(): void {
   det.replaceChildren(h, meta, line('Trait', d.trait.name, '', d.trait.text), line('Power', d.power.name, d.power.when, d.power.text), line('Ultimate, level 4', d.ult.name, d.ult.when, d.ult.text), vs);
   const go = $('pick-go') as HTMLButtonElement;
   go.disabled = chosen.length !== 2;
-  go.textContent = chosen.length === 2 ? `Start with ${HEROES[chosen[0]].name} + ${HEROES[chosen[1]].name}` : `Pick ${2 - chosen.length} more`;
+  go.textContent = chosen.length === 2 ? `Start: ${SPECIES[chosenSpecies].name} with ${HEROES[chosen[0]].name} + ${HEROES[chosen[1]].name}` : `Pick ${2 - chosen.length} more hero${chosen.length === 1 ? '' : 'es'}`;
 }
 
 function openPick(): void {
   game.setRunning(false);
   chosen = [...game.picks];
+  chosenSpecies = game.species;
+  refreshSpecies();
   shown = chosen[0] ?? HERO_IDS[0];
   refreshPick();
   show(pick, true);
@@ -140,7 +201,11 @@ function openPick(): void {
 function startWithPicks(): void {
   if (chosen.length !== 2) return;
   game.picks = [...chosen];
-  try { localStorage.setItem(PICKS_STORE, JSON.stringify(chosen)); } catch { /* not critical */ }
+  game.species = chosenSpecies;
+  try {
+    localStorage.setItem(PICKS_STORE, JSON.stringify(chosen));
+    localStorage.setItem(SPECIES_STORE, chosenSpecies);
+  } catch { /* not critical */ }
   show(pick, false);
   game.newMatch();
   game.setRunning(true);
@@ -162,7 +227,9 @@ $('pick-grid').addEventListener('click', (ev) => {
 });
 
 buildPickGrid();
+buildSpeciesGrid();
 game.picks = loadPicks();
+game.species = loadSpecies();
 game.newMatch();
 
 function refreshSettings(): void {
@@ -192,6 +259,8 @@ function showResult(g: Game): void {
     ['Towers you destroyed', String(g.sim.players[0].towersDestroyed)],
     ['Towers the bot destroyed', String(g.sim.players[1].towersDestroyed)],
     ['Match time', `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`],
+    ['Your people', SPECIES[g.sim.players[0].species].name],
+    ['Bot people', SPECIES[g.sim.players[1].species].name],
     ['Your heroes', heroes(0)],
     ['Bot heroes', heroes(1)],
     ['Lanes', `${g.settings.lanes} (${g.sim.lanes.map((id) => LANES[id].name).join(', ')})`],

@@ -11,7 +11,7 @@ const LEFT = LANES[0];
 function arena(hero: HeroKind, level = 1, extra?: HeroKind): { sim: Sim; h: Ent } {
   const other: HeroKind = extra ?? (hero === 'rimba' ? 'benteng' : 'rimba');
   const sim = new Sim({ seed: 11, waves: false, picks: [[hero, other], ['rimba', 'benteng']] });
-  sim.players[0].hand = [hero, other, 'spearmen', 'imps'];
+  sim.players[0].hand = [hero, other, 'spearmen', 'archers'];
   sim.players[0].mana = MANA.max;
   sim.submit({ t: 'card', player: 0, card: hero, lane: 0, u: 3000 });
   stepN(sim, 22);
@@ -29,7 +29,7 @@ function foe(sim: Sim, h: Ent, kind: UnitKind, dx: number, dy: number): Ent {
 
 /** An enemy hero next to the hero (played by player 1, then moved). */
 function foeHero(sim: Sim, h: Ent, kind: HeroKind, dx: number, dy: number): Ent {
-  sim.players[1].hand = [kind, 'spearmen', 'archers', 'imps'];
+  sim.players[1].hand = [kind, 'spearmen', 'archers', 'gotong'];
   sim.players[1].mana = MANA.max;
   sim.submit({ t: 'card', player: 1, card: kind, lane: 0, u: 3000 });
   sim.step();
@@ -78,7 +78,7 @@ describe('every hero', () => {
 
   test('best order gives +15% damage', () => {
     const { sim, h } = arena('ombak'); // best order: Push, which is the order a new hero starts with
-    const t = foe(sim, h, 'shieldbearer', 0, -200);
+    const t = foe(sim, h, 'spearman', 0, -200); // no armour
     h.atkCd = 0;
     const before = t.hp;
     sim.step();
@@ -153,7 +153,7 @@ describe('hero kits', () => {
     expect(sim.zones.some((z) => z.kind === 'lantern' && z.owner === 0)).toBe(true);
 
     const v = arena('seri', 4, 'rimba');
-    v.sim.players[0].hand = ['rimba', 'spearmen', 'imps', 'archers'];
+    v.sim.players[0].hand = ['rimba', 'spearmen', 'archers', 'gotong'];
     v.sim.players[0].mana = MANA.max;
     v.sim.submit({ t: 'card', player: 0, card: 'rimba', lane: 2, u: 2000 });
     stepN(v.sim, 22);
@@ -218,7 +218,7 @@ describe('hero kits', () => {
     const g = [0, 1, 2].map((i) => foe(sim, h, 'spearman', -80 + i * 80, -450));
     castPower(sim, h);
     for (const t of g) expect(t.hp).toBeLessThanOrEqual(340 - 140);
-    sim.players[1].hand = ['firebolt', 'spearmen', 'archers', 'imps'];
+    sim.players[1].hand = ['firebolt', 'spearmen', 'archers', 'gotong'];
     sim.players[1].mana = MANA.max;
     for (const t of g) t.hp = 0;
     sim.step();

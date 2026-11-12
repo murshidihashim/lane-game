@@ -6,19 +6,22 @@
     <meta name="theme-color" content="#16211a" />
     <title>Lane Game</title>
     <style>
-      /* One deliberate dark look for the game (same in light and dark system themes). */
+      /* Hikayat style (DEC-010): parchment panels, timber buttons, songket gold. One committed look. */
       :root {
-        color-scheme: dark;
-        --bg: #0f1612;
-        --panel: #16211a;
-        --ink: #f3efe4;
-        --muted: #a9b3a6;
-        --accent: #ffd166;
-        --you: #2e86de;
-        --foe: #e74c3c;
-        --btn: #2c3e33;
-        --btn-on: #ffd166;
-        --btn-on-ink: #1a1a1a;
+        color-scheme: light;
+        --bg: #2b1d14;
+        --parchment: #f3e6c4;
+        --parchment-dark: #e2cf9f;
+        --ink: #1d140e;
+        --muted: #6a5640;
+        --gold: #e0b04a;
+        --gold-dark: #a57a24;
+        --wood: #6b4426;
+        --wood-dark: #3f2717;
+        --maroon: #5a1e1e;
+        --you: #2f5fb3;
+        --foe: #c0392b;
+        --serif: Georgia, 'Times New Roman', serif;
       }
       * { box-sizing: border-box; }
       html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden;
@@ -26,40 +29,48 @@
         -webkit-touch-callout: none; overscroll-behavior: none; }
       #game { position: fixed; left: 0; right: 0; top: env(safe-area-inset-top, 0px); bottom: env(safe-area-inset-bottom, 0px);
         width: 100%; height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); touch-action: none; display: block; }
-      .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(5, 10, 7, 0.72); padding: 16px; z-index: 10; }
+      .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(29, 20, 14, 0.72); padding: 14px; z-index: 10; }
       .overlay.show { display: flex; }
-      .card { background: var(--panel); border: 1px solid #2f4236; border-radius: 16px; padding: 18px 18px 16px; width: min(380px, 100%); max-height: 100%; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
-      .card h1 { font-size: 22px; margin: 0 0 6px; }
-      .card h2 { font-size: 15px; margin: 14px 0 6px; color: var(--accent); }
-      .card p, .card li { font-size: 14.5px; line-height: 1.45; color: var(--ink); }
+      .card { background: var(--parchment); color: var(--ink); border: 2px solid var(--ink); border-radius: 14px; padding: 0 16px 16px; width: min(400px, 100%);
+        max-height: 100%; overflow: auto; box-shadow: 0 12px 40px rgba(0,0,0,.55), inset 0 0 0 4px var(--parchment-dark); }
+      .card::before { content: ""; display: block; height: 10px; margin: 0 -16px 12px; border-radius: 12px 12px 0 0;
+        background: repeating-linear-gradient(45deg, transparent 0 4px, var(--gold) 4px 5px, transparent 5px 9px),
+                    repeating-linear-gradient(-45deg, transparent 0 4px, var(--gold) 4px 5px, transparent 5px 9px), var(--maroon); }
+      .card h1 { font: 700 23px/1.15 var(--serif); margin: 0 0 6px; }
+      .card h2 { font: 700 15.5px/1.2 var(--serif); margin: 14px 0 6px; color: var(--maroon); }
+      .card p, .card li { font-size: 14.5px; line-height: 1.45; }
       .card ul { padding-left: 18px; margin: 6px 0; }
       .card .muted { color: var(--muted); font-size: 13px; }
       .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 4px; }
-      button { font: inherit; font-size: 15px; border: 0; border-radius: 10px; padding: 10px 14px; background: var(--btn); color: var(--ink); cursor: pointer; }
-      button.on { background: var(--btn-on); color: var(--btn-on-ink); font-weight: 700; }
-      button.primary { background: var(--accent); color: #1a1a1a; font-weight: 700; width: 100%; padding: 13px; margin-top: 14px; font-size: 16px; }
-      .result-title { font-size: 34px; font-weight: 800; text-align: center; margin: 4px 0 2px; }
+      button { font: inherit; font-size: 14.5px; border: 2px solid var(--ink); border-radius: 10px; padding: 9px 13px; background: var(--wood); color: var(--parchment); cursor: pointer; }
+      button:focus-visible { outline: 3px solid var(--gold); outline-offset: 1px; }
+      button.on { background: var(--gold); color: var(--ink); font-weight: 700; }
+      button.primary { background: var(--gold); color: var(--ink); font: 700 16.5px var(--serif); width: 100%; padding: 13px; margin-top: 14px; }
+      button.primary:disabled { opacity: 0.5; }
+      .result-title { font: 800 34px var(--serif); text-align: center; margin: 4px 0 2px; }
       .result-sub { text-align: center; color: var(--muted); margin: 0 0 10px; }
       table { width: 100%; border-collapse: collapse; font-size: 14px; }
-      td { padding: 5px 2px; border-bottom: 1px solid #263429; }
+      td { padding: 5px 2px; border-bottom: 1px solid var(--parchment-dark); }
       td:last-child { text-align: right; }
       .pick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 8px 0 10px; }
+      .species-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; margin: 8px 0 8px; }
       .tile { position: relative; display: grid; justify-items: center; gap: 2px; padding: 8px 2px 6px; border-radius: 10px;
-        background: #1f2d24; border: 2px solid transparent; color: var(--ink); font-size: 11px; line-height: 1.15; }
-      .tile .sig { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px;
-        background: var(--you); color: #fff; box-shadow: inset 0 0 0 3px var(--ring); }
-      .tile .nm { font-weight: 700; font-size: 12px; }
+        background: #fbf3df; border: 2px solid var(--parchment-dark); color: var(--ink); font-size: 11px; line-height: 1.15; }
+      .tile .sig { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font: 700 13px var(--serif);
+        background: var(--you); color: #fff8e6; box-shadow: 0 0 0 3px var(--gold), inset 0 0 0 2px var(--ring); border: 1.5px solid var(--ink); }
+      .tile .nm { font: 700 12px var(--serif); }
       .tile .rl { color: var(--muted); font-size: 10.5px; }
-      .tile .cs { position: absolute; top: 4px; left: 5px; font-weight: 800; font-size: 11px; color: #e3c6ff; }
-      .tile.sel { border-color: var(--accent); background: #2b3a2f; }
-      .tile .n { position: absolute; top: 3px; right: 4px; background: var(--accent); color: #1a1a1a; border-radius: 999px; font-weight: 800; font-size: 10px; padding: 1px 5px; }
-      .detail { background: #1f2d24; border-radius: 10px; padding: 10px 12px; font-size: 13.5px; line-height: 1.4; }
-      .detail h3 { margin: 0 0 2px; font-size: 16px; }
+      .tile .cs { position: absolute; top: 4px; left: 5px; font-weight: 800; font-size: 11px; color: #7b3fb0; }
+      .tile.sel { border-color: var(--ink); background: var(--gold); }
+      .tile .n { position: absolute; top: 3px; right: 4px; background: var(--maroon); color: var(--parchment); border-radius: 999px; font-weight: 800; font-size: 10px; padding: 1px 5px; }
+      .tile.sp .sig { background: var(--spc); border-radius: 10px; }
+      .detail { background: #fbf3df; border: 1.5px solid var(--parchment-dark); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; line-height: 1.4; }
+      .detail h3 { margin: 0 0 2px; font: 700 16px var(--serif); }
       .detail .meta { color: var(--muted); font-size: 12.5px; margin-bottom: 6px; }
       .detail p { margin: 4px 0; font-size: 13.5px; }
-      .detail b { color: var(--accent); }
+      .detail b { color: var(--maroon); }
       .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-      .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+      .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; border: 1px solid var(--ink); }
     </style>
   </head>
   <body>
@@ -71,11 +82,12 @@
         <p class="muted">Test build. Simple shapes, no sound. You are blue (bottom); the bot is red (top).</p>
         <h2>Goal</h2>
         <p>Destroy the enemy Pusaka (the heirloom behind their towers). If time runs out, whoever destroyed more towers wins.</p>
-        <h2>Cards</h2>
+        <h2>Your people and your lanes</h2>
         <ul>
-          <li>Drag a card into a lane (or tap a card, then tap a lane). It snaps onto the lane on your side.</li>
-          <li>Cards cost Semangat (spirit, the purple bar). It refills by itself, twice as fast in the last minute.</li>
-          <li>Break an enemy tower to drop cards further up that lane.</li>
+          <li>Before the match you pick a <b>species</b> (Kampung, Hutan, Sungai, Serangga or Batu) and 2 heroes.</li>
+          <li>Every 20 s each lane sends a <b>wave</b> of one of your species' classes. Tap a wave chip (above your heroes) to change what marches in that lane.</li>
+          <li>Your cards are your species' classes, its spell, and Petir (lightning). Drag a card into a lane, or tap a card then a lane.</li>
+          <li>Cards cost Semangat (spirit, the purple beads). It refills by itself, twice as fast in the last minute.</li>
         </ul>
         <h2>Heroes</h2>
         <ul>
@@ -84,15 +96,26 @@
           <li>Drag a hero's portrait (above your cards) onto the map to give an order:
             <b>Push</b> or <b>Gank</b> (a lane), <b>Defend</b> (your tower), <b>Farm</b> (a ✦ camp), <b>Retreat</b> (your Pusaka). The ★ order is the hero's best: +15% damage.</li>
           <li>A hero in the jungle is hidden from the enemy. Its first hit after that is an <b>Ambush</b> (double damage).</li>
-          <li>The middle lane is longer and winding. Its tower sits right in front of the Core.</li>
+          <li>The middle lane is longer and winding. Its tower sits right in front of the Pusaka.</li>
         </ul>
-        <button class="primary" data-action="start">Choose heroes</button>
+        <h2>The map pays</h2>
+        <ul>
+          <li><b>Ward</b> spots (stone cairns): a ward shows hidden enemy heroes for 90 s. Clearing an enemy ward pays.</li>
+          <li><b>Fruit groves</b> on the river pay Semangat. <b>Beast dens</b> give a hero Jungle Fury (+20% damage).</li>
+          <li><b>Gajah Mina</b> rises in the river at 1:30. Beat it and it joins you, charging down the middle lane.</li>
+          <li><b>Relics</b> glow at the shrines every 45 s: Semangat, XP or a boost for the hero who grabs one.</li>
+          <li>Hero kills and towers pay Semangat; the first kill of the match pays extra.</li>
+        </ul>
+        <button class="primary" data-action="start">Choose species and heroes</button>
       </div>
     </div>
 
     <div id="pick" class="overlay">
       <div class="card">
-        <h1>Pick 2 heroes</h1>
+        <h1>Choose your people</h1>
+        <div class="species-grid" id="species-grid"></div>
+        <div class="detail" id="species-detail"></div>
+        <h2>Pick 2 heroes</h2>
         <div class="legend"><span><i style="background:#ff6b6b"></i>Gank</span><span><i style="background:#54a0ff"></i>Defend</span><span><i style="background:#ff9f43"></i>Push</span><span><i style="background:#7bd389"></i>Farm</span><span>ring = best order · number = cost</span></div>
         <div class="pick-grid" id="pick-grid"></div>
         <div class="detail" id="pick-detail"></div>
@@ -111,7 +134,7 @@
         <h2>Bot</h2>
         <div class="row" data-group="bot"><button data-value="easy">Easy</button><button data-value="normal">Normal</button></div>
         <p class="muted">Changing lanes or bot starts a new match.</p>
-        <div class="row"><button data-action="help">How to play</button><button data-action="change-heroes">Change heroes</button><button data-action="restart">Restart match</button></div>
+        <div class="row"><button data-action="help">How to play</button><button data-action="change-heroes">Species &amp; heroes</button><button data-action="restart">Restart match</button></div>
         <button class="primary" data-action="close">Back to match</button>
       </div>
     </div>
@@ -122,7 +145,7 @@
         <p class="result-sub" id="result-sub"></p>
         <table id="result-table"></table>
         <p class="muted" id="result-note">Test notes: was it easy to follow every lane? Did you want to play again?</p>
-        <div class="row"><button data-action="change-heroes">Change heroes</button><button data-action="settings">Settings</button></div>
+        <div class="row"><button data-action="change-heroes">Species &amp; heroes</button><button data-action="settings">Settings</button></div>
         <button class="primary" data-action="rematch">Rematch</button>
       </div>
     </div>

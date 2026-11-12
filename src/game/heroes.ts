@@ -521,7 +521,7 @@ export const KITS: Record<HeroKind, Kit> = {
     },
     ult(sim, h) {
       const lane = sim.laneOf(h);
-      const troops = sim.ents.filter((e) => e.kind === 'unit' && e.alive && e.owner === me(h) && e.lane === lane && e.unit !== 'minion');
+      const troops = sim.ents.filter((e) => e.kind === 'unit' && e.alive && e.owner === me(h) && e.lane === lane && !e.wave);
       if (troops.length < 3) return false;
       sim.addZone({ kind: 'tide', owner: me(h), x: h.x, y: h.y, r: 0, lane, until: sim.tick + sec(10), heal: false });
       return true;

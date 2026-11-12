@@ -10,7 +10,7 @@ Decisions: DEC-006 (folk-tale world and names), DEC-007 (power system). Plan: PL
 - **Power**: fires by itself when its trigger happens, then waits its cooldown. Ranks 1–3 follow the hero's level.
 - **Ultimate**: unlocks at level 4, fires by itself on its trigger, once per life (ready again after respawn).
 - **Best order**: +15% damage while following it (gankers keep it for a few seconds after arriving).
-- **Deck**: 6 troop and spell cards plus your 2 heroes, picked before the match. Costs are in Semangat (spirit), the purple bar.
+- **Deck**: your species' troop classes, its spell and Petir, plus your 2 heroes, picked before the match. Costs are in Semangat (spirit), the purple beads. Species, troops and map rewards: see `species.md`.
 
 ## Roster
 
@@ -216,14 +216,3 @@ Bruiser · cost 5 · best order **Farm** · melee
 - **Ultimate: Swamp King** (when it drops below 40% health at level 4). For 8 s it heals 5% a second and can’t be slowed, stunned or silenced.
 - Strong vs Belang, Pendekar, long melee fights. Weak vs Helang, Tedung, Kail.
 - Inspired by: Dota’s life-stealing bruisers; Clash Royale’s tanky melee; river crocodile tales.
-
-## Troop and spell cards
-
-| Card | Cost | What it is |
-|---|---|---|
-| Silat Guards | 3 | 3 sturdy fighters |
-| Pemanah | 3 | 2 archers; can hit fliers |
-| Kerbau | 5 | Buffalo that only hits towers |
-| Kelip-kelip | 2 | 4 fast fire-flies |
-| Petir | 4 | Lightning strikes an area |
-| Perisai | 4 | One tough shield guard |

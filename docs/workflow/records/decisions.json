@@ -190,6 +190,85 @@
         "REP-003"
       ],
       "reviewTrigger": "Playtests show powers firing at bad moments too often."
+    },
+    {
+      "id": "DEC-008",
+      "title": "Creep species and lane waves",
+      "question": "How do creeps and troop cards work?",
+      "options": [
+        "Species sets waves and cards (built)",
+        "Species sets lane waves only",
+        "Species sets troop cards only"
+      ],
+      "choice": "Pick 1 of 5 species before the match. Each species has 3-4 troop classes. You choose which class marches in each lane's waves (change any time), and the same classes are your troop cards, plus one species spell and Petir.",
+      "rationale": "Gives an RTS-style faction choice before the match and a lane-by-lane wave decision during it, while keeping Clash-style card play.",
+      "impact": {
+        "user": "A species pick before each match; a wave strip to choose each lane’s creep class.",
+        "technical": "Species and class data, per-lane waves, unit abilities, species spells.",
+        "data": "None."
+      },
+      "cost": "none",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "approved",
+        "evidence": "make the creep system be that there's 5 creep species / variants where players need to to choose at the start of the game, each creep species/variants will have 3-4 classes of troops which players can choose to deploy on each lane",
+        "date": "2026-11-12"
+      },
+      "delivery": "implemented",
+      "reports": [],
+      "reviewTrigger": "Owner says per-lane waves or species cards are not what was meant."
+    },
+    {
+      "id": "DEC-009",
+      "title": "Ward order and map rewards",
+      "question": "What can heroes be told to do, and why go into the jungle?",
+      "options": [
+        "Ward order + map rewards (built)"
+      ],
+      "choice": "Orders: push tower, defend, gank, farm, ward, retreat. Map rewards: river fruit groves (Semangat), beast dens (hero buff), a river boss (Gajah Mina) that joins the killer's side, relics to collect, ward spots, and bounties for hero kills and towers.",
+      "rationale": "Gives heroes reasons to leave the lanes (Dota-style map play) and makes vision a resource.",
+      "impact": {
+        "user": "Ward spots, groves, dens, a river boss, relics and bounties appear on the map; new order spots when dragging a hero.",
+        "technical": "Ward and relic entities, camp types, boss ally, bounties.",
+        "data": "None."
+      },
+      "cost": "none",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "approved",
+        "evidence": "give players the option to also instruct the heroes, say to gank, defend, push tower, farm, ward / create incentives on the map for heroes to explore, ward, farm, gank etc",
+        "date": "2026-11-12"
+      },
+      "delivery": "implemented",
+      "reports": [],
+      "reviewTrigger": "Playtests show heroes ignore the map or matches swing too hard on the boss."
+    },
+    {
+      "id": "DEC-010",
+      "title": "Art style",
+      "question": "What should the game look like?",
+      "options": [
+        "Hikayat painted board-game style (built)",
+        "Wayang shadow-puppet style",
+        "Clean flat minimal style"
+      ],
+      "choice": "Hikayat style: a hand-painted folk-tale board game seen from above. Batik and songket motifs, rainforest greens, red laterite paths, timber forts, chunky ink-outlined tokens with class glyphs, team colours indigo (you) and crimson (opponent).",
+      "rationale": "Fits the folk-tale world (DEC-006), stays readable on a phone (tokens with glyphs, strong team colours), and can be drawn in code now and replaced by real art later.",
+      "impact": {
+        "user": "The whole game looks different but plays the same.",
+        "technical": "New drawing module; the map is drawn once and cached for speed.",
+        "data": "None."
+      },
+      "cost": "none",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "approved",
+        "evidence": "now simulate a cohesive artstyle as well",
+        "date": "2026-11-12"
+      },
+      "delivery": "implemented",
+      "reports": [],
+      "reviewTrigger": "Owner prefers another direction, or the phone gets slow."
     }
   ],
   "history": [
@@ -372,6 +451,90 @@
     {
       "at": "2026-11-12 12:33",
       "text": "REP-004 written: PLAN-002: 20 heroes built."
+    },
+    {
+      "at": "2026-11-12 13:18",
+      "text": "DEC-008 proposed: Creep species and lane waves."
+    },
+    {
+      "at": "2026-11-12 13:18",
+      "text": "DEC-009 proposed: Ward order and map rewards."
+    },
+    {
+      "at": "2026-11-12 13:18",
+      "text": "DEC-010 proposed: Art style."
+    },
+    {
+      "at": "2026-11-12 13:18",
+      "text": "Owner approved DEC-008: \"make the creep system be that there's 5 creep species / variants where players need to to choose at the start of the game, each creep species/variants will have 3-4 classes of troops which players can choose to deploy on each lane\"."
+    },
+    {
+      "at": "2026-11-12 13:18",
+      "text": "Owner approved DEC-009: \"give players the option to also instruct the heroes, say to gank, defend, push tower, farm, ward / create incentives on the map for heroes to explore, ward, farm, gank etc\"."
+    },
+    {
+      "at": "2026-11-12 13:18",
+      "text": "Owner approved DEC-010: \"now simulate a cohesive artstyle as well\"."
+    },
+    {
+      "at": "2026-11-12 13:18",
+      "text": "PLAN-003 proposed: Creep species, wards, map rewards and art style."
+    },
+    {
+      "at": "2026-11-12 13:18",
+      "text": "Owner approved PLAN-003: \"make the creep system be that there's 5 creep species / variants where players need to to choose at the start of the game ... give players the option to also instruct the heroes, say to gank, defend, push tower, farm, ward ... create incentives on the map for heroes to explore, ward, farm, gank etc ... now simulate a cohesive artstyle as well\"."
+    },
+    {
+      "at": "2026-11-12 13:18",
+      "text": "PLAN-003 delivery: in progress."
+    },
+    {
+      "at": "2026-11-12 13:41",
+      "text": "PLAN-003 T1: PASS (tests/species.test.ts 13/13: 5 species with 3-4 classes; deck = classes + spell + Petir + 2 heroes; every class card spawns its units; each ability (flying, splash, armour, slow, poison, chain, charge, leap, burst, hatching) and all 6 spells. Found and fixed a bug: Kerikil never burst because it has no normal hit.)."
+    },
+    {
+      "at": "2026-11-12 13:41",
+      "text": "PLAN-003 T2: PASS (tests/species.test.ts lane waves 2/2: each lane sends the chosen class at 60% strength; a change affects only that lane; another species' class is refused. Browser check: tapping the left wave chip changed kerikil -> golem.)."
+    },
+    {
+      "at": "2026-11-12 13:41",
+      "text": "PLAN-003 T3: PASS (tests/map.test.ts wards 3/3: Ward order plants a ward (+20 XP) then the hero returns to its job; the ward reveals a hidden enemy hero; an enemy hero clears it for +1 Semangat and 30 XP; an expired ward pays nothing. Browser check: dragging a hero onto a cairn gives a Ward order.)."
+    },
+    {
+      "at": "2026-11-12 13:41",
+      "text": "PLAN-003 T4: PASS (tests/map.test.ts rewards 4/4 plus orders.test.ts farm test (grove pays 2 Semangat): den gives Jungle Fury; Gajah Mina rises at 1:30 and joins the killer's side; relics appear in pairs and pay; hero kills (first-kill bonus) and towers pay. Soak, 100 matches: wards placed 83, Jungle Fury 52, Gajah Mina beaten 11, relics taken 343, first kills 95.)."
+    },
+    {
+      "at": "2026-11-12 13:41",
+      "text": "PLAN-003 T5: PASS (tests/determinism.test.ts 4/4 with random species and heroes (step-by-step hash match, replay of logged moves). npm run soak: 100 + 20 matches finished, no errors; every species played 37-43 times; every hero played.)."
+    },
+    {
+      "at": "2026-11-12 13:41",
+      "text": "PLAN-003 T6: NOT RUN (Automated phone-size check (iPhone 13 size) passed in the new art style: species pick, wave chip, card play, farm and ward orders, full match to the result screen, 2-lane mode (PHONE CHECK OK). The owner's own phone has not been tried yet.)."
+    },
+    {
+      "at": "2026-11-12 13:41",
+      "text": "PLAN-003 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 13:41",
+      "text": "DEC-008 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 13:41",
+      "text": "DEC-009 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 13:41",
+      "text": "DEC-010 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 13:41",
+      "text": "REP-005 written: PLAN-003: species, wards, map rewards and art style."
+    },
+    {
+      "at": "2026-11-12 13:42",
+      "text": "PLAN-003 implemented: T1-T5 PASS (72 tests, soak 120 matches, phone check OK); T6/T7 wait for the owner. REP-005 written."
     }
   ]
 }

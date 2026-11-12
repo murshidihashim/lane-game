@@ -1,4 +1,4 @@
-// PLAN-001 T1/T5 browser check: opens the built game at phone size and plays it.
+// PLAN-001 T1/T5, PLAN-002, PLAN-003 T6 prep: opens the built game at phone size and plays it.
 // Needs Playwright with Chromium available on the machine (not a project dependency).
 // Usage: npm run build && node scripts/phone-check.cjs [screenshot-folder]
 const { chromium, devices } = require('playwright');
@@ -29,8 +29,9 @@ async function page(browser, query) {
     const { p, errors } = await page(browser, '?seed=7');
     await p.screenshot({ path: `${out}/1-help.png` });
     await p.click('button[data-action="start"]');
-    // Pick screen: choose Kail and Seri.
+    // Pick screen: choose the Batu species, then Kail and Seri.
     await p.waitForSelector('#pick.show');
+    await p.click('#species-batu');
     await p.click('#pick-kail');
     await p.click('#pick-seri');
     await p.screenshot({ path: `${out}/1b-pick.png` });
@@ -38,7 +39,10 @@ async function page(browser, query) {
     const picks = await p.evaluate(() => window.__game.sim.players[0].picks);
     if (JSON.stringify(picks) !== '["kail","seri"]') fail('pick screen did not start a match with Kail + Seri: ' + JSON.stringify(picks));
     else console.log('PASS pick screen starts a match with the two chosen heroes');
-    const st = () => p.evaluate(() => { const g = window.__game; const s = g.sim; return { hand: s.players[0].hand, mana: s.players[0].mana, heroes: Object.keys(s.players[0].heroIds), L: g.layout, units: s.ents.filter((e) => e.kind === 'unit' && e.owner === 0 && e.unit !== 'minion').length }; });
+    const sp = await p.evaluate(() => ({ species: window.__game.sim.players[0].species, lanes: window.__game.sim.players[0].laneClass }));
+    if (sp.species !== 'batu' || !sp.lanes.every((c) => ['kerikil', 'golem', 'lontar'].includes(c))) fail('species pick did not give Batu lanes: ' + JSON.stringify(sp));
+    else console.log('PASS species pick starts the match as Batu, lanes', JSON.stringify(sp.lanes));
+    const st = () => p.evaluate(() => { const g = window.__game; const s = g.sim; return { hand: s.players[0].hand, mana: s.players[0].mana, heroes: Object.keys(s.players[0].heroIds), L: g.layout, units: s.ents.filter((e) => e.kind === 'unit' && e.owner === 0 && !e.wave).length }; });
     let s = await st();
     const c = (r) => [r.x + r.w / 2, r.y + r.h / 2];
     const w2s = (wx, wy) => [s.L.field.x + wx * s.L.scale, s.L.field.y + (wy - 500) * s.L.scale];
@@ -58,7 +62,7 @@ async function page(browser, query) {
       await p.screenshot({ path: `${out}/2-hero-played.png` });
     } else console.log('NOTE no hero card in the opening hand for this seed');
     // tap the cheapest troop card, then tap the right lane, once it is affordable
-    const cost = { imps: 2, spearmen: 3, archers: 3, shieldbearer: 4, ram: 5 };
+    const cost = { kerikil: 3, lontar: 4, golem: 6 };
     let troop = -1;
     for (let wait = 0; wait < 40 && troop < 0; wait++) {
       await p.waitForTimeout(250);
@@ -76,6 +80,17 @@ async function page(browser, query) {
     s = await st();
     if (s.units <= before) fail('tap card + tap lane did not place troops');
     else console.log('PASS tap a card, then tap a lane, places troops');
+    // tap the left wave chip: the next Batu class marches in the left lane
+    {
+      const lane0 = (await p.evaluate(() => window.__game.sim.players[0].laneClass[0]));
+      await p.mouse.click(...c(s.L.waves[0]));
+      await p.waitForTimeout(150);
+      await p.screenshot({ path: `${out}/3b-wave-chip.png` });
+      const after = await p.evaluate(() => window.__game.sim.players[0].laneClass[0]);
+      const order = ['kerikil', 'golem', 'lontar'];
+      if (after !== order[(order.indexOf(lane0) + 1) % 3]) fail(`wave chip tap: left lane ${lane0} -> ${after}`);
+      else console.log(`PASS tapping the left wave chip changes the left lane wave: ${lane0} -> ${after}`);
+    }
     if (hero) {
       const slot = c(s.L.heroSlots[hero === 'kail' ? 0 : 1]);
       const camp = w2s(1260, 3470);
@@ -88,6 +103,14 @@ async function page(browser, query) {
       const order = await p.evaluate((k) => window.__game.sim.heroOf(0, k).order.type, hero);
       if (order !== 'farm') fail(`hero order drag gave "${order}", expected farm`);
       else console.log('PASS drag a hero portrait onto a camp gives a Farm order');
+      // and onto a ward cairn: a Ward order
+      s = await st();
+      const ward = w2s(1050, 4200);
+      await drag(slot, [ward[0], ward[1] + 28]);
+      await p.waitForTimeout(300);
+      const order2 = await p.evaluate((k) => window.__game.sim.heroOf(0, k).order.type, hero);
+      if (order2 !== 'ward') fail(`hero ward drag gave "${order2}", expected ward`);
+      else console.log('PASS drag a hero portrait onto a ward cairn gives a Ward order');
     }
     await p.waitForTimeout(3000);
     await p.screenshot({ path: `${out}/5-playing.png` });

@@ -116,7 +116,16 @@ export const LANES: readonly Lane[] = [
 ];
 
 export const CORES: readonly [Pt, Pt] = [[1950, 6210], [1950, 730]];
+/** River fruit groves (neutral camps that pay Semangat). */
 export const CAMPS: readonly Pt[] = [[1260, 3470], [2640, 3470]];
+/** Beast dens: one deeper in each side's jungle (player 0's first). Clearing one gives Jungle Fury. */
+export const DENS: readonly Pt[] = [[2600, 4700], [1300, 2240]];
+/** Gajah Mina, the river boss, sits under the middle bridge. */
+export const BOSS_PIT: Pt = [1950, 3470];
+/** Ward spots: three in each half (player 0's half first). */
+export const WARD_SPOTS: readonly Pt[] = [[1050, 4200], [2500, 3900], [2900, 5300], [2850, 2740], [1400, 3040], [1000, 1640]];
+/** Relic shrines: two in each half. Relics appear in pairs, one in each half. */
+export const SHRINES: readonly Pt[] = [[1000, 5000], [2900, 3900], [2900, 1940], [1000, 3040]];
 
 export function activeLanes(laneCount: 2 | 3): LaneId[] {
   return laneCount === 3 ? [0, 1, 2] : [0, 2];

@@ -1,0 +1,101 @@
+{
+  "id": "PLAN-003",
+  "title": "Creep species, wards, map rewards and art style",
+  "problem": "The owner asked for 5 creep species chosen before the match, each with 3-4 troop classes deployable per lane; a Ward order alongside gank, defend, push tower and farm; map rewards that make heroes explore, ward, farm and gank; and a cohesive art style.",
+  "scope": [
+    "5 creep species, picked before the match with your 2 heroes: Kampung (village guard), Rimba (jungle beasts), Sungai (river folk), Serangga (insect hive), Batu (stone highlanders)",
+    "Each species has 3-4 troop classes with their own abilities (flying, splash, armour, poison, stun, charge, leap, exploding, spawning) and one species spell",
+    "Lane waves: every 20 s each lane sends a wave of the class you assigned to that lane; change any lane at any time from a wave strip above the hero bar",
+    "Deck = your species classes + species spell + Petir + your 2 heroes",
+    "New Ward order: send a hero to a ward spot; the ward reveals hidden heroes for 90 s; enemies can destroy it for a bounty",
+    "Map rewards: 2 river fruit groves (Semangat), 2 beast dens (Jungle Fury buff for the hero), river boss Gajah Mina from 1:30 (joins the side that kills it and pushes the middle lane), relics to collect every 45 s, bounties for hero kills (first kill bonus) and towers",
+    "Hikayat art style: painted map (cached), timber forts, Pusaka pavilion, ink-outlined tokens with class glyphs, songket-gold frames, parchment cards and menus",
+    "Bot picks a species, manages lane waves, wards, farms dens, hunts the boss and collects relics",
+    "Docs: species roster generated from game data; art style guide"
+  ],
+  "exclusions": [
+    "Online play",
+    "Real hand-drawn art or sound",
+    "Balance tuning beyond first numbers",
+    "Unlocking or collecting species and heroes"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "All 5 species can be picked; each class card and each lane wave class spawns the right units with their abilities (automated test per class)",
+      "result": "PASS",
+      "evidence": "tests/species.test.ts 13/13: 5 species with 3-4 classes; deck = classes + spell + Petir + 2 heroes; every class card spawns its units; each ability (flying, splash, armour, slow, poison, chain, charge, leap, burst, hatching) and all 6 spells. Found and fixed a bug: Kerikil never burst because it has no normal hit."
+    },
+    {
+      "id": "T2",
+      "text": "Lane wave choice: changing a lane's class changes the next wave in that lane only",
+      "result": "PASS",
+      "evidence": "tests/species.test.ts lane waves 2/2: each lane sends the chosen class at 60% strength; a change affects only that lane; another species' class is refused. Browser check: tapping the left wave chip changed kerikil -> golem."
+    },
+    {
+      "id": "T3",
+      "text": "Ward order places a ward that reveals hidden enemy heroes; destroying an enemy ward pays a bounty",
+      "result": "PASS",
+      "evidence": "tests/map.test.ts wards 3/3: Ward order plants a ward (+20 XP) then the hero returns to its job; the ward reveals a hidden enemy hero; an enemy hero clears it for +1 Semangat and 30 XP; an expired ward pays nothing. Browser check: dragging a hero onto a cairn gives a Ward order."
+    },
+    {
+      "id": "T4",
+      "text": "Map rewards work: groves pay Semangat, dens give Jungle Fury, Gajah Mina joins and pushes, relics pay out, hero kills and towers pay bounties",
+      "result": "PASS",
+      "evidence": "tests/map.test.ts rewards 4/4 plus orders.test.ts farm test (grove pays 2 Semangat): den gives Jungle Fury; Gajah Mina rises at 1:30 and joins the killer's side; relics appear in pairs and pay; hero kills (first-kill bonus) and towers pay. Soak, 100 matches: wards placed 83, Jungle Fury 52, Gajah Mina beaten 11, relics taken 343, first kills 95."
+    },
+    {
+      "id": "T5",
+      "text": "Same seed + same moves (random species and heroes) => exactly the same match; 100 bot matches finish with every species played",
+      "result": "PASS",
+      "evidence": "tests/determinism.test.ts 4/4 with random species and heroes (step-by-step hash match, replay of logged moves). npm run soak: 100 + 20 matches finished, no errors; every species played 37-43 times; every hero played."
+    },
+    {
+      "id": "T6",
+      "text": "Full match at phone size in the new art style (browser check) and on the owner's phone",
+      "result": "NOT RUN",
+      "evidence": "Automated phone-size check (iPhone 13 size) passed in the new art style: species pick, wave chip, card play, farm and ward orders, full match to the result screen, 2-lane mode (PHONE CHECK OK). The owner's own phone has not been tried yet."
+    },
+    {
+      "id": "T7",
+      "text": "Owner's verdict: species fun and distinct? map worth exploring? art style right?",
+      "result": "NOT RUN",
+      "evidence": ""
+    }
+  ],
+  "risks": [
+    "Interpretation: \"deploy on each lane\" is built as both per-lane wave choice and troop cards; the owner may mean only one of these",
+    "Many systems at once on first-guess numbers will be unbalanced until people play",
+    "More things on a small screen: readability must be checked on a real phone",
+    "Earlier owner playtests (PLAN-001, PLAN-002) are still open; this build replaces the preview"
+  ],
+  "cost": "RM0. Free tools; private preview page. Several build sessions (estimate).",
+  "decisions": [
+    "DEC-008",
+    "DEC-009",
+    "DEC-010"
+  ],
+  "reports": [
+    "REP-005"
+  ],
+  "changes": {
+    "added": [],
+    "changed": [],
+    "fixed": [],
+    "removed": []
+  },
+  "userNotes": [
+    "Pick one of 5 species before the match: Kampung, Hutan, Sungai, Serangga or Batu, each with 3-4 troop classes and its own spell.",
+    "Each lane's waves are your choice: tap a wave chip to change which class marches in that lane.",
+    "New Ward order and map rewards: fruit groves, beast dens (Jungle Fury), the river beast Gajah Mina, relics at the shrines, and bounties for kills and towers.",
+    "New Hikayat art style: a painted rainforest board, timber forts, ink-outlined pieces with symbols, parchment cards and songket trim.",
+    "The jungle species is named Hutan (not Rimba as in the plan) so it does not share a name with the hero Rimba."
+  ],
+  "approval": {
+    "status": "approved",
+    "evidence": "make the creep system be that there's 5 creep species / variants where players need to to choose at the start of the game ... give players the option to also instruct the heroes, say to gank, defend, push tower, farm, ward ... create incentives on the map for heroes to explore, ward, farm, gank etc ... now simulate a cohesive artstyle as well",
+    "date": "2026-11-12"
+  },
+  "delivery": "implemented",
+  "release": "unreleased"
+}

@@ -1,7 +1,8 @@
 // Runs a match in the browser: fixed-step simulation, the bot, input, drawing and menus.
 import { Bot, type BotLevel } from '../game/bot';
-import { CARDS, MANA, TICKS_PER_SECOND, type CardId, type HeroKind } from '../game/rules';
-import { type Command, DEFAULT_PICKS, Sim, randomPicks } from '../game/sim';
+import { LANE_NAMES, type LaneId } from '../game/map';
+import { CARDS, CLASS_CARDS, MANA, SPECIES, TICKS_PER_SECOND, type CardId, type HeroKind, type SpeciesId } from '../game/rules';
+import { type Command, DEFAULT_PICKS, Sim, randomPicks, randomSpecies } from '../game/sim';
 import { type Layout, computeLayout, inField, inRect, toWorld } from './layout';
 import { cardCommand, orderCommand, orderTargets, placeCard } from './placement';
 import { DRAG_LIFT, Renderer, type UiState, nearestTarget } from './render';
@@ -20,6 +21,8 @@ export class Game {
   settings: Settings;
   /** Your two heroes for the next match. */
   picks: HeroKind[] = [...DEFAULT_PICKS];
+  /** Your creep species for the next match (DEC-008). */
+  species: SpeciesId = 'kampung';
   /** Every accepted command with its tick: seed + this log replays the match exactly. */
   log: { tick: number; cmd: Command }[] = [];
   private bot!: Bot;
@@ -53,7 +56,12 @@ export class Game {
   newMatch(seed?: number): void {
     const s = seed ?? this.opts.seed ?? (Date.now() ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0;
     const botPicks = randomPicks(s);
-    this.sim = new Sim({ seed: s, lanes: this.settings.lanes, picks: [this.opts.autoplay ? randomPicks(s ^ 0x1234567) : this.picks, botPicks] });
+    const auto = !!this.opts.autoplay;
+    this.sim = new Sim({
+      seed: s, lanes: this.settings.lanes,
+      picks: [auto ? randomPicks(s ^ 0x1234567) : this.picks, botPicks],
+      species: [auto ? randomSpecies(s ^ 0x7654321) : this.species, randomSpecies(s)],
+    });
     this.bot = new Bot(1, s, this.settings.bot);
     this.autoBot = this.opts.autoplay ? new Bot(0, s ^ 0x5bd1e995, 'normal') : null;
     this.log = [];
@@ -139,6 +147,7 @@ export class Game {
     this.down = p;
     this.canvas.setPointerCapture(e.pointerId);
     if (inRect(this.layout.gear, p.x, p.y)) return;
+    if (this.layout.waves.some((r) => inRect(r, p.x, p.y))) return; // handled on release
     const ci = this.cardAt(p.x, p.y);
     if (ci >= 0) {
       const card = this.sim.players[0].hand[ci];
@@ -176,6 +185,12 @@ export class Game {
     const wasDown = this.down;
     this.down = null;
     if (!this.running || this.sim.result) { this.cancelDrag(); return; }
+    const chip = this.layout.waves.findIndex((r) => inRect(r, p.x, p.y));
+    if (wasDown && chip >= 0 && inRect(this.layout.waves[chip], wasDown.x, wasDown.y)) {
+      this.cancelDrag();
+      this.cycleWave(chip as LaneId);
+      return;
+    }
     if (wasDown && inRect(this.layout.gear, p.x, p.y) && inRect(this.layout.gear, wasDown.x, wasDown.y)) {
       this.cancelDrag();
       document.dispatchEvent(new CustomEvent('open-settings'));
@@ -213,6 +228,16 @@ export class Game {
       if (this.orderHero(this.ui.selectedHero, p.x, p.y)) this.ui.selectedHero = null;
     }
     this.ui.hover = null;
+  }
+
+  /** Tap a wave chip: the next class of your species will march in that lane. */
+  private cycleWave(lane: LaneId): void {
+    if (!this.sim.lanes.includes(lane)) { this.toast('No middle lane in 2-lane mode'); return; }
+    const pl = this.sim.players[0];
+    const classes = SPECIES[pl.species].classes;
+    const next = classes[(classes.indexOf(pl.laneClass[lane]) + 1) % classes.length];
+    this.send({ t: 'wave', player: 0, lane, card: next });
+    this.toast(`${LANE_NAMES[lane]} lane waves: ${CLASS_CARDS[next].name} ×${CLASS_CARDS[next].wave}`);
   }
 
   private cancelDrag(): void {

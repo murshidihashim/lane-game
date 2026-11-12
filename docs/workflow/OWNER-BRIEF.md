@@ -12,21 +12,24 @@ Everything here should work from a phone.
 1. You'll get a message that a change is ready and the checks are green.
 2. Open the preview on your phone (refresh if it looks old) and follow the checklist.
 
-## 2 · Checklist for PLAN-001 and PLAN-002 (about 30 minutes)
+## 2 · Checklist for PLAN-001 to PLAN-003 (about 30 minutes)
 Write down what you **saw**, not just "it's fine".
-- [ ] It opens in portrait. "How to play", then the hero pick screen, make sense.
-- [ ] Pick 2 heroes (tap a hero to read its Trait, Power and Ultimate), then start.
-- [ ] Drag a card into a lane. Then try tapping a card and tapping a lane.
-- [ ] Play a hero card, then drag its portrait onto a lane, a tower, a ✦ camp and your Pusaka.
+- [ ] It opens in portrait. "How to play", then the species and hero pick screen, make sense.
+- [ ] Pick a species (tap one to read its classes), pick 2 heroes, then start.
+- [ ] Tap a wave chip (the three strips above your heroes). Does the next wave in that lane change?
+- [ ] Drag a card into a lane. Then try tapping a card and tapping a lane. Try your species' spell.
+- [ ] Play a hero card, then drag its portrait onto: a lane, a tower, a fruit grove, a beast den,
+      a ward cairn (◉), a relic (◆) when one glows, Gajah Mina in the river after 1:30, and your Pusaka.
       Did the hero do what you expected? Did you notice the ★ best order?
 - [ ] Watch the ring around the portrait fill (power ready), and the ULT label at level 4.
 - [ ] Play a full match to the result screen (5 to 6 minutes).
-- [ ] Play 5 or more matches with different heroes. Try 3 lanes and 2 lanes (⚙ Settings).
-- [ ] Answer these four questions:
-  1. With 3 lanes, could you keep track of every lane, or did things happen without you noticing?
-  2. Were hero orders fun on top of cards, or a chore?
-  3. Did any hero feel clearly too strong or too weak? Which?
-  4. Did you want to press Rematch?
+- [ ] Play 5 or more matches with different species and heroes. Try 3 lanes and 2 lanes (⚙ Settings).
+- [ ] Answer these questions:
+  1. Is picking a species and choosing each lane's wave what you meant? Should cards stay as well?
+  2. Was the map worth exploring (wards, dens, Gajah Mina, relics), or did you ignore it?
+  3. Does the Hikayat look feel right and cohesive? Can you still read it on your phone?
+  4. Did any species or hero feel clearly too strong or too weak? Which?
+  5. Did you want to press Rematch?
 - [ ] Anything confusing, slow or ugly: note the screen. Mention your phone model.
 
 Send bugs with: device and browser, steps, expected, actual, how often, a screenshot, and the

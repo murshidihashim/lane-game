@@ -26,8 +26,9 @@ export const MANA = {
 export const WAVES = {
   first: sec(5),
   every: sec(20),
-  size: 3,
   spawnU: 300, // distance from own Core end along the lane
+  strengthPct: 60, // wave units have 60% of a card unit's health and damage
+  waveXp: 24, // XP a whole wave is worth to nearby enemy heroes
 } as const;
 
 export const DEPLOY = {
@@ -63,18 +64,62 @@ export const HERO_RULES = {
   heroesPerDeck: 2,
 } as const;
 
-export const CAMP = {
-  hp: 900,
-  damage: 45,
-  attackTicks: sec(1.2),
-  range: 220,
-  radius: 110,
-  respawn: sec(45),
-  manaReward: 2 * 56,
+/** Neutral objectives on the map (DEC-009). */
+export const NEUTRALS = {
+  grove: { name: 'Fruit Grove', hp: 900, damage: 45, attackTicks: sec(1.2), range: 220, radius: 110, respawn: sec(45), mana: 2 * 56, xp: 60 },
+  den: { name: 'Beast Den', hp: 1500, damage: 65, attackTicks: sec(1.2), range: 220, radius: 120, respawn: sec(60), mana: 0, xp: 100 },
+  boss: { name: 'Gajah Mina', hp: 3500, damage: 120, attackTicks: sec(1.4), range: 300, radius: 160, respawn: sec(120), mana: 3 * 56, xp: 120, first: sec(90) },
   resetAfter: sec(5), // heals back to full if nobody hits it for this long
 } as const;
 
-export type UnitKind = 'minion' | 'spearman' | 'archer' | 'ram' | 'imp' | 'shieldbearer' | 'puppet' | 'decoy' | 'watchtower';
+/** Jungle Fury: the buff a hero gets for clearing a Beast Den. */
+export const FURY = { ticks: sec(60), damagePct: 20, speedPct: 15 } as const;
+
+export const WARDS = {
+  radius: 900, // reveals hidden enemy heroes this close
+  life: sec(90),
+  hits: 3, // enemy hero hits to destroy one
+  max: 3, // per player; placing a 4th removes the oldest
+  placeXp: 20,
+  bountyMana: 56,
+  bountyXp: 30,
+} as const;
+
+export const RELICS = {
+  first: sec(60),
+  every: sec(45),
+  life: sec(40),
+  mana: 2 * 56,
+  xp: 80,
+  boostTicks: sec(8),
+  pickup: 150,
+} as const;
+
+export const BOUNTY = {
+  heroKill: 56, // Semangat to the killer's side
+  streak: 56, // extra when the victim had 2+ kills in a row
+  firstKill: 112, // extra for the first hero kill of the match
+  tower: 112,
+} as const;
+
+/** @deprecated kept for older tests: same numbers as a Fruit Grove. */
+export const CAMP = {
+  hp: 900, damage: 45, attackTicks: sec(1.2), range: 220, radius: 110, respawn: sec(45), manaReward: 2 * 56, resetAfter: sec(5),
+} as const;
+
+export type UnitKind =
+  // Kampung (village guard)
+  | 'spearman' | 'archer' | 'shieldbearer' | 'ram'
+  // Hutan (jungle beasts)
+  | 'kera' | 'harimau' | 'enggang' | 'seladang'
+  // Sungai (river folk)
+  | 'ketam' | 'sumpit' | 'belut'
+  // Serangga (insect hive)
+  | 'kerengga' | 'tebuan' | 'kumbang' | 'ratu'
+  // Batu (stone highlanders)
+  | 'kerikil' | 'golem' | 'lontar'
+  // summoned by heroes and the map
+  | 'puppet' | 'decoy' | 'watchtower' | 'gajahmina';
 export type Targets = 'any' | 'buildings';
 
 export interface UnitStats {
@@ -88,20 +133,79 @@ export interface UnitStats {
   radius: number;
   targets: Targets;
   xp: number; // XP given to nearby enemy heroes when it dies
+  /** What it does, in a few words (cards and docs). */
+  ability?: string;
+  flying?: boolean;
+  splash?: number; // its hits also hit everything within this distance of the target
+  armorRanged?: number; // percent of damage it takes from ranged attackers
+  armor?: number; // percent of all damage it takes
+  slowOnHit?: number; // its hits slow the target to this percent speed for 1 s
+  poisonOnHit?: number; // its hits poison: this percent of max health a second for 2 s
+  chain?: number; // its hits jump to one more enemy within 220 for this percent
+  charge?: boolean; // its first hit knocks back and stuns 0.5 s
+  leap?: number; // jumps onto its first target within this distance
+  bomb?: number; // rolls into a building and explodes for this much in a 160 area
+  spawn?: { kind: UnitKind; count: number; every: number; life: number };
 }
 
+const u = (name: string, hp: number, damage: number, attack: number, range: number, speed: number, radius: number, extra: Partial<UnitStats> = {}): UnitStats => ({
+  name, hp, damage, attackTicks: sec(attack), range, sight: Math.max(500, range + 120), speed, radius, targets: 'any', xp: XP.troop, ...extra,
+});
+
 export const UNITS: Record<UnitKind, UnitStats> = {
-  minion: { name: 'Minion', hp: 200, damage: 25, attackTicks: sec(1), range: 150, sight: 500, speed: 8, radius: 50, targets: 'any', xp: XP.minion },
-  spearman: { name: 'Silat Guard', hp: 340, damage: 55, attackTicks: sec(1.1), range: 160, sight: 550, speed: 9, radius: 60, targets: 'any', xp: XP.troop },
-  archer: { name: 'Pemanah', hp: 200, damage: 45, attackTicks: sec(1.2), range: 550, sight: 600, speed: 9, radius: 55, targets: 'any', xp: XP.troop },
-  ram: { name: 'Kerbau', hp: 1500, damage: 220, attackTicks: sec(1.5), range: 160, sight: 600, speed: 6, radius: 100, targets: 'buildings', xp: XP.troop },
-  imp: { name: 'Kelip-kelip', hp: 90, damage: 35, attackTicks: sec(0.8), range: 130, sight: 500, speed: 14, radius: 40, targets: 'any', xp: XP.troop },
-  shieldbearer: { name: 'Perisai', hp: 1100, damage: 75, attackTicks: sec(1.3), range: 170, sight: 550, speed: 8, radius: 80, targets: 'any', xp: XP.troop },
-  // Summoned by heroes
-  puppet: { name: 'Shadow puppet', hp: 220, damage: 38, attackTicks: sec(1), range: 150, sight: 500, speed: 9, radius: 50, targets: 'any', xp: 4 },
-  decoy: { name: 'Decoy', hp: 250, damage: 0, attackTicks: sec(1), range: 0, sight: 0, speed: 14, radius: 60, targets: 'any', xp: 0 },
-  watchtower: { name: 'Bamboo watchtower', hp: 500, damage: 40, attackTicks: sec(0.8), range: 500, sight: 500, speed: 0, radius: 80, targets: 'any', xp: 10 },
+  spearman: u('Silat Guard', 340, 55, 1.1, 160, 9, 60, { ability: 'Sturdy melee fighters' }),
+  archer: u('Pemanah', 200, 45, 1.2, 550, 9, 55, { ability: 'Ranged; can hit fliers' }),
+  shieldbearer: u('Perisai', 1100, 75, 1.3, 170, 8, 80, { armorRanged: 70, ability: 'Tank; takes 30% less from ranged hits' }),
+  ram: u('Kerbau', 1500, 220, 1.5, 160, 6, 100, { targets: 'buildings', ability: 'Only hits towers and the Pusaka' }),
+
+  kera: u('Kera', 110, 30, 0.7, 130, 15, 40, { ability: 'Very fast monkey swarm' }),
+  harimau: u('Harimau Bintang', 600, 110, 1.0, 150, 14, 65, { leap: 450, ability: 'Leopard; leaps onto its first target' }),
+  enggang: u('Enggang', 260, 50, 1.1, 420, 11, 60, { flying: true, ability: 'Flying hornbills; ranged' }),
+  seladang: u('Seladang', 1600, 90, 1.4, 170, 8, 100, { charge: true, ability: 'Gaur tank; first hit knocks back and stuns' }),
+
+  ketam: u('Ketam', 1300, 60, 1.2, 160, 7, 85, { armorRanged: 50, ability: 'Crab tank; takes half damage from ranged hits' }),
+  sumpit: u('Ikan Sumpit', 220, 45, 1.1, 520, 9, 55, { slowOnHit: 75, ability: 'Archerfish; ranged, hits slow' }),
+  belut: u('Belut', 380, 50, 1.0, 200, 11, 55, { chain: 60, ability: 'Electric eels; hits jump to a second enemy' }),
+
+  kerengga: u('Kerengga', 70, 22, 0.6, 120, 13, 32, { xp: 4, ability: 'Weaver-ant swarm' }),
+  tebuan: u('Tebuan', 120, 28, 0.8, 140, 14, 38, { flying: true, poisonOnHit: 3, ability: 'Flying hornets; hits poison' }),
+  kumbang: u('Kumbang', 1400, 70, 1.3, 170, 7, 90, { armor: 80, ability: 'Rhino beetle; takes 20% less damage' }),
+  ratu: u('Ratu Sarang', 900, 30, 1.2, 400, 5, 90, { spawn: { kind: 'kerengga', count: 2, every: sec(5), life: sec(12) }, ability: 'Hive queen; hatches ants every 5 s' }),
+
+  kerikil: u('Kerikil', 160, 0, 1, 120, 13, 45, { targets: 'buildings', bomb: 260, ability: 'Rolling pebbles; burst on a building' }),
+  golem: u('Batu Besar', 2200, 100, 1.6, 170, 5, 115, { armor: 75, ability: 'Boulder golem; takes 25% less damage' }),
+  lontar: u('Lontar', 450, 120, 2.2, 650, 5, 75, { splash: 150, ability: 'Stone sling; long range, splash' }),
+
+  puppet: u('Shadow puppet', 220, 38, 1.0, 150, 9, 50, { xp: 4 }),
+  decoy: { ...u('Decoy', 250, 0, 1.0, 0, 14, 60), sight: 0, xp: 0 },
+  watchtower: { ...u('Bamboo watchtower', 500, 40, 0.8, 500, 0, 80), xp: 10 },
+  gajahmina: u('Gajah Mina', 2500, 150, 1.4, 220, 6, 130, { xp: 60, ability: 'River beast fighting for you' }),
 };
+
+// ---------------------------------------------------------------------------------------------
+// Species (DEC-008): pick one before the match. Its classes are your troop cards and the creeps
+// your lanes send; you choose the class for each lane.
+
+export type SpeciesId = 'kampung' | 'hutan' | 'sungai' | 'serangga' | 'batu';
+
+export interface SpeciesDef {
+  id: SpeciesId;
+  name: string;
+  title: string;
+  text: string;
+  classes: ClassCardId[];
+  spell: SpellCardId;
+}
+
+export const SPECIES: Record<SpeciesId, SpeciesDef> = {
+  kampung: { id: 'kampung', name: 'Kampung', title: 'the Village Guard', text: 'Balanced and steady: fighters, archers, a shield tank and a tower-breaking buffalo.', classes: ['spearmen', 'archers', 'shieldbearer', 'ram'], spell: 'gotong' },
+  hutan: { id: 'hutan', name: 'Hutan', title: 'the Jungle Beasts', text: 'Fast and fierce: monkey swarms, a leaping leopard, flying hornbills and a charging gaur.', classes: ['kera', 'harimau', 'enggang', 'seladang'], spell: 'auman' },
+  sungai: { id: 'sungai', name: 'Sungai', title: 'the River Folk', text: 'Control and patience: armoured crabs, slowing archerfish and chain-shocking eels.', classes: ['ketam', 'sumpit', 'belut'], spell: 'arus' },
+  serangga: { id: 'serangga', name: 'Serangga', title: 'the Insect Hive', text: 'Numbers: ant swarms, poison hornets, a beetle tank and a queen that keeps hatching.', classes: ['kerengga', 'tebuan', 'kumbang', 'ratu'], spell: 'sengat' },
+  batu: { id: 'batu', name: 'Batu', title: 'the Stone Highlanders', text: 'Slow and heavy: bursting pebbles, a boulder golem and a long-range stone sling.', classes: ['kerikil', 'golem', 'lontar'], spell: 'gempa' },
+};
+
+export const SPECIES_IDS = Object.keys(SPECIES) as SpeciesId[];
 
 export const STRUCTURES = {
   tower: { hp: 2200, damage: 55, attackTicks: sec(0.8), range: 750, radius: 150 },
@@ -344,7 +448,14 @@ export const HERO_IDS = Object.keys(HEROES) as HeroKind[];
 // ---------------------------------------------------------------------------------------------
 // Cards. Hero cards use the hero's id as the card id.
 
-export type TroopCardId = 'spearmen' | 'archers' | 'ram' | 'imps' | 'firebolt' | 'shieldbearer';
+export type ClassCardId =
+  | 'spearmen' | 'archers' | 'shieldbearer' | 'ram'
+  | 'kera' | 'harimau' | 'enggang' | 'seladang'
+  | 'ketam' | 'sumpit' | 'belut'
+  | 'kerengga' | 'tebuan' | 'kumbang' | 'ratu'
+  | 'kerikil' | 'golem' | 'lontar';
+export type SpellCardId = 'firebolt' | 'gotong' | 'auman' | 'arus' | 'sengat' | 'gempa';
+export type TroopCardId = ClassCardId | SpellCardId;
 export type CardId = TroopCardId | HeroKind;
 
 export interface CardDef {
@@ -354,30 +465,74 @@ export interface CardDef {
   kind: 'troop' | 'spell' | 'hero';
   unit?: UnitKind;
   count?: number;
+  /** How many of this class march in a lane wave. */
+  wave?: number;
   hero?: HeroKind;
   text: string;
 }
 
-const TROOP_CARDS: Record<TroopCardId, CardDef> = {
-  spearmen: { id: 'spearmen', name: 'Silat Guards', cost: 3, kind: 'troop', unit: 'spearman', count: 3, text: '3 sturdy fighters' },
-  archers: { id: 'archers', name: 'Pemanah', cost: 3, kind: 'troop', unit: 'archer', count: 2, text: '2 archers; can hit fliers' },
-  ram: { id: 'ram', name: 'Kerbau', cost: 5, kind: 'troop', unit: 'ram', count: 1, text: 'Buffalo that only hits towers' },
-  imps: { id: 'imps', name: 'Kelip-kelip', cost: 2, kind: 'troop', unit: 'imp', count: 4, text: '4 fast fire-flies' },
-  shieldbearer: { id: 'shieldbearer', name: 'Perisai', cost: 4, kind: 'troop', unit: 'shieldbearer', count: 1, text: 'One tough shield guard' },
-  firebolt: { id: 'firebolt', name: 'Petir', cost: 4, kind: 'spell', text: 'Lightning strikes an area' },
+const troop = (id: ClassCardId, unit: UnitKind, count: number, wave: number, cost: number): CardDef => ({
+  id, name: UNITS[unit].name, cost, kind: 'troop', unit, count, wave, text: `${count > 1 ? `${count} × ` : ''}${UNITS[unit].ability ?? ''}`,
+});
+
+export const CLASS_CARDS: Record<ClassCardId, CardDef> = {
+  spearmen: troop('spearmen', 'spearman', 3, 2, 3),
+  archers: troop('archers', 'archer', 2, 2, 3),
+  shieldbearer: troop('shieldbearer', 'shieldbearer', 1, 1, 4),
+  ram: troop('ram', 'ram', 1, 1, 5),
+  kera: troop('kera', 'kera', 4, 3, 2),
+  harimau: troop('harimau', 'harimau', 1, 1, 4),
+  enggang: troop('enggang', 'enggang', 2, 2, 4),
+  seladang: troop('seladang', 'seladang', 1, 1, 5),
+  ketam: troop('ketam', 'ketam', 1, 1, 4),
+  sumpit: troop('sumpit', 'sumpit', 2, 2, 3),
+  belut: troop('belut', 'belut', 2, 2, 4),
+  kerengga: troop('kerengga', 'kerengga', 6, 4, 2),
+  tebuan: troop('tebuan', 'tebuan', 3, 2, 3),
+  kumbang: troop('kumbang', 'kumbang', 1, 1, 4),
+  ratu: troop('ratu', 'ratu', 1, 1, 5),
+  kerikil: troop('kerikil', 'kerikil', 3, 2, 3),
+  golem: troop('golem', 'golem', 1, 1, 6),
+  lontar: troop('lontar', 'lontar', 1, 1, 4),
 };
 
-export const TROOP_DECK: readonly TroopCardId[] = ['spearmen', 'archers', 'ram', 'imps', 'firebolt', 'shieldbearer'];
+export interface SpellDef {
+  delay: number;
+  radius: number;
+  damage: number; // to enemy troops and heroes
+  structureDamage: number; // to enemy towers and the Pusaka
+}
+
+export const SPELLS: Record<SpellCardId, SpellDef & { name: string; cost: number; text: string }> = {
+  firebolt: { name: 'Petir', cost: 4, text: 'Lightning strikes an area', delay: sec(0.6), radius: 250, damage: 260, structureDamage: 78 },
+  gotong: { name: 'Gotong-royong', cost: 3, text: 'Heals 250 and shields your side in an area', delay: sec(0.3), radius: 320, damage: 0, structureDamage: 0 },
+  auman: { name: 'Auman', cost: 3, text: 'A roar: your side +30% damage and speed, 6 s', delay: sec(0.3), radius: 350, damage: 0, structureDamage: 0 },
+  arus: { name: 'Arus', cost: 3, text: 'A current washes enemies back and slows them', delay: sec(0.4), radius: 300, damage: 80, structureDamage: 0 },
+  sengat: { name: 'Sengat', cost: 3, text: 'A stinging cloud poisons enemies for 4 s', delay: sec(0.4), radius: 280, damage: 0, structureDamage: 0 },
+  gempa: { name: 'Gempa', cost: 4, text: 'A quake stuns enemies 1 s and cracks towers', delay: sec(0.6), radius: 300, damage: 100, structureDamage: 200 },
+};
+
+export const SPELL_IDS = Object.keys(SPELLS) as SpellCardId[];
+export const CLASS_IDS = Object.keys(CLASS_CARDS) as ClassCardId[];
 
 export const CARDS: Record<CardId, CardDef> = {
-  ...TROOP_CARDS,
+  ...CLASS_CARDS,
+  ...(Object.fromEntries(SPELL_IDS.map((id) => [id, { id, name: SPELLS[id].name, cost: SPELLS[id].cost, kind: 'spell' as const, text: SPELLS[id].text }])) as Record<SpellCardId, CardDef>),
   ...(Object.fromEntries(HERO_IDS.map((id) => [id, {
     id, name: HEROES[id].name, cost: HEROES[id].cost, kind: 'hero' as const, hero: id, text: `Hero · ${HEROES[id].role}`,
   }])) as Record<HeroKind, CardDef>),
 };
 
 /** Every card in a fixed order (for hashing). */
-export const ALL_CARDS: readonly CardId[] = [...TROOP_DECK, ...HERO_IDS];
+export const ALL_CARDS: readonly CardId[] = [...CLASS_IDS, ...SPELL_IDS, ...HERO_IDS];
+
+/** A species' cards: its classes, its spell and Petir. */
+export function speciesDeck(id: SpeciesId): TroopCardId[] {
+  return [...SPECIES[id].classes, SPECIES[id].spell, 'firebolt'];
+}
+
+/** @deprecated the Kampung deck (kept for older tests). */
+export const TROOP_DECK: readonly TroopCardId[] = speciesDeck('kampung');
 
 export const FIREBOLT = { delay: sec(0.6), radius: 250, damage: 260, structurePercent: 30 } as const;
 

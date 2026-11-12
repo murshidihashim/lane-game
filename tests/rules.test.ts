@@ -53,7 +53,7 @@ describe('mana', () => {
 describe('cards', () => {
   test('playing a card costs mana, spawns units in the drop zone and cycles the hand', () => {
     const sim = new Sim({ seed: 1, waves: false });
-    sim.players[0].hand = ['spearmen', 'archers', 'imps', 'ram'];
+    sim.players[0].hand = ['spearmen', 'archers', 'gotong', 'ram'];
     sim.players[0].next = 'firebolt';
     sim.players[0].queue = ['shieldbearer', 'rimba', 'benteng'];
     sim.players[0].mana = MANA.max;
@@ -66,23 +66,23 @@ describe('cards', () => {
     for (const u of units) expect(u.y).toBeGreaterThan(3470); // still on our side of the river
     expect(sim.maxU(0, 0)).toBe(Math.trunc(half) - DEPLOY.riverGap);
     expect(sim.players[0].mana).toBe(MANA.max - 3 * MANA.perMana + MANA.regenPerTick);
-    expect(sim.players[0].hand).toEqual(['firebolt', 'archers', 'imps', 'ram']);
+    expect(sim.players[0].hand).toEqual(['firebolt', 'archers', 'gotong', 'ram']);
     expect(sim.players[0].queue).toEqual(['rimba', 'benteng', 'spearmen']);
   });
 
   test('a card you cannot afford, or a lane that is not in play, is refused', () => {
     const sim = new Sim({ seed: 1, waves: false, lanes: 2 });
-    sim.players[0].hand = ['ram', 'imps', 'archers', 'spearmen'];
+    sim.players[0].hand = ['ram', 'archers', 'gotong', 'spearmen'];
     sim.players[0].mana = 4 * MANA.perMana;
     sim.submit({ t: 'card', player: 0, card: 'ram', lane: 0, u: 1000 }); // costs 5
-    sim.submit({ t: 'card', player: 0, card: 'imps', lane: 1, u: 1000 }); // no middle lane
+    sim.submit({ t: 'card', player: 0, card: 'archers', lane: 1, u: 1000 }); // no middle lane
     sim.step();
     expect(sim.ents.filter((e) => e.kind === 'unit')).toHaveLength(0);
   });
 
   test('a played hero leaves the card cycle for good', () => {
     const sim = new Sim({ seed: 1, waves: false });
-    sim.players[0].hand = ['rimba', 'archers', 'imps', 'ram'];
+    sim.players[0].hand = ['rimba', 'archers', 'gotong', 'ram'];
     sim.players[0].next = 'spearmen';
     sim.players[0].queue = ['benteng', 'firebolt', 'shieldbearer'];
     sim.players[0].mana = MANA.max;
@@ -99,14 +99,14 @@ describe('towers and winning', () => {
   test('towers take half damage in the first minute', () => {
     const sim = new Sim({ seed: 1, waves: false });
     const t = sim.towerOf(1, 0)!;
-    sim.players[0].hand = ['firebolt', 'archers', 'imps', 'ram'];
+    sim.players[0].hand = ['firebolt', 'archers', 'gotong', 'ram'];
     sim.players[0].mana = MANA.max;
     sim.submit({ t: 'spell', player: 0, card: 'firebolt', x: t.x, y: t.y });
     stepN(sim, 20);
     expect(t.hp).toBe(STRUCTURES.tower.hp - 39); // 260 x 30% = 78, halved
     stepN(sim, MATCH.towerShieldUntil);
     const before = t.hp;
-    sim.players[0].hand = ['firebolt', 'archers', 'imps', 'ram'];
+    sim.players[0].hand = ['firebolt', 'archers', 'gotong', 'ram'];
     sim.players[0].mana = MANA.max;
     sim.submit({ t: 'spell', player: 0, card: 'firebolt', x: t.x, y: t.y });
     stepN(sim, 20);

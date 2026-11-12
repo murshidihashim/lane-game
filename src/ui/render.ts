@@ -1,10 +1,10 @@
-// Drawing only, in the "Hikayat" style (DEC-010, DEC-013). Reads the match state and the UI state;
+// Drawing only, in the batik paper style (DEC-018, DEC-013). Reads the match state and the UI state;
 // never changes the rules. The painted map is cached (see art.ts); characters come from figures.ts,
 // ultimate effects from ultfx.ts; the fog of war (DEC-012) is drawn over everything you can't see.
 import { CORES, LANES, LANE_HALF, pointAt } from '../game/map';
 import { CLASSES, HEROES, ITEMS, ITEM_SLOTS, MANA, MATCH, TICKS_PER_SECOND, UNITS, WARDS, type HeroKind, type ItemId } from '../game/rules';
 import type { Ent, GameEvent, Sim } from '../game/sim';
-import { MapPainter, PAL, SPECIES_COLORS, glyph, kubu, pusaka, songket, teamColors, type Glyph } from './art';
+import { MapPainter, PAL, SPECIES_COLORS, batikPattern, glyph, kubu, pusaka, songket, teamColors, type Glyph } from './art';
 import { drawHeroFigure, drawPortrait, drawTroopFigure, heroScale } from './figures';
 import { type HeroPanel, type Layout, type Rect, toScreen } from './layout';
 import { COMMAND_ORDERS, type CommandAction, type OrderTarget, commandTargets, orderLabel, orderTargets } from './placement';
@@ -74,7 +74,7 @@ export class Renderer {
     this.vision = visionCircles(sim);
     ctx.save();
     ctx.setTransform(l.dpr, 0, 0, l.dpr, 0, 0);
-    ctx.fillStyle = PAL.woodDark;
+    ctx.fillStyle = batikPattern(ctx, 'cloth', l.dpr);
     ctx.fillRect(0, 0, l.w, l.h);
     this.drawField(ctx, l, sim);
     ctx.save();
@@ -106,13 +106,17 @@ export class Renderer {
 
   private drawField(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim): void {
     const f = l.field;
-    // carved wooden frame around the board
-    ctx.fillStyle = PAL.wood;
-    roundRect(ctx, f.x - 4, f.y - 4, f.w + 8, f.h + 8, 8);
-    ctx.fill();
-    ctx.strokeStyle = PAL.gold;
+    // the board sits on a sheet of cream paper with a soga-brown border line and a paper shadow
+    ctx.save();
+    ctx.shadowColor = 'rgba(5,8,20,0.55)';
+    ctx.shadowBlur = 8 * l.dpr;
+    ctx.shadowOffsetY = 3 * l.dpr;
+    ctx.fillStyle = PAL.paperEdge;
+    ctx.fillRect(f.x - 5, f.y - 5, f.w + 10, f.h + 10);
+    ctx.restore();
+    ctx.strokeStyle = PAL.wood;
     ctx.lineWidth = 1;
-    ctx.stroke();
+    ctx.strokeRect(f.x - 2.5, f.y - 2.5, f.w + 5, f.h + 5);
     this.painter.draw(ctx, l, sim);
   }
 
@@ -159,7 +163,9 @@ export class Renderer {
     if (!g) return;
     g.globalCompositeOperation = 'source-over';
     g.clearRect(0, 0, w, h);
-    g.fillStyle = 'rgba(10,8,14,0.68)';
+    g.fillStyle = 'rgba(14,20,44,0.70)';
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = batikPattern(g, 'fog', k, k);
     g.fillRect(0, 0, w, h);
     g.globalCompositeOperation = 'destination-out';
     for (const [wx, wy, r] of this.vision) {
@@ -268,7 +274,7 @@ export class Renderer {
     const g: Glyph = boss ? 'trunk' : e.campKind === 'den' ? 'paw' : 'fruit';
     const bob = boss ? Math.sin(now / 400) * 1.5 : 0;
     ctx.save();
-    ctx.fillStyle = 'rgba(10,20,10,0.35)';
+    ctx.fillStyle = 'rgba(16,14,34,0.35)';
     ctx.beginPath(); ctx.ellipse(x + 2, y + r * 0.6, r, r * 0.45, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = boss ? '#3c7f8f' : e.campKind === 'den' ? '#7a5032' : '#c98a2b';
     ctx.strokeStyle = INK;
@@ -606,7 +612,7 @@ export class Renderer {
           ctx.font = ev.tone === 'ult' ? 'bold 15px Georgia, serif' : 'bold 12px Georgia, serif';
           ctx.textAlign = 'center';
           ctx.lineWidth = 3;
-          ctx.strokeStyle = 'rgba(29,20,14,0.85)';
+          ctx.strokeStyle = 'rgba(17,26,47,0.85)';
           const ty = y - age / 40 - f.slot * 15;
           ctx.strokeText(ev.text, x, ty);
           ctx.fillStyle = color;
@@ -650,7 +656,7 @@ export class Renderer {
       const [x, y] = toScreen(l, t.x, t.y);
       const on = near === t;
       const best = hero && HEROES[hero.hero as HeroKind].best === t.order;
-      ctx.fillStyle = on ? PAL.gold : 'rgba(43,29,20,0.88)';
+      ctx.fillStyle = on ? PAL.gold : 'rgba(27,39,66,0.88)';
       ctx.strokeStyle = best ? PAL.gold : PAL.parchmentDark;
       ctx.lineWidth = on ? 3 : best ? 2.5 : 1.5;
       ctx.beginPath(); ctx.arc(x, y, on ? 16 : 12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -712,7 +718,7 @@ export class Renderer {
         continue;
       }
       const icon = COMMAND_ORDERS.find((o) => o.id === action)?.icon ?? '•';
-      ctx.fillStyle = 'rgba(43,29,20,0.9)';
+      ctx.fillStyle = 'rgba(27,39,66,0.9)';
       ctx.strokeStyle = PAL.gold;
       ctx.lineWidth = 2 + pulse;
       ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -730,7 +736,8 @@ export class Renderer {
     ctx.save();
     if (cmd.action === null) {
       const b = m.box;
-      ctx.fillStyle = 'rgba(43,29,20,0.95)';
+      cardShadow(ctx, b.x, b.y, b.w, b.h, 10);
+      ctx.fillStyle = 'rgba(27,39,66,0.96)';
       ctx.strokeStyle = PAL.gold;
       ctx.lineWidth = 1.5;
       roundRect(ctx, b.x, b.y, b.w, b.h, 10);
@@ -761,7 +768,7 @@ export class Renderer {
     } else {
       const r = m.hint;
       const o = COMMAND_ORDERS.find((x) => x.id === cmd.action);
-      ctx.fillStyle = 'rgba(43,29,20,0.95)';
+      ctx.fillStyle = 'rgba(27,39,66,0.95)';
       ctx.strokeStyle = PAL.gold;
       ctx.lineWidth = 1.5;
       roundRect(ctx, r.x, r.y, r.w, r.h, 10);
@@ -789,7 +796,7 @@ export class Renderer {
     const cy = r.y + r.h / 2;
     const zoomed = l.scale > l.baseScale * 1.01;
     ctx.save();
-    ctx.fillStyle = 'rgba(43,29,20,0.82)';
+    ctx.fillStyle = 'rgba(27,39,66,0.82)';
     ctx.strokeStyle = PAL.gold;
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(cx, cy, r.w / 2 - 1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -811,7 +818,7 @@ export class Renderer {
 
   private drawTop(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim): void {
     const t = l.top;
-    ctx.fillStyle = PAL.woodDark;
+    ctx.fillStyle = 'rgba(10,15,30,0.45)';
     ctx.fillRect(t.x, t.y, t.w, t.h);
     songket(ctx, t.x, t.y + t.h - 6, t.w, 6);
     const left = Math.ceil(sim.timeLeft() / TICKS_PER_SECOND);
@@ -863,10 +870,10 @@ export class Renderer {
 
   private drawHud(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState): void {
     const hudY = l.waves[0].y - 8;
-    // dark timber panel with a songket edge
+    // indigo batik cloth (already behind everything), darkened towards the bottom, with a songket edge
     const g = ctx.createLinearGradient(0, hudY, 0, l.h);
-    g.addColorStop(0, PAL.woodDark);
-    g.addColorStop(1, '#22150d');
+    g.addColorStop(0, 'rgba(10,15,30,0.25)');
+    g.addColorStop(1, 'rgba(10,15,30,0.6)');
     ctx.fillStyle = g;
     ctx.fillRect(l.col.x, hudY, l.col.w, l.h - hudY);
     songket(ctx, l.col.x, hudY, l.col.w, 6);
@@ -878,6 +885,7 @@ export class Renderer {
       const cls = CLASSES[pl.laneClass[lane]];
       ctx.save();
       ctx.globalAlpha = active ? 1 : 0.35;
+      cardShadow(ctx, r.x, r.y, r.w, r.h, 7);
       ctx.fillStyle = PAL.parchment;
       ctx.strokeStyle = SPECIES_COLORS[pl.species];
       ctx.lineWidth = 2;
@@ -903,7 +911,7 @@ export class Renderer {
     const m = l.mana;
     const value = pl.mana / MANA.perMana;
     ctx.save();
-    ctx.fillStyle = 'rgba(29,20,14,0.6)';
+    ctx.fillStyle = 'rgba(17,26,47,0.6)';
     roundRect(ctx, m.x, m.y, m.w, m.h, 8);
     ctx.fill();
     gem(ctx, m.x + 16, m.y + m.h / 2, 9);
@@ -929,6 +937,7 @@ export class Renderer {
     const s = l.shop;
     const canBuy = pl.picks.some((k) => (Object.keys(ITEMS) as ItemId[]).some((it) => !sim.cantBuy(0, k, it)));
     ctx.save();
+    cardShadow(ctx, s.x, s.y, s.w, s.h, 9);
     ctx.fillStyle = canBuy ? PAL.gold : PAL.wood;
     ctx.strokeStyle = INK;
     ctx.lineWidth = 2;
@@ -951,6 +960,7 @@ export class Renderer {
     const sel = ui.command?.hero === kind || ui.dragHero?.hero === kind;
     const b = p.box;
     ctx.save();
+    cardShadow(ctx, b.x, b.y, b.w, b.h, 9);
     ctx.fillStyle = PAL.parchment;
     ctx.strokeStyle = sel ? PAL.gold : INK;
     ctx.lineWidth = sel ? 3 : 1.5;
@@ -989,7 +999,7 @@ export class Renderer {
       const f = alive ? h.hp / h.maxHp : 0;
       const bx = b.x + 5;
       const bw = b.w - 10;
-      ctx.fillStyle = 'rgba(29,20,14,0.25)';
+      ctx.fillStyle = 'rgba(17,26,47,0.25)';
       ctx.fillRect(bx, b.y + 44, bw, 5);
       ctx.fillStyle = f > 0.5 ? '#3f9a54' : f > 0.25 ? '#d49b2a' : '#c0392b';
       ctx.fillRect(bx, b.y + 44, bw * f, 5);
@@ -1062,7 +1072,7 @@ export class Renderer {
     ctx.font = 'bold 14px Georgia, serif';
     const w = ctx.measureText(text).width + 28;
     const x = l.col.x + l.col.w / 2 - w / 2;
-    ctx.fillStyle = 'rgba(43,29,20,0.92)';
+    ctx.fillStyle = 'rgba(27,39,66,0.92)';
     ctx.strokeStyle = PAL.gold;
     ctx.lineWidth = 1.5;
     roundRect(ctx, x, y, w, 30, 15);
@@ -1091,7 +1101,7 @@ function bigHealthBar(ctx: CanvasRenderingContext2D, cx: number, y: number, w: n
   const c = teamColors(owner);
   const h = 9;
   ctx.save();
-  ctx.fillStyle = 'rgba(29,20,14,0.9)';
+  ctx.fillStyle = 'rgba(17,26,47,0.9)';
   roundRect(ctx, cx - w / 2 - 1.5, y - h / 2 - 1.5, w + 3, h + 3, 4);
   ctx.fill();
   ctx.fillStyle = f > 0.5 ? c.base : f > 0.25 ? '#d49b2a' : '#e5534b';
@@ -1104,7 +1114,7 @@ function bigHealthBar(ctx: CanvasRenderingContext2D, cx: number, y: number, w: n
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineWidth = 2.5;
-  ctx.strokeStyle = 'rgba(29,20,14,0.95)';
+  ctx.strokeStyle = 'rgba(17,26,47,0.95)';
   const t = String(Math.max(0, Math.ceil(hp)));
   ctx.strokeText(t, cx, y + 0.5);
   ctx.fillStyle = '#fff8e6';
@@ -1149,7 +1159,7 @@ function flag(ctx: CanvasRenderingContext2D, x: number, y: number): void {
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 16); ctx.stroke();
   ctx.fillStyle = PAL.gold;
   ctx.beginPath(); ctx.moveTo(x, y - 16); ctx.lineTo(x + 10, y - 12.5); ctx.lineTo(x, y - 9); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = 'rgba(29,20,14,0.4)';
+  ctx.fillStyle = 'rgba(17,26,47,0.4)';
   ctx.beginPath(); ctx.ellipse(x, y, 5, 2, 0, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
@@ -1198,7 +1208,7 @@ export function itemIcon(ctx: CanvasRenderingContext2D, id: ItemId, x: number, y
     case 'baju': // chain vest
       ctx.fillStyle = '#9aa0a8';
       ctx.beginPath(); ctx.moveTo(-8, -6); ctx.lineTo(-3, -9); ctx.lineTo(0, -6); ctx.lineTo(3, -9); ctx.lineTo(8, -6); ctx.lineTo(7, 9); ctx.lineTo(-7, 9); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.strokeStyle = 'rgba(29,20,14,0.5)';
+      ctx.strokeStyle = 'rgba(17,26,47,0.5)';
       ctx.lineWidth = 0.8;
       for (const yy of [-2, 2, 6]) { ctx.beginPath(); ctx.moveTo(-6, yy); ctx.lineTo(6, yy); ctx.stroke(); }
       break;
@@ -1223,7 +1233,7 @@ export function itemIcon(ctx: CanvasRenderingContext2D, id: ItemId, x: number, y
     case 'rotan': // woven shield
       ctx.fillStyle = '#c9a15e';
       ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.strokeStyle = 'rgba(29,20,14,0.55)';
+      ctx.strokeStyle = 'rgba(17,26,47,0.55)';
       ctx.lineWidth = 0.9;
       for (const rr of [3, 6]) { ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.stroke(); }
       ctx.beginPath(); ctx.moveTo(-9, 0); ctx.lineTo(9, 0); ctx.moveTo(0, -9); ctx.lineTo(0, 9); ctx.stroke();
@@ -1256,6 +1266,15 @@ export function nearestTarget(l: Layout, targets: OrderTarget[], sx: number, sy:
   return best;
 }
 
+/** A crisp paper shadow under a card (an offset copy; cheap enough for every frame). */
+function cardShadow(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  ctx.save();
+  ctx.fillStyle = 'rgba(5,8,20,0.5)';
+  roundRect(ctx, x + 1.5, y + 2.5, w, h, r);
+  ctx.fill();
+  ctx.restore();
+}
+
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -1280,7 +1299,7 @@ function pill(ctx: CanvasRenderingContext2D, text: string, x: number, y: number,
   ctx.save();
   ctx.font = 'bold 10px system-ui';
   const w = ctx.measureText(text).width + 10;
-  ctx.fillStyle = on ? PAL.gold : 'rgba(43,29,20,0.9)';
+  ctx.fillStyle = on ? PAL.gold : 'rgba(27,39,66,0.9)';
   ctx.strokeStyle = INK;
   ctx.lineWidth = 1;
   roundRect(ctx, x - w / 2, y - 7, w, 14, 7);
@@ -1296,7 +1315,7 @@ function pill(ctx: CanvasRenderingContext2D, text: string, x: number, y: number,
 function hpBar(ctx: CanvasRenderingContext2D, cx: number, y: number, w: number, frac: number, color: string): void {
   const f = Math.max(0, Math.min(1, frac));
   ctx.save();
-  ctx.fillStyle = 'rgba(29,20,14,0.75)';
+  ctx.fillStyle = 'rgba(17,26,47,0.75)';
   ctx.fillRect(cx - w / 2 - 1, y - 2.5, w + 2, 5);
   ctx.fillStyle = color;
   ctx.fillRect(cx - w / 2, y - 1.5, w * f, 3);

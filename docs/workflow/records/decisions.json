@@ -466,24 +466,26 @@
         "5. Anime cel-shaded 2D (line art, two-tone shading, splash portraits)",
         "6. Anime heroes with Malay heritage art: cel-shaded anime figures with thick outlines, one signature Malay pattern per hero, and ultimates drawn as heritage art (batik, songket, wayang). Added after the owner's reference: Demon Slayer"
       ],
-      "choice": "Not chosen yet. Recommended (after the owner's reference, Demon Slayer): option 6, anime heroes with Malay heritage art, tried first as a code-drawn look test (PLAN-008). Hikayat stays the default until the owner decides.",
-      "rationale": "The owner likes Demon Slayer's look. That show pairs anime characters with traditional Japanese art (its makers cite ukiyo-e prints) and gives each hero a traditional pattern. Option 6 takes the same approach with Malay art, so it suits the owner's taste and stays original. Play figures must stay simple to read at 34 px, so full anime art goes on portraits, the draft and ultimate banners. Evidence: docs/research/art-style-options.md, REP-010, REP-011.",
+      "choice": "Option 4: batik paper-cut diorama. The board is layers of cut paper and batik-printed cloth with soft shadows; characters are die-cut paper standees with a white cut edge; forts are folded paper; the menus are paper cards on indigo batik cloth. It replaces the Hikayat look.",
+      "rationale": "The owner chose it. It is distinctive and Malaysian (batik; local precedents Kabaret and Paper Ghost Stories: 7PM), close to the existing flat standee engine, and the white cut edge keeps figures apart from the board. Readability rule: busy batik texture stays on the board and menus, low in contrast; figures stay plain. Evidence: REP-010, REP-011, docs/research/art-style-options.md.",
       "impact": {
-        "user": "Changes how the whole game looks; play stays the same.",
-        "technical": "Options 1, 3, 4 and 5 keep the Canvas 2D engine. Option 2 needs a 3D engine or 3D models rendered to sprites. Bone animation (for example Spine) would be a new dependency and needs its own plan.",
+        "user": "The whole game looks different (map, characters, forts, fog, menus, draft); play is unchanged.",
+        "technical": "Drawing code only (src/ui, index.html). Map and figures stay cached; paper shadows and cut edges are drawn once per cache entry. No new dependency.",
         "data": "None."
       },
-      "cost": "RM0 to decide and to make code-drawn look tests. A full art pass by an artist is a paid service and needs separate approval; rough vendor prices: US$250-1,500 per 2D character, US$1,500-4,000 per rigged 3D character (REP-010).",
+      "cost": "RM0 (code-drawn). Real art by an artist later would be a separate, paid decision.",
       "owner": "Murshidi",
       "approval": {
-        "status": "awaiting approval"
+        "status": "approved",
+        "evidence": "use the batik paper card diorama",
+        "date": "2026-11-12"
       },
-      "delivery": "not started",
+      "delivery": "implemented",
       "reports": [
         "REP-010",
         "REP-011"
       ],
-      "reviewTrigger": "The look test reads poorly on the owner's phone, the owner prefers another option after seeing it, or the art budget changes."
+      "reviewTrigger": "The paper look reads poorly on the owner's phone, phones slow down, or the owner changes direction."
     }
   ],
   "history": [
@@ -1046,6 +1048,66 @@
     {
       "at": "2026-11-12 19:46",
       "text": "REP-011 written: Your reference (Demon Slayer): look 6 and a look-test proposal."
+    },
+    {
+      "at": "2026-11-12 22:47",
+      "text": "Owner approved DEC-018: \"use the batik paper card diorama\"."
+    },
+    {
+      "at": "2026-11-12 22:47",
+      "text": "PLAN-009 proposed: Batik paper-cut diorama look."
+    },
+    {
+      "at": "2026-11-12 22:47",
+      "text": "PLAN-008 superseded by PLAN-009."
+    },
+    {
+      "at": "2026-11-12 22:47",
+      "text": "Owner approved PLAN-009: \"use the batik paper card diorama\"."
+    },
+    {
+      "at": "2026-11-12 22:47",
+      "text": "PLAN-009 delivery: in progress."
+    },
+    {
+      "at": "2026-11-12 22:47",
+      "text": "DEC-018 delivery: in progress."
+    },
+    {
+      "at": "2026-11-12 22:58",
+      "text": "PLAN-009 T1: PASS (Phone-check screenshots reviewed (draft, versus, game start, command menu, shop, ultimate, result, zoomed): paper map, folded-paper forts, indigo batik fog, paper cards on indigo batik cloth; PHONE CHECK OK.)."
+    },
+    {
+      "at": "2026-11-12 22:58",
+      "text": "PLAN-009 T2: PASS (Sprite sheets of all 20 heroes and 18 troop types: white cut edge and paper shadow on every pose (walk, attack, hurt, spawn); blue and red bases and sashes still read at 34 px and 21 px; game screenshots checked.)."
+    },
+    {
+      "at": "2026-11-12 22:58",
+      "text": "PLAN-009 T3: PASS (100 cached figures: 0.84 ms average per frame (frames 40-119). Map painted once in 10-18 ms (before 8-15 ms); full frame median 3 ms (before 2.5 ms). Desktop Chromium with iPhone 13 emulation, not a real phone.)."
+    },
+    {
+      "at": "2026-11-12 22:58",
+      "text": "PLAN-009 T4: PASS (npm run verify: 93/93 tests, build, docs and records checks; npm run soak: 3/3 (120 matches and the no-stall run); PHONE CHECK OK; no change in src/game.)."
+    },
+    {
+      "at": "2026-11-12 22:58",
+      "text": "PLAN-009 T5: NOT RUN (Not yet tried on the owner's phone.)."
+    },
+    {
+      "at": "2026-11-12 22:58",
+      "text": "PLAN-009 T6: NOT RUN (Waiting for the owner's verdict.)."
+    },
+    {
+      "at": "2026-11-12 22:58",
+      "text": "PLAN-009 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 22:58",
+      "text": "DEC-018 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 22:58",
+      "text": "REP-012 written: PLAN-009: the batik paper-cut look."
     }
   ]
 }

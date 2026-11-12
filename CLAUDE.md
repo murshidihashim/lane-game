@@ -52,7 +52,7 @@ Short progress notes use STATUS, FINDING, NEXT. Plain English; the owner reads o
   that heroes never stall.
 - No hand-played cards (DEC-011): players act only through lane troops, hero orders, items and
   ultimate calls. Fog of war (DEC-012): the bot must use `Sim.sees`, never hidden information.
-- The Hikayat art style (`docs/design/art-style.md`, `src/ui/art.ts`): new pieces follow its rules.
+- The batik paper art style (DEC-018; `docs/design/art-style.md`, `src/ui/art.ts`): new pieces follow its rules.
 - Original names, art, map and screen layout only. Never use "Clash", "Royale", "Legends",
   "Elixir", "Lord" or "Turtle" (see `docs/research/research-report.md`, legal section).
 - No paid random rewards (loot boxes or gacha) without a new, approved decision.

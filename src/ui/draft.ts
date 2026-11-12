@@ -1,9 +1,9 @@
 // Hero selection (DEC-014, DEC-015): choose your people (species), then a draft against the bot
-// on a lamp-lit stage, then a versus screen before the match. Original Hikayat look: night, oil-lamp
-// light, songket gold, parchment labels. Screens only; the rules see just the final line-ups.
+// on a lamp-lit paper-theatre stage, then a versus screen before the match. Batik paper look (DEC-018):
+// indigo batik cloth, oil-lamp light, songket gold, paper labels. Screens only; the rules see just the final line-ups.
 import { CLASSES, HEROES, HERO_IDS, HERO_RULES, SPECIES, SPECIES_IDS, type HeroKind, type SpeciesId } from '../game/rules';
 import { DRAFT_ORDER, type Player, botDraftPick } from '../game/sim';
-import { PAL, SPECIES_COLORS } from './art';
+import { PAL, SPECIES_COLORS, batikPattern } from './art';
 import { drawHeroFigure, drawPortrait, drawTroopFigure, heroScale } from './figures';
 import { ORDER_COLORS } from './render';
 
@@ -451,11 +451,13 @@ export class PickFlow {
     const bot = this.bot.includes(k);
     const mine = this.mine.includes(k);
     ctx.clearRect(0, 0, w, h);
-    // night backdrop and the lamp above the stage
+    // an indigo batik backdrop (a paper theatre) and the lamp above the stage
     const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, '#120b12');
-    bg.addColorStop(1, '#24150d');
+    bg.addColorStop(0, PAL.indigoDark);
+    bg.addColorStop(1, PAL.indigo);
     ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = batikPattern(ctx, 'fog', dpr);
     ctx.fillRect(0, 0, w, h);
     lampLight(ctx, w / 2, h * 0.2, Math.max(w, h) * 0.75, now);
     // carved arch frame (a wayang screen edge)
@@ -482,11 +484,11 @@ export class PickFlow {
     beam.addColorStop(1, 'rgba(255,214,140,0.04)');
     ctx.fillStyle = beam;
     ctx.beginPath(); ctx.moveTo(lx - 10, ly + 6); ctx.lineTo(lx + 10, ly + 6); ctx.lineTo(w * 0.86, h - 20); ctx.lineTo(w * 0.14, h - 20); ctx.closePath(); ctx.fill();
-    // the stage floor: wooden planks with a songket edge
+    // the stage floor: a kraft paper strip with a songket edge
     const floorY = h - 24;
-    ctx.fillStyle = PAL.woodDark;
+    ctx.fillStyle = PAL.clay;
     ctx.fillRect(0, floorY, w, 24);
-    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.strokeStyle = 'rgba(110,62,26,0.35)';
     ctx.lineWidth = 1;
     for (let x = -10; x < w; x += 22) { ctx.beginPath(); ctx.moveTo(x, floorY); ctx.lineTo(x + 8, h); ctx.stroke(); }
     songketBand(ctx, 0, floorY - 4, w, 7);
@@ -557,6 +559,8 @@ export class PickFlow {
     ctx.fillStyle = bottom;
     ctx.fill();
     ctx.restore();
+    ctx.fillStyle = batikPattern(ctx, 'fog', dpr);
+    ctx.fillRect(0, 0, w, h);
     lampLight(ctx, w * 0.8, h * 0.14, w * 0.8, now, 0.7);
     lampLight(ctx, w * 0.2, h * 0.7, w * 0.8, now + 500, 0.55);
     ctx.save();

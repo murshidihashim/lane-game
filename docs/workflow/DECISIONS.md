@@ -6,10 +6,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 
 ## Pending approvals
 
-| ID | What | Status |
-|---|---|---|
-| DEC-018 | Art direction for the full game | Awaiting approval |
-| PLAN-008 | Look test: anime heroes with Malay heritage art | Awaiting approval |
+None.
 
 ## Decisions
 
@@ -32,7 +29,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | DEC-015 | Draft-style hero select and versus screen | Approved (owner, 2026-11-12) | Implemented |
 | DEC-016 | Slower movement and a zoomable map | Approved (owner, 2026-11-12) | Implemented |
 | DEC-017 | Hero command menu, Attack order and smarter heroes | Approved (owner, 2026-11-12) | Implemented |
-| DEC-018 | Art direction for the full game | Awaiting approval | Not started |
+| DEC-018 | Art direction for the full game | Approved (owner, 2026-11-12) | Implemented |
 
 ## Work packages
 
@@ -45,7 +42,8 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | PLAN-005 | Balance pass, three heroes each, draft-style hero select | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
 | PLAN-006 | Slower pace, zoomable map, re-balance, character polish | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
 | PLAN-007 | Smarter heroes and a tap-to-command menu | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
-| PLAN-008 | Look test: anime heroes with Malay heritage art | Awaiting approval | Not started | 0/7 | Unreleased |
+| PLAN-008 | Look test: anime heroes with Malay heritage art | Superseded | Not started | 0/7 | Unreleased |
+| PLAN-009 | Batik paper-cut diorama look | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
 
 ## Decision details
 
@@ -291,15 +289,15 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 
 - **Question:** Which look should the full game grow into, once real art is made?
 - **Options:** 1. Hikayat board game, painted by an artist (the current look, finished by hand) · 2. Toy-box 3D (rounded, glossy, toy-like characters) · 3. Wayang kulit 'living puppets' (coloured, jointed leather puppets on a lamp-lit board) · 4. Batik paper-cut diorama, 2.5D (layered paper and batik, die-cut standees) · 5. Anime cel-shaded 2D (line art, two-tone shading, splash portraits) · 6. Anime heroes with Malay heritage art: cel-shaded anime figures with thick outlines, one signature Malay pattern per hero, and ultimates drawn as heritage art (batik, songket, wayang). Added after the owner's reference: Demon Slayer
-- **Choice:** Not chosen yet. Recommended (after the owner's reference, Demon Slayer): option 6, anime heroes with Malay heritage art, tried first as a code-drawn look test (PLAN-008). Hikayat stays the default until the owner decides.
-- **Rationale:** The owner likes Demon Slayer's look. That show pairs anime characters with traditional Japanese art (its makers cite ukiyo-e prints) and gives each hero a traditional pattern. Option 6 takes the same approach with Malay art, so it suits the owner's taste and stays original. Play figures must stay simple to read at 34 px, so full anime art goes on portraits, the draft and ultimate banners. Evidence: docs/research/art-style-options.md, REP-010, REP-011.
-- **User impact:** Changes how the whole game looks; play stays the same.
-- **Technical impact:** Options 1, 3, 4 and 5 keep the Canvas 2D engine. Option 2 needs a 3D engine or 3D models rendered to sprites. Bone animation (for example Spine) would be a new dependency and needs its own plan.
+- **Choice:** Option 4: batik paper-cut diorama. The board is layers of cut paper and batik-printed cloth with soft shadows; characters are die-cut paper standees with a white cut edge; forts are folded paper; the menus are paper cards on indigo batik cloth. It replaces the Hikayat look.
+- **Rationale:** The owner chose it. It is distinctive and Malaysian (batik; local precedents Kabaret and Paper Ghost Stories: 7PM), close to the existing flat standee engine, and the white cut edge keeps figures apart from the board. Readability rule: busy batik texture stays on the board and menus, low in contrast; figures stay plain. Evidence: REP-010, REP-011, docs/research/art-style-options.md.
+- **User impact:** The whole game looks different (map, characters, forts, fog, menus, draft); play is unchanged.
+- **Technical impact:** Drawing code only (src/ui, index.html). Map and figures stay cached; paper shadows and cut edges are drawn once per cache entry. No new dependency.
 - **Data and privacy:** None.
-- **Cost:** RM0 to decide and to make code-drawn look tests. A full art pass by an artist is a paid service and needs separate approval; rough vendor prices: US$250-1,500 per 2D character, US$1,500-4,000 per rigged 3D character (REP-010).
-- **Approval:** Awaiting approval
-- **Delivery:** Not started
-- **Review trigger:** The look test reads poorly on the owner's phone, the owner prefers another option after seeing it, or the art budget changes.
+- **Cost:** RM0 (code-drawn). Real art by an artist later would be a separate, paid decision.
+- **Approval:** Approved: “use the batik paper card diorama” (2026-11-12)
+- **Delivery:** Implemented
+- **Review trigger:** The paper look reads poorly on the owner's phone, phones slow down, or the owner changes direction.
 
 ## History (oldest first)
 
@@ -443,3 +441,18 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 - 2026-11-12 19:46 · Owner's reference for DEC-018: "i like demon slayer's artstyle". Option 6 added (anime heroes with Malay heritage art); recommendation changed to option 6.
 - 2026-11-12 19:46 · PLAN-008 proposed: Look test: anime heroes with Malay heritage art.
 - 2026-11-12 19:46 · REP-011 written: Your reference (Demon Slayer): look 6 and a look-test proposal.
+- 2026-11-12 22:47 · Owner approved DEC-018: "use the batik paper card diorama".
+- 2026-11-12 22:47 · PLAN-009 proposed: Batik paper-cut diorama look.
+- 2026-11-12 22:47 · PLAN-008 superseded by PLAN-009.
+- 2026-11-12 22:47 · Owner approved PLAN-009: "use the batik paper card diorama".
+- 2026-11-12 22:47 · PLAN-009 delivery: in progress.
+- 2026-11-12 22:47 · DEC-018 delivery: in progress.
+- 2026-11-12 22:58 · PLAN-009 T1: PASS (Phone-check screenshots reviewed (draft, versus, game start, command menu, shop, ultimate, result, zoomed): paper map, folded-paper forts, indigo batik fog, paper cards on indigo batik cloth; PHONE CHECK OK.).
+- 2026-11-12 22:58 · PLAN-009 T2: PASS (Sprite sheets of all 20 heroes and 18 troop types: white cut edge and paper shadow on every pose (walk, attack, hurt, spawn); blue and red bases and sashes still read at 34 px and 21 px; game screenshots checked.).
+- 2026-11-12 22:58 · PLAN-009 T3: PASS (100 cached figures: 0.84 ms average per frame (frames 40-119). Map painted once in 10-18 ms (before 8-15 ms); full frame median 3 ms (before 2.5 ms). Desktop Chromium with iPhone 13 emulation, not a real phone.).
+- 2026-11-12 22:58 · PLAN-009 T4: PASS (npm run verify: 93/93 tests, build, docs and records checks; npm run soak: 3/3 (120 matches and the no-stall run); PHONE CHECK OK; no change in src/game.).
+- 2026-11-12 22:58 · PLAN-009 T5: NOT RUN (Not yet tried on the owner's phone.).
+- 2026-11-12 22:58 · PLAN-009 T6: NOT RUN (Waiting for the owner's verdict.).
+- 2026-11-12 22:58 · PLAN-009 delivery: implemented.
+- 2026-11-12 22:58 · DEC-018 delivery: implemented.
+- 2026-11-12 22:58 · REP-012 written: PLAN-009: the batik paper-cut look.

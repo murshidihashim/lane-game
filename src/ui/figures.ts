@@ -1,9 +1,10 @@
-// Character figures (DEC-013): heroes and troops drawn as small painted board-game standees in the
-// Hikayat style (docs/design/art-style.md). Each piece is drawn in code on a grid 100 units tall
-// (feet at 0, head near -100), on a team-coloured base, and cached as a bitmap per pose so ~80
-// figures a frame stay cheap on a phone. Drawing only; no game rules.
+// Character figures (DEC-013, DEC-018): heroes and troops as die-cut paper standees in the batik
+// paper style (docs/design/art-style.md). Each piece is drawn in code on a grid 100 units tall
+// (feet at 0, head near -100), on a team-coloured paper base, given a white cut edge and a paper
+// shadow, and cached as a bitmap per pose so ~80 figures a frame stay cheap on a phone.
+// Drawing only; no game rules.
 import type { HeroKind, UnitKind } from '../game/rules';
-import { PAL, teamColors } from './art';
+import { PAL, cutOut, teamColors } from './art';
 
 const INK = PAL.ink;
 const TAU = Math.PI * 2;
@@ -1487,7 +1488,7 @@ function standeeBase(p: Pen, f: Pose, kind: 'hero' | 'troop' | 'wave' | 'none', 
   }
 }
 
-const BOX = { x0: -80, x1: 80, y0: -142, y1: 16 } as const;
+const BOX = { x0: -80, x1: 80, y0: -142, y1: 24 } as const;
 /** Least-recently-used bitmap cache: a figure pose is drawn once, then copied each frame. */
 const cache = new Map<string, HTMLCanvasElement>();
 const CACHE_CAP = 1600;
@@ -1515,6 +1516,12 @@ function bitmap(key: string, hb: number, dpr: number, render: (p: Pen) => void):
   }
   cache.set(key, cv);
   return cv;
+}
+
+/** A die-cut paper standee: `draw` paints the piece; it gets a white cut edge and a paper shadow. */
+function paperCut(p: Pen, hb: number, dpr: number, draw: (q: Pen) => void): void {
+  const edge = Math.min(3, Math.max(1.1, hb * 0.045)) * dpr;
+  cutOut(p.c, edge, (c) => draw(new Pen(c, p.lw)));
 }
 
 /** The figure's own silhouette in white, for the hit flash (cached per pose like the figure). */
@@ -1608,11 +1615,13 @@ export function drawHeroFigure(ctx: CanvasRenderingContext2D, kind: HeroKind, x:
     p.c.restore();
   };
   const cv = bitmap(key, hb, d, (p) => {
-    p.ell(3, 2, tr ? 40 : 30, 8, 'rgba(10,20,10,0.35)', false);
     const f = poseOf(frame, owner, tr);
-    if (!fly) standeeBase(p, f, 'hero', tr ? 36 : 26);
-    else p.ell(0, 0, 16, 5, f.team.base, true);
-    figure(p);
+    if (fly) p.ell(3, 2, 18, 5.5, 'rgba(16,14,34,0.3)', false);
+    paperCut(p, hb, d, (q) => {
+      if (!fly) standeeBase(q, f, 'hero', tr ? 36 : 26);
+      else q.ell(0, 0, 16, 5, f.team.base, true);
+      figure(q);
+    });
   });
   present(ctx, cv, x, y, hb, o, () => silhouette(key, hb, d, figure));
 }
@@ -1641,10 +1650,12 @@ export function drawTroopFigure(ctx: CanvasRenderingContext2D, kind: UnitKind, x
   const cv = bitmap(key, hb, d, (p) => {
     const f = poseOf(frame, owner, false);
     const w = art.wide ? 34 : 24;
-    p.ell(3, 2, w + 2, 7, 'rgba(10,20,10,0.35)', false);
-    if (!fly) standeeBase(p, f, kind === 'watchtower' ? 'none' : o.wave ? 'wave' : 'troop', w);
-    else p.ell(0, 0, 13, 4.5, f.team.base, true);
-    figure(p);
+    if (fly) p.ell(3, 2, 15, 5, 'rgba(16,14,34,0.3)', false);
+    paperCut(p, hb, d, (q) => {
+      if (!fly) standeeBase(q, f, kind === 'watchtower' ? 'none' : o.wave ? 'wave' : 'troop', w);
+      else q.ell(0, 0, 13, 4.5, f.team.base, true);
+      figure(q);
+    });
   });
   present(ctx, cv, x, y, hb, o, () => silhouette(key, hb, d, figure));
 }

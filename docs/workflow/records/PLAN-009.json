@@ -1,0 +1,95 @@
+{
+  "id": "PLAN-009",
+  "title": "Batik paper-cut diorama look",
+  "problem": "The owner chose the batik paper-cut diorama look (DEC-018): \"use the batik paper card diorama\". The game still shows the Hikayat look.",
+  "scope": [
+    "Palette: batik paper colours (paper cream, kraft, indigo, soga brown, leaf greens) replace timber and parchment; team blue and red stay",
+    "Map, painted once as a paper diorama: batik-printed jungle cloth, cut-paper leaf canopies, kraft-paper lanes with torn edges, layered paper river with batik wave lines, paper bridges, camps, dens, cairns and shrines, all with soft paper shadows",
+    "Characters: every hero and troop becomes a die-cut paper standee (white cut edge, paper shadow, indigo-black ink) on a paper base in team colour; cached as now",
+    "Forts and the Pusaka as folded paper with batik-printed roofs (cached)",
+    "Fog of war as indigo dye with a faint batik crackle",
+    "Menus: indigo batik cloth behind paper cards (game screen, help, shop, settings, results, draft and versus screens)",
+    "Docs: art-style.md rewritten for the new look; phone-check screenshots; records"
+  ],
+  "exclusions": [
+    "Game rules (src/game), balance and controls",
+    "New ultimate effect shapes (effects keep their shapes; colours follow the palette)",
+    "Paid art, sound, new dependencies",
+    "Keeping Hikayat as a switchable look (it stays in git history and preview version 7)"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "The map, forts, fog and menus show the batik paper look in the game and on the draft and versus screens (browser screenshots reviewed)",
+      "result": "PASS",
+      "evidence": "Phone-check screenshots reviewed (draft, versus, game start, command menu, shop, ultimate, result, zoomed): paper map, folded-paper forts, indigo batik fog, paper cards on indigo batik cloth; PHONE CHECK OK."
+    },
+    {
+      "id": "T2",
+      "text": "Every hero and troop is a die-cut paper standee; teams still tell apart at play size (sprite sheet and game screenshots reviewed)",
+      "result": "PASS",
+      "evidence": "Sprite sheets of all 20 heroes and 18 troop types: white cut edge and paper shadow on every pose (walk, attack, hurt, spawn); blue and red bases and sashes still read at 34 px and 21 px; game screenshots checked."
+    },
+    {
+      "id": "T3",
+      "text": "Speed: drawing 100 cached figures stays under 1 ms on average; the map is painted once (measured)",
+      "result": "PASS",
+      "evidence": "100 cached figures: 0.84 ms average per frame (frames 40-119). Map painted once in 10-18 ms (before 8-15 ms); full frame median 3 ms (before 2.5 ms). Desktop Chromium with iPhone 13 emulation, not a real phone."
+    },
+    {
+      "id": "T4",
+      "text": "Game unchanged: verify, determinism, soak and phone check pass; no change in src/game",
+      "result": "PASS",
+      "evidence": "npm run verify: 93/93 tests, build, docs and records checks; npm run soak: 3/3 (120 matches and the no-stall run); PHONE CHECK OK; no change in src/game."
+    },
+    {
+      "id": "T5",
+      "text": "On the owner's phone",
+      "result": "NOT RUN",
+      "evidence": "Not yet tried on the owner's phone."
+    },
+    {
+      "id": "T6",
+      "text": "Owner's verdict on the new look",
+      "result": "NOT RUN",
+      "evidence": "Waiting for the owner's verdict."
+    }
+  ],
+  "risks": [
+    "Batik texture can turn into noise on a small screen: texture stays low-contrast and off the figures",
+    "Extra shadows could slow phones: shadows and cut edges are drawn once into caches, not every frame",
+    "Code-drawn paper is simpler than an artist's version"
+  ],
+  "cost": "RM0.",
+  "decisions": [
+    "DEC-018"
+  ],
+  "reports": [
+    "REP-012"
+  ],
+  "changes": {
+    "added": [
+      "Batik patterns, die-cut paper helper and cached paper forts (src/ui/art.ts)"
+    ],
+    "changed": [
+      "Map painted as a paper diorama",
+      "Every character is a die-cut paper standee",
+      "Fog of war, HUD, menus, draft and versus screens in indigo batik and paper",
+      "art-style.md v3; README; project rules"
+    ],
+    "fixed": [],
+    "removed": [
+      "The Hikayat look (kept in git history and preview version 7)"
+    ]
+  },
+  "userNotes": [
+    "New look: a batik paper-cut diorama. Paper standees with white cut edges, a batik-printed jungle board, kraft-paper lanes, folded-paper forts, indigo batik fog and menus."
+  ],
+  "approval": {
+    "status": "approved",
+    "evidence": "use the batik paper card diorama",
+    "date": "2026-11-12"
+  },
+  "delivery": "implemented",
+  "release": "unreleased"
+}

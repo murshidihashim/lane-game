@@ -1,6 +1,8 @@
-// "Hikayat" art style (DEC-010): a hand-painted folk-tale board game seen from above.
-// Everything is drawn in code: ink-outlined tokens with class glyphs, timber forts, a painted
-// rainforest map (drawn once and cached), batik/songket accents. Drawing only; no game rules.
+// "Batik paper" art style (DEC-018): a paper-cut diorama of a folk-tale board seen from above.
+// Everything is drawn in code: a batik-printed jungle cloth, cut-paper leaf canopies, kraft-paper
+// lanes, folded-paper forts, die-cut paper standees, all with soft paper shadows, on indigo batik
+// cloth menus. The map is painted once and cached; forts and figures are cached too.
+// Drawing only; no game rules.
 import { CAMPS, DENS, BOSS_PIT, FIELD, LANES, LANE_HALF, RIVER, SHRINES, WARD_SPOTS, inJungle, pointAt } from '../game/map';
 import { Rng } from '../game/math';
 import type { SpeciesId } from '../game/rules';
@@ -8,18 +10,157 @@ import type { Sim } from '../game/sim';
 import { type Layout, toScreen } from './layout';
 
 export const PAL = {
-  ink: '#1d140e',
-  jungle: '#24533a', jungleDark: '#183d2a', jungleLight: '#33704b',
-  canopy: '#1f4c33', canopyLight: '#3f8a52', canopyShade: '#11301f',
-  clay: '#a8653d', clayLight: '#c98a57', clayDark: '#7a4527',
-  river: '#2a8496', riverLight: '#6cc4c9', sand: '#d8b77d',
-  wood: '#6b4426', woodLight: '#93643b', woodDark: '#3f2717',
-  gold: '#e0b04a', goldDark: '#a57a24', maroon: '#5a1e1e',
-  parchment: '#f3e6c4', parchmentDark: '#e2cf9f',
+  ink: '#221a2c', // indigo-black ink for outlines and text
+  jungle: '#2d5a47', jungleDark: '#1f4535', jungleLight: '#3f7a5d',
+  canopy: '#2f6b4c', canopyLight: '#4f9a68', canopyShade: '#163a2b',
+  clay: '#c98f55', clayLight: '#e6c08a', clayDark: '#8a5a2e', // kraft paper (lanes)
+  river: '#2a7f94', riverLight: '#8fd0d4', sand: '#ead8b0',
+  wood: '#7b4a22', woodLight: '#a8703c', woodDark: '#4a2a14', // soga brown (batik dye)
+  gold: '#e0b04a', goldDark: '#a57a24', maroon: '#6b1f2a',
+  parchment: '#f4ead6', parchmentDark: '#e0d0ac', // paper cards
+  paperEdge: '#fbf7ec', // the white cut edge of every paper piece
+  indigo: '#1b2742', indigoDark: '#111a2f', indigoLight: '#2c3f66', // batik indigo cloth
   you: '#2f5fb3', youLight: '#9cc0ff', youDark: '#1d3d78',
   foe: '#c0392b', foeLight: '#f4a28c', foeDark: '#7d2219',
   neutral: '#8a6a2f',
 } as const;
+
+const TAU = Math.PI * 2;
+
+// ---------- batik paper helpers ----------
+
+/** A batik "bunga" motif: four petals around a dot (kawung-like), at (x, y) with radius r. */
+export function batikFlower(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string): void {
+  ctx.fillStyle = color;
+  for (let i = 0; i < 4; i++) {
+    const a = (i * Math.PI) / 2 + Math.PI / 4;
+    ctx.beginPath();
+    ctx.ellipse(x + Math.cos(a) * r * 0.55, y + Math.sin(a) * r * 0.55, r * 0.5, r * 0.26, a, 0, TAU);
+    ctx.fill();
+  }
+  ctx.beginPath(); ctx.arc(x, y, r * 0.16, 0, TAU); ctx.fill();
+}
+
+/** One tile of printed batik cloth (64 CSS px square), drawn at `k` device pixels per CSS px.
+ *  `ground` fills the background first; motifs sit on the corners and centre so the tile repeats seamlessly. */
+function batikTile(k: number, ground: string | null, motif: string, dots: string): HTMLCanvasElement {
+  const size = 64;
+  const c = document.createElement('canvas');
+  c.width = c.height = Math.max(8, Math.round(size * k));
+  const g = c.getContext('2d');
+  if (!g) return c;
+  g.setTransform(c.width / size, 0, 0, c.height / size, 0, 0);
+  if (ground) { g.fillStyle = ground; g.fillRect(0, 0, size, size); }
+  for (const [x, y] of [[0, 0], [size, 0], [0, size], [size, size], [size / 2, size / 2]]) batikFlower(g, x, y, 11, motif);
+  g.fillStyle = dots;
+  for (const [x, y] of [[size / 2, 0], [0, size / 2], [size, size / 2], [size / 2, size]]) {
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * TAU;
+      g.beginPath(); g.arc(x + Math.cos(a) * 6, y + Math.sin(a) * 6, 1.1, 0, TAU); g.fill();
+    }
+  }
+  g.strokeStyle = dots;
+  g.lineWidth = 0.8;
+  for (const [x, y] of [[size / 4, size / 4], [(3 * size) / 4, size / 4], [size / 4, (3 * size) / 4], [(3 * size) / 4, (3 * size) / 4]]) {
+    g.beginPath(); g.moveTo(x, y - 3); g.lineTo(x + 3, y); g.lineTo(x, y + 3); g.lineTo(x - 3, y); g.closePath(); g.stroke();
+  }
+  return c;
+}
+
+const clothCache = new WeakMap<CanvasRenderingContext2D, Map<string, CanvasPattern>>();
+
+/**
+ * A repeating batik pattern for this context, drawn at `k` device px per CSS px; `userPerCss` is how
+ * many of the context's user units make one CSS px (1 when its transform already scales by k).
+ * 'cloth': indigo cloth (menus, screen edges). 'fog': motifs only, laid over the fog's indigo wash.
+ */
+export function batikPattern(ctx: CanvasRenderingContext2D, kind: 'cloth' | 'fog', k: number, userPerCss = 1): CanvasPattern | string {
+  let m = clothCache.get(ctx);
+  if (!m) { m = new Map(); clothCache.set(ctx, m); }
+  const key = `${kind}@${Math.round(k * 100)}/${Math.round(userPerCss * 100)}`;
+  const hit = m.get(key);
+  if (hit) return hit;
+  const tile = kind === 'cloth'
+    ? batikTile(k, PAL.indigo, 'rgba(120,150,215,0.16)', 'rgba(170,190,235,0.16)')
+    : batikTile(k, null, 'rgba(150,175,240,0.10)', 'rgba(150,175,240,0.08)');
+  const pat = ctx.createPattern(tile, 'repeat');
+  if (!pat) return PAL.indigo;
+  const z = userPerCss / k; // tile pixels -> the context's user units
+  pat.setTransform(new DOMMatrix([z, 0, 0, z, 0, 0]));
+  m.set(key, pat);
+  return pat;
+}
+
+const scratch: HTMLCanvasElement[] = [];
+function scratchCanvas(i: number, w: number, h: number): CanvasRenderingContext2D | null {
+  const c = scratch[i] ?? (scratch[i] = document.createElement('canvas'));
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  const g = c.getContext('2d');
+  if (!g) return null;
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalCompositeOperation = 'source-over';
+  g.globalAlpha = 1;
+  g.clearRect(0, 0, w, h);
+  return g;
+}
+
+/**
+ * Die-cut paper: whatever `draw` paints (using ctx's current transform) is stamped onto ctx with a
+ * white cut edge `edge` device px wide and a soft paper shadow. Meant for cached bitmaps, not for
+ * every frame.
+ */
+export function cutOut(ctx: CanvasRenderingContext2D, edge: number, draw: (c: CanvasRenderingContext2D) => void): void {
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  const art = scratchCanvas(0, w, h);
+  const rim = scratchCanvas(1, w, h);
+  if (!art || !rim) { draw(ctx); return; }
+  art.setTransform(ctx.getTransform());
+  draw(art);
+  const n = 12;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU;
+    rim.drawImage(art.canvas, Math.cos(a) * edge, Math.sin(a) * edge);
+  }
+  rim.globalCompositeOperation = 'source-in';
+  rim.fillStyle = PAL.paperEdge;
+  rim.fillRect(0, 0, w, h);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.shadowColor = 'rgba(16,14,34,0.42)';
+  ctx.shadowBlur = edge * 1.6;
+  ctx.shadowOffsetX = edge * 0.8;
+  ctx.shadowOffsetY = edge * 1.2;
+  ctx.drawImage(rim.canvas, 0, 0);
+  ctx.shadowColor = 'rgba(0,0,0,0)';
+  ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+  ctx.drawImage(art.canvas, 0, 0);
+  ctx.restore();
+}
+
+/** Turn a paper shadow on (sizes in CSS px; `k` = device px per CSS px) or off. */
+function paperShadow(ctx: CanvasRenderingContext2D, k: number, blur: number, dx: number, dy: number, a = 0.4): void {
+  ctx.shadowColor = `rgba(16,14,34,${a})`;
+  ctx.shadowBlur = blur * k;
+  ctx.shadowOffsetX = dx * k;
+  ctx.shadowOffsetY = dy * k;
+}
+function noShadow(ctx: CanvasRenderingContext2D): void {
+  ctx.shadowColor = 'rgba(0,0,0,0)';
+  ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+}
+
+/** Batik dots printed inside the current path (call after building a path). */
+function printDots(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, step: number, r: number, color: string): void {
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = color;
+  let row = 0;
+  for (let y = y0; y <= y1; y += step, row++) {
+    for (let x = x0 + (row % 2) * step * 0.5; x <= x1; x += step) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); }
+  }
+  ctx.restore();
+}
 
 export const SPECIES_COLORS: Record<SpeciesId, string> = {
   kampung: '#c0843d', hutan: '#4f8a3b', sungai: '#2f8fa3', serangga: '#b5892a', batu: '#7d7f86',
@@ -207,92 +348,129 @@ export function songket(ctx: CanvasRenderingContext2D, x: number, y: number, w: 
   ctx.restore();
 }
 
-/** A timber fort ("kubu") seen from above: a hip roof in team cloth with a gold ridge cap. */
-export function kubu(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, owner: number, alive: boolean): void {
-  const c = teamColors(owner);
-  ctx.save();
-  ctx.fillStyle = 'rgba(10,20,10,0.4)';
-  ctx.fillRect(x - s / 2 + 3, y - s / 2 + 4, s, s);
-  if (!alive) {
-    // rubble
-    ctx.fillStyle = '#6d6259';
-    ctx.strokeStyle = PAL.ink;
-    ctx.lineWidth = 1.2;
-    const rng = new Rng(Math.round(x * 31 + y));
-    for (let i = 0; i < 6; i++) {
-      const px = x - s / 2 + rng.int(Math.max(1, Math.round(s)));
-      const py = y - s / 2 + rng.int(Math.max(1, Math.round(s)));
-      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + s * 0.25, py + 2); ctx.lineTo(px + s * 0.12, py + s * 0.2); ctx.closePath();
-      ctx.fill(); ctx.stroke();
-    }
-    ctx.restore();
-    return;
+// ---------- forts (cached paper pieces) ----------
+
+const pieceCache = new Map<string, HTMLCanvasElement>();
+
+/** Draws a cached piece centred on (x, y): `paint` draws it centred on 0,0 in CSS px at size s. */
+function stamp(ctx: CanvasRenderingContext2D, key: string, x: number, y: number, s: number, paint: (c: CanvasRenderingContext2D, k: number) => void): void {
+  const k = Math.max(1, ctx.getTransform().a);
+  const half = s * 0.9 + 8;
+  const full = `${key}|${Math.round(s)}|${Math.round(k * 100)}`;
+  let cv = pieceCache.get(full);
+  if (!cv) {
+    cv = document.createElement('canvas');
+    cv.width = cv.height = Math.max(1, Math.ceil(half * 2 * k));
+    const c = cv.getContext('2d');
+    if (c) { c.setTransform(k, 0, 0, k, half * k, half * k); paint(c, k); }
+    if (pieceCache.size > 200) pieceCache.clear();
+    pieceCache.set(full, cv);
   }
-  // stilts / deck
-  ctx.fillStyle = PAL.wood;
-  ctx.strokeStyle = PAL.ink;
-  ctx.lineWidth = 1.5;
-  ctx.fillRect(x - s / 2, y - s / 2, s, s);
-  ctx.strokeRect(x - s / 2, y - s / 2, s, s);
-  // hip roof: four triangles, lit from the top left
-  const r = s * 0.42;
-  const tri = (ax: number, ay: number, bx: number, by: number, col: string) => {
-    ctx.fillStyle = col;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ax, ay); ctx.lineTo(bx, by); ctx.closePath(); ctx.fill(); ctx.stroke();
-  };
-  tri(x - r, y - r, x + r, y - r, c.light);
-  tri(x - r, y - r, x - r, y + r, c.base);
-  tri(x + r, y - r, x + r, y + r, c.base);
-  tri(x - r, y + r, x + r, y + r, c.dark);
-  // gold ridge cap with curved horn tips
-  ctx.strokeStyle = PAL.gold;
-  ctx.lineWidth = Math.max(1.5, s * 0.08);
-  ctx.beginPath(); ctx.moveTo(x - r * 0.95, y - r * 0.95); ctx.lineTo(x + r * 0.95, y + r * 0.95); ctx.moveTo(x + r * 0.95, y - r * 0.95); ctx.lineTo(x - r * 0.95, y + r * 0.95); ctx.stroke();
-  ctx.fillStyle = PAL.gold;
-  ctx.beginPath(); ctx.arc(x, y, s * 0.11, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
+  ctx.drawImage(cv, x - half, y - half, half * 2, half * 2);
 }
 
-/** The Pusaka: a hexagonal pavilion sheltering a golden heirloom. */
-export function pusaka(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, owner: number, alive: boolean): void {
-  const c = teamColors(owner);
-  ctx.save();
-  const hex = (r: number) => {
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = Math.PI / 6 + (i * Math.PI) / 3;
-      const px = x + Math.cos(a) * r * 1.35;
-      const py = y + Math.sin(a) * r * 0.85;
-      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+/** A folded-paper fort ("kubu") seen from above: a paper deck and a batik-printed hip roof in team colours. */
+export function kubu(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, owner: number, alive: boolean): void {
+  stamp(ctx, `kubu|${owner}|${alive ? 1 : 0}`, x, y, s, (c, k) => {
+    const t = teamColors(owner);
+    if (!alive) {
+      // torn paper scraps
+      const rng = new Rng(owner * 97 + 13);
+      paperShadow(c, k, 2, 1, 1.5);
+      for (let i = 0; i < 7; i++) {
+        const px = -s / 2 + rng.int(Math.max(1, Math.round(s)));
+        const py = -s / 2 + rng.int(Math.max(1, Math.round(s)));
+        c.fillStyle = i % 3 === 0 ? t.base : i % 3 === 1 ? PAL.parchment : PAL.parchmentDark;
+        c.beginPath(); c.moveTo(px, py); c.lineTo(px + s * 0.26, py + 2); c.lineTo(px + s * 0.1, py + s * 0.22); c.closePath(); c.fill();
+      }
+      noShadow(c);
+      return;
     }
-    ctx.closePath();
-  };
-  ctx.fillStyle = 'rgba(10,20,10,0.4)';
-  ctx.save(); ctx.translate(3, 5); hex(s * 0.5); ctx.fill(); ctx.restore();
-  ctx.strokeStyle = PAL.ink;
-  ctx.lineWidth = 1.6;
-  ctx.fillStyle = alive ? PAL.woodLight : '#6d6259';
-  hex(s * 0.5); ctx.fill(); ctx.stroke();
-  if (!alive) { ctx.restore(); return; }
-  ctx.fillStyle = c.base;
-  hex(s * 0.38); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle = PAL.gold;
-  ctx.lineWidth = 1.4;
-  hex(s * 0.3); ctx.stroke();
-  // the heirloom: a gold keris-like blade shape
-  ctx.fillStyle = PAL.gold;
-  ctx.strokeStyle = PAL.ink;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(x - s * 0.06, y + s * 0.14);
-  ctx.quadraticCurveTo(x - s * 0.12, y - s * 0.02, x - s * 0.02, y - s * 0.08);
-  ctx.quadraticCurveTo(x + s * 0.08, y - s * 0.16, x + s * 0.02, y - s * 0.24);
-  ctx.quadraticCurveTo(x + s * 0.14, y - s * 0.1, x + s * 0.06, y + s * 0.14);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.restore();
+    // paper deck with a soga border
+    paperShadow(c, k, 4, 2, 3.5, 0.45);
+    c.fillStyle = PAL.paperEdge;
+    c.fillRect(-s / 2 - 1.5, -s / 2 - 1.5, s + 3, s + 3);
+    noShadow(c);
+    c.fillStyle = PAL.parchment;
+    c.fillRect(-s / 2, -s / 2, s, s);
+    c.strokeStyle = PAL.wood;
+    c.lineWidth = 1;
+    c.strokeRect(-s / 2 + 2, -s / 2 + 2, s - 4, s - 4);
+    // hip roof: four folded triangles, lit from the top left, each printed with batik dots
+    const r = s * 0.42;
+    const tri = (ax: number, ay: number, bx: number, by: number, col: string, dots: string) => {
+      c.beginPath(); c.moveTo(0, 0); c.lineTo(ax, ay); c.lineTo(bx, by); c.closePath();
+      c.fillStyle = col; c.fill();
+      printDots(c, -r, -r, r, r, Math.max(3, s * 0.11), Math.max(0.5, s * 0.022), dots);
+      c.beginPath(); c.moveTo(0, 0); c.lineTo(ax, ay); c.lineTo(bx, by); c.closePath();
+      c.strokeStyle = PAL.paperEdge; c.lineWidth = 1; c.stroke();
+    };
+    paperShadow(c, k, 2, 1, 1.5, 0.35);
+    c.fillStyle = t.dark;
+    c.fillRect(-r, -r, r * 2, r * 2);
+    noShadow(c);
+    tri(-r, -r, r, -r, t.light, 'rgba(255,255,255,0.35)');
+    tri(-r, -r, -r, r, t.base, 'rgba(255,255,255,0.25)');
+    tri(r, -r, r, r, t.base, 'rgba(255,255,255,0.25)');
+    tri(-r, r, r, r, t.dark, 'rgba(255,255,255,0.18)');
+    c.strokeStyle = PAL.ink; c.lineWidth = 0.8;
+    c.strokeRect(-r, -r, r * 2, r * 2);
+    // gold ridge cap
+    c.strokeStyle = PAL.gold;
+    c.lineWidth = Math.max(1.5, s * 0.07);
+    c.lineCap = 'round';
+    c.beginPath(); c.moveTo(-r * 0.95, -r * 0.95); c.lineTo(r * 0.95, r * 0.95); c.moveTo(r * 0.95, -r * 0.95); c.lineTo(-r * 0.95, r * 0.95); c.stroke();
+    c.fillStyle = PAL.gold;
+    c.beginPath(); c.arc(0, 0, s * 0.11, 0, TAU); c.fill();
+    c.strokeStyle = PAL.ink; c.lineWidth = 0.8; c.stroke();
+  });
 }
 
-// ---------- the painted map (cached) ----------
+/** The Pusaka: a layered paper pavilion sheltering a golden heirloom. */
+export function pusaka(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, owner: number, alive: boolean): void {
+  stamp(ctx, `pusaka|${owner}|${alive ? 1 : 0}`, x, y, s, (c, k) => {
+    const t = teamColors(owner);
+    const hex = (rad: number) => {
+      c.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = Math.PI / 6 + (i * Math.PI) / 3;
+        const px = Math.cos(a) * rad * 1.35;
+        const py = Math.sin(a) * rad * 0.85;
+        if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
+      }
+      c.closePath();
+    };
+    paperShadow(c, k, 5, 2.5, 4, 0.45);
+    c.fillStyle = PAL.paperEdge;
+    hex(s * 0.5 + 1.5); c.fill();
+    noShadow(c);
+    c.fillStyle = alive ? PAL.woodLight : '#8d8475';
+    hex(s * 0.5); c.fill();
+    if (!alive) return;
+    hex(s * 0.5); printDots(c, -s, -s, s, s, Math.max(3, s * 0.09), Math.max(0.5, s * 0.018), 'rgba(255,240,210,0.3)');
+    paperShadow(c, k, 2.5, 1, 2, 0.4);
+    c.fillStyle = t.base;
+    hex(s * 0.38); c.fill();
+    noShadow(c);
+    hex(s * 0.38); printDots(c, -s, -s, s, s, Math.max(3, s * 0.08), Math.max(0.5, s * 0.016), 'rgba(255,255,255,0.25)');
+    hex(s * 0.38); c.strokeStyle = PAL.paperEdge; c.lineWidth = 1.2; c.stroke();
+    c.strokeStyle = PAL.gold;
+    c.lineWidth = 1.4;
+    hex(s * 0.3); c.stroke();
+    // the heirloom: a gold keris-like blade shape
+    c.fillStyle = PAL.gold;
+    c.strokeStyle = PAL.ink;
+    c.lineWidth = 1;
+    c.beginPath();
+    c.moveTo(-s * 0.06, s * 0.14);
+    c.quadraticCurveTo(-s * 0.12, -s * 0.02, -s * 0.02, -s * 0.08);
+    c.quadraticCurveTo(s * 0.08, -s * 0.16, s * 0.02, -s * 0.24);
+    c.quadraticCurveTo(s * 0.14, -s * 0.1, s * 0.06, s * 0.14);
+    c.closePath(); c.fill(); c.stroke();
+  });
+}
+
+// ---------- the paper map (cached) ----------
 
 export class MapPainter {
   private canvas: HTMLCanvasElement | null = null;
@@ -313,7 +491,7 @@ export class MapPainter {
     const ctx = c.getContext('2d');
     if (ctx) {
       ctx.setTransform(this.res, 0, 0, this.res, 0, 0);
-      paintField(ctx, { ...l, scale: l.baseScale, vx: FIELD.minX, vy: FIELD.minY }, sim);
+      paintField(ctx, { ...l, scale: l.baseScale, vx: FIELD.minX, vy: FIELD.minY }, sim, this.res);
     }
     this.canvas = c;
     this.key = key;
@@ -332,7 +510,22 @@ export class MapPainter {
   }
 }
 
-function paintField(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim): void {
+/** A paper leaf (teardrop) from (x, y) pointing at angle a, length len. */
+function leaf(ctx: CanvasRenderingContext2D, x: number, y: number, a: number, len: number, wid: number): void {
+  const tx = x + Math.cos(a) * len;
+  const ty = y + Math.sin(a) * len;
+  const nx = -Math.sin(a) * wid;
+  const ny = Math.cos(a) * wid;
+  const mx = x + Math.cos(a) * len * 0.45;
+  const my = y + Math.sin(a) * len * 0.45;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.quadraticCurveTo(mx + nx, my + ny, tx, ty);
+  ctx.quadraticCurveTo(mx - nx, my - ny, x, y);
+  ctx.closePath();
+}
+
+function paintField(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, k: number): void {
   const W = l.field.w;
   const H = l.field.h;
   // local coordinates: field origin at 0,0
@@ -342,44 +535,78 @@ function paintField(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim): void {
   };
   const sc = l.scale;
   const rng = new Rng(20261112);
+  const shadow = (blur: number, dx: number, dy: number, a = 0.4) => paperShadow(ctx, k, blur, dx, dy, a);
 
-  // ground
+  // ground: jungle-green batik cloth, printed with flowers, dots and fine wax cracks
   ctx.fillStyle = PAL.jungle;
   ctx.fillRect(0, 0, W, H);
-  for (let i = 0; i < 260; i++) {
-    const x = rng.int(Math.round(W));
-    const y = rng.int(Math.round(H));
-    const r = 6 + rng.int(26);
-    ctx.fillStyle = i % 2 ? 'rgba(16,48,30,0.35)' : 'rgba(70,130,80,0.18)';
-    ctx.beginPath(); ctx.ellipse(x, y, r * 1.4, r, rng.int(314) / 100, 0, Math.PI * 2); ctx.fill();
+  const step = 30;
+  for (let row = 0, y = 0; y < H + step; row++, y += step * 0.75) {
+    for (let x = (row % 2) * step * 0.5; x < W + step; x += step) {
+      batikFlower(ctx, x, y, 6.5, 'rgba(140,200,160,0.10)');
+      ctx.fillStyle = 'rgba(140,200,160,0.12)';
+      ctx.beginPath(); ctx.arc(x + step * 0.5, y, 1.1, 0, TAU); ctx.fill();
+    }
+  }
+  ctx.strokeStyle = 'rgba(215,240,220,0.07)';
+  ctx.lineWidth = 0.7;
+  for (let i = 0; i < 120; i++) {
+    let x = rng.int(Math.round(W));
+    let y = rng.int(Math.round(H));
+    ctx.beginPath(); ctx.moveTo(x, y);
+    for (let j = 0; j < 4; j++) { x += rng.int(41) - 20; y += rng.int(31) - 15; ctx.lineTo(x, y); }
+    ctx.stroke();
   }
 
-  // river with sandy banks and ripples
+  // river: a cream bank strip, deep water paper, two lighter water strips with scalloped cut edges
   const [, ry0] = at(0, RIVER.y - RIVER.halfWidth);
   const rh = RIVER.halfWidth * 2 * sc;
-  ctx.fillStyle = PAL.sand;
-  ctx.fillRect(0, ry0 - 3, W, rh + 6);
-  const grad = ctx.createLinearGradient(0, ry0, 0, ry0 + rh);
-  grad.addColorStop(0, '#237284');
-  grad.addColorStop(0.5, PAL.river);
-  grad.addColorStop(1, '#237284');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, ry0, W, rh);
-  ctx.strokeStyle = 'rgba(160,225,228,0.55)';
-  ctx.lineWidth = 1.2;
-  for (let row = 0; row < 3; row++) {
-    const yy = ry0 + rh * (0.25 + row * 0.25);
+  const torn = (y0: number, y1: number, jag: number) => {
     ctx.beginPath();
-    for (let x = -10; x < W + 10; x += 14) {
-      const off = row % 2 ? 7 : 0;
-      ctx.moveTo(x + off, yy);
-      ctx.quadraticCurveTo(x + off + 3.5, yy - 2.5, x + off + 7, yy);
+    ctx.moveTo(-4, y0);
+    for (let x = 0; x <= W + 6; x += 5) ctx.lineTo(x, y0 + (rng.int(100) / 100 - 0.5) * jag);
+    ctx.lineTo(W + 6, y1);
+    for (let x = W + 6; x >= -6; x -= 5) ctx.lineTo(x, y1 + (rng.int(100) / 100 - 0.5) * jag);
+    ctx.closePath();
+  };
+  const scallop = (y0: number, y1: number, r: number) => {
+    ctx.beginPath();
+    ctx.moveTo(-r, y1);
+    ctx.lineTo(-r, y0);
+    for (let x = -r; x < W + r; x += r * 2) ctx.arc(x + r, y0, r, Math.PI, 0);
+    ctx.lineTo(W + r, y1);
+    ctx.closePath();
+  };
+  shadow(4, 0, 2, 0.35);
+  ctx.fillStyle = PAL.sand;
+  torn(ry0 - 5, ry0 + rh + 5, 2.5);
+  ctx.fill();
+  noShadow(ctx);
+  ctx.fillStyle = '#1f6578';
+  ctx.fillRect(0, ry0, W, rh);
+  shadow(3, 0, 1.5, 0.35);
+  ctx.fillStyle = PAL.river;
+  scallop(ry0 + rh * 0.22, ry0 + rh * 0.62, 4);
+  ctx.fill();
+  ctx.fillStyle = '#3796aa';
+  scallop(ry0 + rh * 0.55, ry0 + rh, 3.5);
+  ctx.fill();
+  noShadow(ctx);
+  // batik wave lines (ombak)
+  ctx.strokeStyle = 'rgba(232,246,240,0.55)';
+  ctx.lineWidth = 0.9;
+  for (let row = 0; row < 3; row++) {
+    const yy = ry0 + rh * (0.32 + row * 0.22);
+    ctx.beginPath();
+    for (let x = -10 + (row % 2) * 6; x < W + 10; x += 12) {
+      ctx.moveTo(x, yy);
+      ctx.arc(x + 3, yy, 3, Math.PI, 0);
     }
     ctx.stroke();
   }
 
-  // trees in the jungle: clustered canopies, lit from the top left
-  const trees: [number, number, number][] = [];
+  // trees: cut-paper leaf clusters in two layers, each with a paper shadow
+  const trees: [number, number, number, number][] = [];
   for (let i = 0; i < 1400 && trees.length < 150; i++) {
     const wx = 100 + rng.int(3700);
     const wy = FIELD.minY + 100 + rng.int(FIELD.maxY - FIELD.minY - 200);
@@ -387,28 +614,36 @@ function paintField(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim): void {
     if (!inJungle(wx, wy, sim.lanes)) continue;
     const near = [...CAMPS, ...DENS, BOSS_PIT, ...WARD_SPOTS, ...SHRINES].some(([cx, cy]) => (cx - wx) ** 2 + (cy - wy) ** 2 < 260 * 260);
     if (near) continue;
-    trees.push([wx, wy, 80 + rng.int(90)]);
+    trees.push([wx, wy, 80 + rng.int(90), rng.int(628) / 100]);
   }
-  for (const [wx, wy, r] of trees) {
+  shadow(3, 1.2, 2.2, 0.45);
+  for (const [wx, wy, r, rot] of trees) {
     const [x, y] = at(wx, wy);
-    const rr = r * sc;
-    ctx.fillStyle = PAL.canopyShade;
-    ctx.beginPath(); ctx.arc(x + rr * 0.25, y + rr * 0.3, rr, 0, Math.PI * 2); ctx.fill();
-  }
-  for (const [wx, wy, r] of trees) {
-    const [x, y] = at(wx, wy);
-    const rr = r * sc;
+    const rr = r * sc * 1.15;
     ctx.fillStyle = PAL.canopy;
-    ctx.beginPath();
-    ctx.arc(x, y, rr, 0, Math.PI * 2);
-    ctx.arc(x - rr * 0.55, y + rr * 0.2, rr * 0.7, 0, Math.PI * 2);
-    ctx.arc(x + rr * 0.5, y + rr * 0.25, rr * 0.65, 0, Math.PI * 2);
-    ctx.fill();
+    for (let i = 0; i < 6; i++) { leaf(ctx, x, y, rot + (i * TAU) / 6, rr, rr * 0.42); ctx.fill(); }
+  }
+  shadow(2, 0.8, 1.4, 0.35);
+  for (const [wx, wy, r, rot] of trees) {
+    const [x, y] = at(wx, wy);
+    const rr = r * sc * 0.75;
     ctx.fillStyle = PAL.canopyLight;
-    ctx.beginPath(); ctx.arc(x - rr * 0.3, y - rr * 0.35, rr * 0.38, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 4; i++) { leaf(ctx, x, y, rot + 0.4 + (i * TAU) / 4, rr, rr * 0.42); ctx.fill(); }
+  }
+  noShadow(ctx);
+  ctx.strokeStyle = 'rgba(232,245,220,0.35)';
+  ctx.lineWidth = 0.6;
+  for (const [wx, wy, r, rot] of trees) {
+    const [x, y] = at(wx, wy);
+    const rr = r * sc * 0.75;
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) { const a = rot + 0.4 + (i * TAU) / 4; ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * rr * 0.8, y + Math.sin(a) * rr * 0.8); }
+    ctx.stroke();
+    ctx.fillStyle = '#e0b04a';
+    ctx.beginPath(); ctx.arc(x, y, Math.max(1, rr * 0.12), 0, TAU); ctx.fill();
   }
 
-  // lanes: dark rim, red laterite path, lighter worn centre, pebbles
+  // lanes: kraft paper strips with a light torn rim, a paper shadow and a printed border motif
   const lanePath = (id: number) => {
     ctx.beginPath();
     LANES[id].pts.forEach(([wx, wy], i) => { const [x, y] = at(wx, wy); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
@@ -416,79 +651,103 @@ function paintField(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim): void {
   const lw = LANE_HALF * 2 * sc;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  for (const id of sim.lanes) { lanePath(id); ctx.lineWidth = lw + 5; ctx.strokeStyle = PAL.clayDark; ctx.stroke(); }
+  shadow(4, 1.5, 2.5, 0.45);
+  for (const id of sim.lanes) { lanePath(id); ctx.lineWidth = lw + 3; ctx.strokeStyle = PAL.clayLight; ctx.stroke(); }
+  noShadow(ctx);
   for (const id of sim.lanes) { lanePath(id); ctx.lineWidth = lw; ctx.strokeStyle = PAL.clay; ctx.stroke(); }
-  for (const id of sim.lanes) { lanePath(id); ctx.lineWidth = lw * 0.45; ctx.strokeStyle = PAL.clayLight; ctx.stroke(); }
-  ctx.fillStyle = 'rgba(70,35,15,0.45)';
+  ctx.setLineDash([1.5, 5]);
+  for (const id of sim.lanes) { lanePath(id); ctx.lineWidth = Math.max(0.8, lw * 0.07); ctx.strokeStyle = 'rgba(110,62,26,0.26)'; ctx.stroke(); }
+  ctx.setLineDash([]);
   for (const id of sim.lanes) {
     const lane = LANES[id];
-    for (let s = 60; s < lane.length; s += 110) {
+    for (let s = 120, side = 1; s < lane.length; s += 260, side = -side) {
       const [wx, wy] = pointAt(lane, s);
-      const [x, y] = at(wx + (rng.int(400) - 200), wy + (rng.int(400) - 200));
-      ctx.beginPath(); ctx.arc(x, y, 1 + rng.int(2), 0, Math.PI * 2); ctx.fill();
+      const [x, y] = at(wx, wy);
+      // three printed dots (cecek), small and quiet so they never read as map markers
+      ctx.fillStyle = 'rgba(120,70,30,0.3)';
+      for (let d = -1; d <= 1; d++) { ctx.beginPath(); ctx.arc(x + side * lw * 0.3 + d * 2.4, y + Math.abs(d) * 1.6, Math.max(0.7, lw * 0.045), 0, TAU); ctx.fill(); }
     }
   }
 
-  // bridges: timber planks where lanes cross the river
+  // bridges: cream paper planks where lanes cross the river
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, ry0 - 2, W, rh + 4);
   ctx.clip();
-  for (const id of sim.lanes) { lanePath(id); ctx.lineWidth = lw * 0.9; ctx.strokeStyle = PAL.woodLight; ctx.stroke(); }
-  ctx.strokeStyle = PAL.woodDark;
-  ctx.lineWidth = 1;
-  for (let y = ry0 + 2; y < ry0 + rh; y += 4) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.globalAlpha = 0.25; ctx.stroke(); ctx.globalAlpha = 1;
-  }
+  shadow(3, 1, 2, 0.45);
+  for (const id of sim.lanes) { lanePath(id); ctx.lineWidth = lw * 0.95; ctx.strokeStyle = PAL.parchment; ctx.stroke(); }
+  noShadow(ctx);
+  ctx.strokeStyle = 'rgba(123,74,34,0.4)';
+  ctx.lineWidth = 0.8;
+  for (let y = ry0 + 2; y < ry0 + rh; y += 4) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
   ctx.restore();
 
-  // clearings and landmarks
-  const clearing = (wx: number, wy: number, r: number, col: string) => {
+  // clearings and landmarks, as paper pieces
+  const disc = (wx: number, wy: number, r: number, fill: string, stitch: string | null) => {
     const [x, y] = at(wx, wy);
-    ctx.fillStyle = col;
-    ctx.beginPath(); ctx.ellipse(x, y, r * sc * 1.15, r * sc, 0, 0, Math.PI * 2); ctx.fill();
+    shadow(3, 1, 2, 0.35);
+    ctx.fillStyle = fill;
+    ctx.beginPath(); ctx.ellipse(x, y, r * sc * 1.15, r * sc, 0, 0, TAU); ctx.fill();
+    noShadow(ctx);
+    if (stitch) {
+      ctx.strokeStyle = stitch;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2.5, 2.5]);
+      ctx.beginPath(); ctx.ellipse(x, y, r * sc * 1.15 - 3, r * sc - 3, 0, 0, TAU); ctx.stroke();
+      ctx.setLineDash([]);
+    }
   };
-  for (const [wx, wy] of CAMPS) clearing(wx, wy, 230, 'rgba(216,183,125,0.55)');
+  for (const [wx, wy] of CAMPS) disc(wx, wy, 230, 'rgba(234,216,176,0.9)', 'rgba(123,74,34,0.55)');
   for (const [wx, wy] of DENS) {
-    clearing(wx, wy, 250, 'rgba(60,45,35,0.55)');
+    disc(wx, wy, 250, 'rgba(74,42,20,0.85)', 'rgba(234,216,176,0.5)');
     const [x, y] = at(wx, wy);
-    ctx.fillStyle = '#2a211b';
-    ctx.strokeStyle = PAL.ink;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.ellipse(x, y - 4, 160 * sc, 110 * sc, 0, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    shadow(2, 1, 1.5, 0.4);
+    ctx.fillStyle = PAL.indigoDark;
+    ctx.beginPath(); ctx.ellipse(x, y - 4, 160 * sc, 110 * sc, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+    noShadow(ctx);
   }
   {
     // Gajah Mina's pool under the middle bridge (or open river when there is no middle lane)
     const [x, y] = at(BOSS_PIT[0], BOSS_PIT[1]);
-    ctx.fillStyle = 'rgba(14,60,80,0.75)';
-    ctx.beginPath(); ctx.ellipse(x, y, 260 * sc, 190 * sc, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#8f8778';
-    ctx.lineWidth = 2;
+    shadow(3, 1, 2, 0.4);
+    ctx.fillStyle = 'rgba(17,26,47,0.85)';
+    ctx.beginPath(); ctx.ellipse(x, y, 260 * sc, 190 * sc, 0, 0, TAU); ctx.fill();
+    noShadow(ctx);
+    ctx.strokeStyle = 'rgba(232,246,240,0.5)';
+    ctx.lineWidth = 0.9;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      for (let xx = x - 200 * sc; xx < x + 200 * sc; xx += 8) { ctx.moveTo(xx, y + i * 6); ctx.arc(xx + 2.5, y + i * 6, 2.5, Math.PI, 0); }
+      ctx.stroke();
+    }
+    ctx.strokeStyle = PAL.paperEdge;
+    ctx.lineWidth = 1.2;
     ctx.setLineDash([3, 3]);
-    ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(x, y, 260 * sc, 190 * sc, 0, 0, TAU); ctx.stroke();
     ctx.setLineDash([]);
   }
   for (const [wx, wy] of WARD_SPOTS) {
     const [x, y] = at(wx, wy);
-    ctx.fillStyle = '#9a9184';
-    ctx.strokeStyle = PAL.ink;
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.ellipse(x, y + 2, 7, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(x, y - 2, 4.5, 3, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    shadow(2, 0.8, 1.4, 0.4);
+    ctx.fillStyle = '#d9cfb8';
+    ctx.beginPath(); ctx.ellipse(x, y + 2, 7, 4, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#ece4cf';
+    ctx.beginPath(); ctx.ellipse(x, y - 2, 4.5, 3, 0, 0, TAU); ctx.fill();
+    noShadow(ctx);
   }
   for (const [wx, wy] of SHRINES) {
     const [x, y] = at(wx, wy);
-    ctx.strokeStyle = '#b9ad95';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(244,234,214,0.7)';
+    ctx.lineWidth = 1.5;
     ctx.setLineDash([2, 3]);
-    ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, 9, 0, TAU); ctx.stroke();
     ctx.setLineDash([]);
   }
 
-  // soft vignette
+  // a soft indigo vignette at the board's edges
   const v = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
-  v.addColorStop(0, 'rgba(0,0,0,0)');
-  v.addColorStop(1, 'rgba(0,0,0,0.35)');
+  v.addColorStop(0, 'rgba(17,26,47,0)');
+  v.addColorStop(1, 'rgba(17,26,47,0.38)');
   ctx.fillStyle = v;
   ctx.fillRect(0, 0, W, H);
 }

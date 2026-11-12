@@ -83,8 +83,9 @@
   },
   "userNotes": [],
   "approval": {
-    "status": "awaiting approval"
+    "status": "superseded"
   },
   "delivery": "not started",
-  "release": "unreleased"
+  "release": "unreleased",
+  "supersededBy": "PLAN-009"
 }

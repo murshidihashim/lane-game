@@ -1,6 +1,6 @@
 // Ultimate visuals (DEC-013): a banner that says who used which ultimate, a bold one-off burst on
 // the map for each hero's ultimate, and a looping aura while a lasting ultimate is on.
-// Hikayat style: palette from PAL, ink outlines where they help. Drawing only; no game rules.
+// Batik paper style (DEC-018): palette from PAL, ink outlines where they help. Drawing only; no game rules.
 import { HEROES, type HeroKind } from '../game/rules';
 import { PAL, teamColors } from './art';
 import { drawPortrait } from './figures';

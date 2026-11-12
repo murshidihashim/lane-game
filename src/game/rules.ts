@@ -42,7 +42,10 @@ export const XP = {
   hero: 80,
   tower: 60,
   camp: 60,
-  levels: [0, 100, 250, 450], // XP needed for level 1..4
+  // XP needed for level 1..4. PLAN-011: lowered (was 0, 100, 250, 450) so the level-4 ultimate comes
+  // in about a minute and a half instead of over four minutes (when it came at all).
+  levels: [0, 50, 110, 180],
+  trickle: 1, // XP every living hero gains each second, whatever it is doing (PLAN-011)
   perLevelPercent: 15, // +15% health and damage per level above 1
 } as const;
 

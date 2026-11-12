@@ -9,6 +9,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | ID | What | Status |
 |---|---|---|
 | DEC-020 | Make the map more engaging | Awaiting approval |
+| DEC-021 | Hero controls that keep the map clear | Awaiting approval |
 
 ## Decisions
 
@@ -34,6 +35,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | DEC-018 | Art direction for the full game | Approved (owner, 2026-11-12) | Implemented |
 | DEC-019 | Map view fills the screen width | Approved (owner, 2026-11-12) | Implemented |
 | DEC-020 | Make the map more engaging | Awaiting approval | Not started |
+| DEC-021 | Hero controls that keep the map clear | Awaiting approval | Not started |
 
 ## Work packages
 
@@ -49,6 +51,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | PLAN-008 | Look test: anime heroes with Malay heritage art | Superseded | Not started | 0/7 | Unreleased |
 | PLAN-009 | Batik paper-cut diorama look | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
 | PLAN-010 | Full-width map and paper ultimate effects | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
+| PLAN-011 | Faster levelling to the ultimate | Approved (owner, 2026-11-13) | Implemented | 4/6 | Unreleased |
 
 ## Decision details
 
@@ -332,6 +335,20 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 - **Delivery:** Not started
 - **Review trigger:** The owner picks one or more, or playtests show the map already has enough going on.
 
+### DEC-021 · Hero controls that keep the map clear
+
+- **Question:** Which way of commanding heroes should replace the pop-up order menu, which covers part of the map?
+- **Options:** 1. Order cards: tap a hero, and a row of order cards (Move, Attack, Push, Gank, Defend, Farm, Ward, Retreat) replaces the lane chips under the map; drag a card onto its target on the map · 2. Smart drag: drag a hero's portrait onto the map; the order follows what you drop it on (own tower = Defend, a lane = Push, an enemy = Attack, a camp = Farm, a cairn = Ward, home = Retreat, open ground = Move), with a label at your finger before you let go · 3. Ring menu: press and hold a hero; six small order icons fan out round your thumb; slide to one and let go on the target · 4. Tactic cards: build a deck of 8 team tactics before the match (e.g. All push left, Gank mid together, Hold the line, Jungle sweep); hold 3 in the match and play one with Semangat to order all three heroes at once, with a short bonus · 5. Lane board: a one-row strip under the map with Left, Mid, Right, Jungle and Home slots; drag hero tokens between slots to reassign them (top of a slot = push, bottom = defend)
+- **Choice:** Not chosen yet. Recommended: 1 (order cards) with 2 (smart drag) as the quick shortcut; 4 (tactic cards) later if the owner wants more card strategy.
+- **Rationale:** The current menu covers the bottom of the map. Options 1, 2, 3 and 5 keep the map clear; 1 and 4 bring cards back as orders, not as hand-placed troops, so DEC-011 (no hand-played troop cards) still holds. 4 adds a deck and a new use for Semangat, so it is the biggest change. Details: REP-014.
+- **User impact:** How every order is given.
+- **Technical impact:** Options 1-3 and 5 are screen and input code only; 4 adds rules (tactic cards, costs, bonuses), tests and a balance run.
+- **Data and privacy:** None.
+- **Cost:** RM0.
+- **Approval:** Awaiting approval
+- **Delivery:** Not started
+- **Review trigger:** The owner picks an option, or playtests show the chosen one is slow or confusing.
+
 ## History (oldest first)
 
 - 2026-11-12 08:49 · Project records started for Lane Game.
@@ -504,3 +521,15 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 - 2026-11-12 23:21 · PLAN-010 delivery: implemented.
 - 2026-11-12 23:21 · DEC-019 delivery: implemented.
 - 2026-11-12 23:21 · REP-013 written: Full-width map, paper ultimates, five map ideas.
+- 2026-11-13 00:13 · PLAN-011 proposed: Faster levelling to the ultimate.
+- 2026-11-13 00:13 · DEC-021 proposed: Hero controls that keep the map clear.
+- 2026-11-13 00:13 · Owner approved PLAN-011: "fix the levelling so that it doesnt take that long to do ulti".
+- 2026-11-13 00:13 · PLAN-011 delivery: in progress.
+- 2026-11-13 00:20 · PLAN-011 T1: PASS (Before: median 4:11 to level 4 and 48% never reached it (60 bot matches). After: median 1:28 and 98% by 3:00 over 600 heroes in 100 matches; now a permanent check in npm run soak (median under 1:45, at least 95% by 3:00). About 7.3 ultimates a match, was 2.1.).
+- 2026-11-13 00:20 · PLAN-011 T2: PASS (tests/rules.test.ts: 1 XP a second for living heroes, none while dead, and the trickle alone reaches level 4 in regulation time; 95/95 tests; determinism tests pass.).
+- 2026-11-13 00:20 · PLAN-011 T3: PASS (1,200-match balance check (four parallel slices): species 47-53%, heroes 40-62% (Buaya lowest, Seri highest), draws 11%, decided before 2:30 0%, average match 5:19. All inside the PLAN-005 targets.).
+- 2026-11-13 00:20 · PLAN-011 T4: PASS (npm run verify; npm run soak 3/3 (including the new ultimate-timing check); PHONE CHECK OK.).
+- 2026-11-13 00:20 · PLAN-011 T5: NOT RUN (Not yet tried on the owner's phone.).
+- 2026-11-13 00:20 · PLAN-011 T6: NOT RUN (Waiting for the owner's verdict.).
+- 2026-11-13 00:20 · PLAN-011 delivery: implemented.
+- 2026-11-13 00:20 · REP-014 written: Faster ultimates and five hero-control ideas.

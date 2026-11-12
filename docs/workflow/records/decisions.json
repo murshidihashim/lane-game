@@ -544,6 +544,35 @@
         "REP-013"
       ],
       "reviewTrigger": "The owner picks one or more, or playtests show the map already has enough going on."
+    },
+    {
+      "id": "DEC-021",
+      "title": "Hero controls that keep the map clear",
+      "question": "Which way of commanding heroes should replace the pop-up order menu, which covers part of the map?",
+      "options": [
+        "1. Order cards: tap a hero, and a row of order cards (Move, Attack, Push, Gank, Defend, Farm, Ward, Retreat) replaces the lane chips under the map; drag a card onto its target on the map",
+        "2. Smart drag: drag a hero's portrait onto the map; the order follows what you drop it on (own tower = Defend, a lane = Push, an enemy = Attack, a camp = Farm, a cairn = Ward, home = Retreat, open ground = Move), with a label at your finger before you let go",
+        "3. Ring menu: press and hold a hero; six small order icons fan out round your thumb; slide to one and let go on the target",
+        "4. Tactic cards: build a deck of 8 team tactics before the match (e.g. All push left, Gank mid together, Hold the line, Jungle sweep); hold 3 in the match and play one with Semangat to order all three heroes at once, with a short bonus",
+        "5. Lane board: a one-row strip under the map with Left, Mid, Right, Jungle and Home slots; drag hero tokens between slots to reassign them (top of a slot = push, bottom = defend)"
+      ],
+      "choice": "Not chosen yet. Recommended: 1 (order cards) with 2 (smart drag) as the quick shortcut; 4 (tactic cards) later if the owner wants more card strategy.",
+      "rationale": "The current menu covers the bottom of the map. Options 1, 2, 3 and 5 keep the map clear; 1 and 4 bring cards back as orders, not as hand-placed troops, so DEC-011 (no hand-played troop cards) still holds. 4 adds a deck and a new use for Semangat, so it is the biggest change. Details: REP-014.",
+      "impact": {
+        "user": "How every order is given.",
+        "technical": "Options 1-3 and 5 are screen and input code only; 4 adds rules (tactic cards, costs, bonuses), tests and a balance run.",
+        "data": "None."
+      },
+      "cost": "RM0.",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "awaiting approval"
+      },
+      "delivery": "not started",
+      "reports": [
+        "REP-014"
+      ],
+      "reviewTrigger": "The owner picks an option, or playtests show the chosen one is slow or confusing."
     }
   ],
   "history": [
@@ -1226,6 +1255,54 @@
     {
       "at": "2026-11-12 23:21",
       "text": "REP-013 written: Full-width map, paper ultimates, five map ideas."
+    },
+    {
+      "at": "2026-11-13 00:13",
+      "text": "PLAN-011 proposed: Faster levelling to the ultimate."
+    },
+    {
+      "at": "2026-11-13 00:13",
+      "text": "DEC-021 proposed: Hero controls that keep the map clear."
+    },
+    {
+      "at": "2026-11-13 00:13",
+      "text": "Owner approved PLAN-011: \"fix the levelling so that it doesnt take that long to do ulti\"."
+    },
+    {
+      "at": "2026-11-13 00:13",
+      "text": "PLAN-011 delivery: in progress."
+    },
+    {
+      "at": "2026-11-13 00:20",
+      "text": "PLAN-011 T1: PASS (Before: median 4:11 to level 4 and 48% never reached it (60 bot matches). After: median 1:28 and 98% by 3:00 over 600 heroes in 100 matches; now a permanent check in npm run soak (median under 1:45, at least 95% by 3:00). About 7.3 ultimates a match, was 2.1.)."
+    },
+    {
+      "at": "2026-11-13 00:20",
+      "text": "PLAN-011 T2: PASS (tests/rules.test.ts: 1 XP a second for living heroes, none while dead, and the trickle alone reaches level 4 in regulation time; 95/95 tests; determinism tests pass.)."
+    },
+    {
+      "at": "2026-11-13 00:20",
+      "text": "PLAN-011 T3: PASS (1,200-match balance check (four parallel slices): species 47-53%, heroes 40-62% (Buaya lowest, Seri highest), draws 11%, decided before 2:30 0%, average match 5:19. All inside the PLAN-005 targets.)."
+    },
+    {
+      "at": "2026-11-13 00:20",
+      "text": "PLAN-011 T4: PASS (npm run verify; npm run soak 3/3 (including the new ultimate-timing check); PHONE CHECK OK.)."
+    },
+    {
+      "at": "2026-11-13 00:20",
+      "text": "PLAN-011 T5: NOT RUN (Not yet tried on the owner's phone.)."
+    },
+    {
+      "at": "2026-11-13 00:20",
+      "text": "PLAN-011 T6: NOT RUN (Waiting for the owner's verdict.)."
+    },
+    {
+      "at": "2026-11-13 00:20",
+      "text": "PLAN-011 delivery: implemented."
+    },
+    {
+      "at": "2026-11-13 00:20",
+      "text": "REP-014 written: Faster ultimates and five hero-control ideas."
     }
   ]
 }

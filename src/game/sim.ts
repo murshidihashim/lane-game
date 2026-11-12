@@ -7,7 +7,7 @@ import {
 } from './map';
 import {
   BOUNTY, CLASSES, CLASS_IDS, FURY, HEROES, HERO_IDS, HERO_RULES, ITEMS, ITEM_IDS, ITEM_SLOTS, MANA, MATCH, NEUTRALS,
-  RELICS, SPECIES, SPECIES_IDS, STRUCTURES, UNITS, VISION, WARDS, WAVES, XP,
+  RELICS, SPECIES, SPECIES_IDS, STRUCTURES, TICKS_PER_SECOND, UNITS, VISION, WARDS, WAVES, XP,
   type ClassId, type HeroKind, type ItemDef, type ItemId, type SpeciesId, type Targets, type UnitKind, sec,
 } from './rules';
 import { KITS } from './heroes';
@@ -641,6 +641,8 @@ export class Sim {
     for (const c of cmds) this.apply(c);
 
     this.regenMana();
+    // PLAN-011: every living hero gains a little XP each second, so ultimates come in every match.
+    if (this.tick > 0 && this.tick % TICKS_PER_SECOND === 0) for (const h of this.ents) if (h.kind === 'hero' && h.alive) this.giveXp(h, XP.trickle);
 
     if (this.waves && this.tick >= WAVES.first && (this.tick - WAVES.first) % WAVES.every === 0) this.spawnWaves();
 

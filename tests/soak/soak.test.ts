@@ -4,7 +4,7 @@ import { expect, test } from 'vitest';
 import { Bot } from '../../src/game/bot';
 import { SHRINES, WARD_SPOTS } from '../../src/game/map';
 import { Rng } from '../../src/game/math';
-import { HERO_IDS, SPECIES_IDS } from '../../src/game/rules';
+import { HERO_IDS, HERO_RULES, SPECIES_IDS } from '../../src/game/rules';
 import { type Command, Sim } from '../../src/game/sim';
 import { botMatch, picksFor, speciesFor } from '../helpers';
 
@@ -28,9 +28,17 @@ test('100 bot-vs-bot matches (3 lanes, random heroes and species) finish with a 
   const spWins: Record<string, number> = {};
   const map: Record<string, number> = {};
   let totalSeconds = 0;
+  const ultAt: number[] = []; // PLAN-011: seconds until each hero first reaches the ultimate level
+  let heroCount = 0;
   const t0 = Date.now();
   for (let seed = 1; seed <= 100; seed++) {
-    const { sim, picks } = botMatch(seed, 3, (s) => countMap(s, map));
+    const reached = new Map<number, number>();
+    const { sim, picks } = botMatch(seed, 3, (s) => {
+      countMap(s, map);
+      for (const e of s.ents) if (e.kind === 'hero' && e.level >= HERO_RULES.ultLevel && !reached.has(e.id)) reached.set(e.id, s.tick / 20);
+    });
+    heroCount += sim.ents.filter((e) => e.kind === 'hero').length;
+    ultAt.push(...reached.values());
     expect(sim.result).not.toBeNull();
     const r = sim.result!;
     const species = speciesFor(seed);
@@ -58,6 +66,13 @@ test('100 bot-vs-bot matches (3 lanes, random heroes and species) finish with a 
   console.log(`SOAK hero wins ${JSON.stringify(wins)}`);
   console.log(`SOAK species played ${JSON.stringify(spPlayed)} · wins ${JSON.stringify(spWins)}`);
   console.log(`SOAK map use (100 matches) ${JSON.stringify(map)}`);
+  // PLAN-011: the ultimate comes soon enough: median under 1:45, and 95% of heroes reach it by 3:00
+  ultAt.sort((a, b) => a - b);
+  const median = ultAt[Math.floor(ultAt.length / 2)];
+  const by3min = ultAt.filter((t) => t <= 180).length / heroCount;
+  console.log(`SOAK time to the ultimate: median ${median} s · by 3:00 ${(100 * by3min).toFixed(0)}% of ${heroCount} heroes`);
+  expect(median).toBeLessThan(105);
+  expect(by3min).toBeGreaterThanOrEqual(0.95);
   for (const id of HERO_IDS) expect(played[id] ?? 0).toBeGreaterThan(0);
   for (const id of SPECIES_IDS) expect(spPlayed[id] ?? 0).toBeGreaterThan(0);
   for (const k of ['wards', 'fury', 'boss', 'relics', 'firstKill', 'items', 'ultimates']) expect(map[k] ?? 0, k).toBeGreaterThan(0);

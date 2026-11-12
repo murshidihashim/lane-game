@@ -2,7 +2,7 @@
 import { describe, expect, test } from 'vitest';
 import { LANES, CENTER, rotate } from '../src/game/map';
 import { isqrt } from '../src/game/math';
-import { CLASSES, HEROES, ITEMS, ITEM_SLOTS, MANA, MATCH, MOVE, STRUCTURES, UNITS, WAVES, sec } from '../src/game/rules';
+import { CLASSES, HEROES, HERO_RULES, ITEMS, ITEM_SLOTS, MANA, MATCH, MOVE, STRUCTURES, UNITS, WAVES, XP, sec } from '../src/game/rules';
 import { Sim } from '../src/game/sim';
 import { heroOnLane, parkHeroes, stepN } from './helpers';
 
@@ -13,6 +13,36 @@ describe('whole-number maths', () => {
       expect(r * r).toBeLessThanOrEqual(n);
       expect((r + 1) * (r + 1)).toBeGreaterThan(n);
     }
+  });
+});
+
+describe('levelling (PLAN-011)', () => {
+  test('every living hero gains XP each second on its own, and the ultimate comes from that alone within the match', () => {
+    const sim = new Sim({ seed: 1, waves: false });
+    parkHeroes(sim, 0);
+    parkHeroes(sim, 1);
+    const h = sim.heroes(0)[0];
+    stepN(sim, sec(30) + 1); // the trickle lands on each whole second after the start
+    expect(h.heroXp).toBe(30 * XP.trickle);
+    // with no fights at all, the trickle alone reaches the ultimate level before regulation time ends
+    const needed = XP.levels[HERO_RULES.ultLevel - 1] / XP.trickle;
+    expect(needed).toBeLessThan(MATCH.regulation / sec(1));
+    stepN(sim, sec(needed - 30));
+    expect(h.level).toBe(HERO_RULES.ultLevel);
+    expect(h.ultReady).toBe(true);
+  });
+
+  test('a dead hero gains no trickle XP', () => {
+    const sim = new Sim({ seed: 1, waves: false });
+    parkHeroes(sim, 0);
+    parkHeroes(sim, 1);
+    const h = sim.heroes(0)[0];
+    h.hp = 0;
+    stepN(sim, 1);
+    expect(h.alive).toBe(false);
+    const before = h.heroXp;
+    stepN(sim, sec(5));
+    expect(h.heroXp).toBe(before);
   });
 });
 

@@ -1,0 +1,88 @@
+{
+  "id": "PLAN-011",
+  "title": "Faster levelling to the ultimate",
+  "problem": "Owner: \"fix the levelling so that it doesnt take that long to do ulti\". Measured over 60 bot matches: the median hero reached level 4 (the ultimate) at 4:11, and 48% never reached it; about 2 ultimates per match.",
+  "scope": [
+    "Lower the XP needed for levels 2-4 from 100/250/450 to 50/110/180",
+    "Every living hero gains 1 XP per second on its own, so the ultimate comes in every match even for a hero on quiet duty",
+    "Tests for the new rule; re-check balance with npm run balance (1,200 matches); help text and docs"
+  ],
+  "exclusions": [
+    "Changing what ultimates do, or the once-per-life rule",
+    "Changing the +15% per level growth",
+    "The new hero controls (DEC-021, waiting for the owner's choice)"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "Time to the ultimate: median under 1:45 and at least 95% of heroes at level 4 by 3:00 in bot matches (measured)",
+      "result": "PASS",
+      "evidence": "Before: median 4:11 to level 4 and 48% never reached it (60 bot matches). After: median 1:28 and 98% by 3:00 over 600 heroes in 100 matches; now a permanent check in npm run soak (median under 1:45, at least 95% by 3:00). About 7.3 ultimates a match, was 2.1."
+    },
+    {
+      "id": "T2",
+      "text": "The XP trickle and new thresholds are covered by unit tests; determinism holds",
+      "result": "PASS",
+      "evidence": "tests/rules.test.ts: 1 XP a second for living heroes, none while dead, and the trickle alone reaches level 4 in regulation time; 95/95 tests; determinism tests pass."
+    },
+    {
+      "id": "T3",
+      "text": "Balance still in the PLAN-005 targets (npm run balance, 1,200 matches)",
+      "result": "PASS",
+      "evidence": "1,200-match balance check (four parallel slices): species 47-53%, heroes 40-62% (Buaya lowest, Seri highest), draws 11%, decided before 2:30 0%, average match 5:19. All inside the PLAN-005 targets."
+    },
+    {
+      "id": "T4",
+      "text": "Verify, soak and phone check pass",
+      "result": "PASS",
+      "evidence": "npm run verify; npm run soak 3/3 (including the new ultimate-timing check); PHONE CHECK OK."
+    },
+    {
+      "id": "T5",
+      "text": "On the owner's phone",
+      "result": "NOT RUN",
+      "evidence": "Not yet tried on the owner's phone."
+    },
+    {
+      "id": "T6",
+      "text": "Owner's verdict: does the ultimate come soon enough?",
+      "result": "NOT RUN",
+      "evidence": "Waiting for the owner's verdict."
+    }
+  ],
+  "risks": [
+    "Heroes reach full strength sooner; balance re-checked with 1,200 matches",
+    "Respawn times grow with level, so heroes wait a little longer to come back earlier in the match"
+  ],
+  "cost": "RM0.",
+  "decisions": [
+    "DEC-021"
+  ],
+  "reports": [
+    "REP-014"
+  ],
+  "changes": {
+    "added": [
+      "XP trickle: 1 XP a second for every living hero",
+      "Soak check: time to the ultimate"
+    ],
+    "changed": [
+      "Level thresholds 50/110/180 (were 100/250/450)",
+      "Help text on when the ultimate unlocks"
+    ],
+    "fixed": [
+      "The ultimate came too late, or not at all for about half the heroes"
+    ],
+    "removed": []
+  },
+  "userNotes": [
+    "Heroes level up faster: the ultimate (level 4) now comes about 1.5 minutes into a match instead of after 4 minutes, and every hero gains a little XP each second."
+  ],
+  "approval": {
+    "status": "approved",
+    "evidence": "fix the levelling so that it doesnt take that long to do ulti",
+    "date": "2026-11-13"
+  },
+  "delivery": "implemented",
+  "release": "unreleased"
+}

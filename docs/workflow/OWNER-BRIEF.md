@@ -12,19 +12,21 @@ Everything here should work from a phone.
 1. You'll get a message that a change is ready and the checks are green.
 2. Open the preview on your phone (refresh if it looks old) and follow the checklist.
 
-## 2 · Checklist for PLAN-001 (about 25 minutes)
+## 2 · Checklist for PLAN-001 and PLAN-002 (about 30 minutes)
 Write down what you **saw**, not just "it's fine".
-- [ ] It opens in portrait and the "How to play" screen makes sense.
+- [ ] It opens in portrait. "How to play", then the hero pick screen, make sense.
+- [ ] Pick 2 heroes (tap a hero to read its Trait, Power and Ultimate), then start.
 - [ ] Drag a card into a lane. Then try tapping a card and tapping a lane.
-- [ ] Play a hero card. Drag its portrait onto a lane, a tower, a ✦ camp and your Core.
-      Did the hero do what you expected each time?
-- [ ] Gank: send a hero to another lane through the jungle. Did you see "Ambush!"?
+- [ ] Play a hero card, then drag its portrait onto a lane, a tower, a ✦ camp and your Pusaka.
+      Did the hero do what you expected? Did you notice the ★ best order?
+- [ ] Watch the ring around the portrait fill (power ready), and the ULT label at level 4.
 - [ ] Play a full match to the result screen (5 to 6 minutes).
-- [ ] Play 5 or more matches. Switch between 3 lanes and 2 lanes in Settings (⚙).
-- [ ] Answer these three questions:
+- [ ] Play 5 or more matches with different heroes. Try 3 lanes and 2 lanes (⚙ Settings).
+- [ ] Answer these four questions:
   1. With 3 lanes, could you keep track of every lane, or did things happen without you noticing?
   2. Were hero orders fun on top of cards, or a chore?
-  3. Did you want to press Rematch?
+  3. Did any hero feel clearly too strong or too weak? Which?
+  4. Did you want to press Rematch?
 - [ ] Anything confusing, slow or ugly: note the screen. Mention your phone model.
 
 Send bugs with: device and browser, steps, expected, actual, how often, a screenshot, and the

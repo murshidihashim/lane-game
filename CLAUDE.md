@@ -22,7 +22,8 @@ Short progress notes use STATUS, FINDING, NEXT. Plain English; the owner reads o
 ## Commands (fill in the real ones; never list a command that does not exist)
 | Command | What it does |
 |---|---|
-| `npm run verify` | Type check, unit tests, build, `appkit check`. Run before every commit. |
+| `npm run verify` | Type check, unit tests, build, roster-doc check, `appkit check`. Run before every commit. |
+| `npm run docs:heroes` | Rewrite `docs/design/heroes.md` from the hero data in `src/game/rules.ts` (run after changing heroes). |
 | `npm run soak` | 100 + 20 bot-vs-bot matches (about 1 minute). Part of the full verify. |
 | `node scripts/phone-check.cjs <folder>` | Phone-size browser check with screenshots (after `npm run build`; needs Playwright with Chromium on the machine, not a project dependency). Part of the full verify. |
 | `npm run dev` | Run locally with hot reload (`?lanes=2&speed=2&seed=1&autoplay=1&nohelp=1` test options). |
@@ -43,7 +44,8 @@ Short progress notes use STATUS, FINDING, NEXT. Plain English; the owner reads o
 - `src/game/` (the game rules): no graphics code, no timers, no Math.random/sqrt/sin inside.
   It uses whole-number maths only, so the same seed and moves give the same match on every
   device (needed for online play and replays later). `tests/determinism.test.ts` guards this.
-  Tuning numbers live in `src/game/rules.ts`.
+  Tuning numbers and hero card text live in `src/game/rules.ts`; hero kits in `src/game/heroes.ts`.
+  Every hero needs a kit test in `tests/heroes.test.ts`.
 - Original names, art, map and screen layout only. Never use "Clash", "Royale", "Legends",
   "Elixir", "Lord" or "Turtle" (see `docs/research/research-report.md`, legal section).
 - No paid random rewards (loot boxes or gacha) without a new, approved decision.

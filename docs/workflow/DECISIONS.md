@@ -6,10 +6,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 
 ## Pending approvals
 
-| ID | What | Status |
-|---|---|---|
-| DEC-006 | World theme for heroes and names | Proposed |
-| DEC-007 | Hero power system v1 | Proposed |
+None.
 
 ## Decisions
 
@@ -20,14 +17,15 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | DEC-003 | Middle lane shape | Approved (owner, 2026-11-12) | Not started |
 | DEC-004 | Hero abilities | Approved (owner, 2026-11-12) | Not started |
 | DEC-005 | Where the game lives | Approved (owner, 2026-11-12) | Not started |
-| DEC-006 | World theme for heroes and names | Proposed | Not started |
-| DEC-007 | Hero power system v1 | Proposed | Not started |
+| DEC-006 | World theme for heroes and names | Approved (owner, 2026-11-12) | Implemented |
+| DEC-007 | Hero power system v1 | Approved (owner, 2026-11-12) | Implemented |
 
 ## Work packages
 
 | ID | Package | Approval | Delivery | Tests passed | Release |
 |---|---|---|---|---|---|
 | PLAN-001 | Grey-box prototype vs bot | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
+| PLAN-002 | 20 heroes with powers | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
 
 ## Decision details
 
@@ -111,8 +109,8 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 - **Technical impact:** Text and art only.
 - **Data and privacy:** None.
 - **Cost:** none (names need roster and MyIPO checks before launch)
-- **Approval:** Proposed
-- **Delivery:** Not started
+- **Approval:** Approved: “go with the folk tale namez” (2026-11-12)
+- **Delivery:** Implemented
 - **Review trigger:** Names fail a roster or trademark check, or playtesters outside the region find them hard to remember.
 
 ### DEC-007 · Hero power system v1
@@ -125,8 +123,8 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 - **Technical impact:** Ultimate flag per life, cooldown and ultimate rings on portraits, new effects (pull, stun, shield, reveal, transform).
 - **Data and privacy:** None.
 - **Cost:** none until built
-- **Approval:** Proposed
-- **Delivery:** Not started
+- **Approval:** Approved: “appriove power” (2026-11-12)
+- **Delivery:** Implemented
 - **Review trigger:** Playtests show powers firing at bad moments too often.
 
 ## History (oldest first)
@@ -159,3 +157,20 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 - 2026-11-12 11:49 · DEC-007 proposed: Hero power system v1.
 - 2026-11-12 11:49 · REP-003 written: Hero concept v1: roster and powers.
 - 2026-11-12 11:49 · Hero concept v1 written (docs/design/characters-v1.md) and shown to the owner as a private roster page.
+- 2026-11-12 12:12 · Owner approved DEC-006: "go with the folk tale namez".
+- 2026-11-12 12:12 · Owner approved DEC-007: "appriove power".
+- 2026-11-12 12:12 · DEC-006 delivery: in progress.
+- 2026-11-12 12:12 · DEC-007 delivery: in progress.
+- 2026-11-12 12:12 · PLAN-002 proposed: 20 heroes with powers.
+- 2026-11-12 12:13 · Owner approved PLAN-002: "create and build in total 20 chracters".
+- 2026-11-12 12:13 · PLAN-002 delivery: in progress.
+- 2026-11-12 12:33 · PLAN-002 T1: PASS (npm run verify: tests/heroes.test.ts 23/23 pass; 'all 20 heroes can be picked, played and given every order' plus one kit test per hero (power, trait, ultimate) for all 20).
+- 2026-11-12 12:33 · PLAN-002 T2: PASS (tests/heroes.test.ts: 'an ultimate unlocks at level 4, fires once, and is ready again after respawn' passes; each hero's ultimate test checks it fires on its trigger and ultReady turns false; Belang's always-on ultimate checked).
+- 2026-11-12 12:33 · PLAN-002 T3: PASS (tests/determinism.test.ts 4/4 pass, including logged-move replays with random hero picks (seeds 7, 8, 21, 33; 3 and 2 lanes)).
+- 2026-11-12 12:33 · PLAN-002 T4: PASS (npm run soak: 'SOAK 100 matches in 36.2 s, results {blue:34, red:37, draw:29, core:35, towers:29, sudden:7}'; every one of the 20 heroes played (7 to 26 matches each); 20 two-lane matches also pass).
+- 2026-11-12 12:33 · PLAN-002 T5: NOT RUN (Automated part passed: scripts/phone-check.cjs at iPhone 13 size picked Kail + Seri on the pick screen, played cards, gave a Farm order, and a full match reached the result screen ('PHONE CHECK OK'). Waiting for the owner's own phone.).
+- 2026-11-12 12:33 · PLAN-002 delivery: implemented.
+- 2026-11-12 12:33 · DEC-006 delivery: implemented.
+- 2026-11-12 12:33 · DEC-007 delivery: implemented.
+- 2026-11-12 12:33 · PLAN-002 built: 20 heroes playable; private preview page updated (Version 2) and the roster page updated to 20 heroes.
+- 2026-11-12 12:33 · REP-004 written: PLAN-002: 20 heroes built.

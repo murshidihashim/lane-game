@@ -1,0 +1,93 @@
+{
+  "id": "PLAN-002",
+  "title": "20 heroes with powers",
+  "problem": "The prototype has two simple heroes. The owner approved the folk-tale theme (DEC-006) and the power system (DEC-007) and asked to create and build 20 heroes in total, so the game needs the full roster, ultimates, a hero pick before each match and themed names.",
+  "scope": [
+    "20 heroes in total: the 12 from hero concept v1 (Ranger and Warden become Rimba and Benteng) plus 8 new ones",
+    "Power system per DEC-007: Trait, automatic Power with ranks at levels 1-3, Ultimate at level 4 once per life, +15% damage on the best order",
+    "New effects: stun, silence, pull, knockback, shield, heal, poison, reveal, flying, charm, decoys, summons, zones (fog, flood, tide, lanterns)",
+    "Pick 2 heroes before each match (the bot picks 2 at random); rematch keeps your picks",
+    "Folk-tale names per DEC-006: hero names, Semangat (mana), Pusaka (Core), themed troop card names",
+    "Hero portraits show power cooldown and a ready ultimate; status marks on the map",
+    "Bot gives orders that suit each hero",
+    "Hero roster document generated from the game data so the two never drift apart"
+  ],
+  "exclusions": [
+    "Online play",
+    "Accounts and progression",
+    "Real art and sound",
+    "Balance tuning beyond first numbers (needs playtests)",
+    "Manual ultimate button"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "All 20 heroes can be picked, played and ordered; each hero's power fires and does what its card says (automated test per hero)",
+      "result": "PASS",
+      "evidence": "npm run verify: tests/heroes.test.ts 23/23 pass; 'all 20 heroes can be picked, played and given every order' plus one kit test per hero (power, trait, ultimate) for all 20"
+    },
+    {
+      "id": "T2",
+      "text": "Each hero's ultimate unlocks at level 4, fires on its trigger once per life, and is ready again after respawn",
+      "result": "PASS",
+      "evidence": "tests/heroes.test.ts: 'an ultimate unlocks at level 4, fires once, and is ready again after respawn' passes; each hero's ultimate test checks it fires on its trigger and ultReady turns false; Belang's always-on ultimate checked"
+    },
+    {
+      "id": "T3",
+      "text": "Same seed + same moves (with random hero picks) => exactly the same match",
+      "result": "PASS",
+      "evidence": "tests/determinism.test.ts 4/4 pass, including logged-move replays with random hero picks (seeds 7, 8, 21, 33; 3 and 2 lanes)"
+    },
+    {
+      "id": "T4",
+      "text": "Bot against bot: 100 matches with random hero picks finish with no errors, and every hero appears",
+      "result": "PASS",
+      "evidence": "npm run soak: 'SOAK 100 matches in 36.2 s, results {blue:34, red:37, draw:29, core:35, towers:29, sudden:7}'; every one of the 20 heroes played (7 to 26 matches each); 20 two-lane matches also pass"
+    },
+    {
+      "id": "T5",
+      "text": "A full match with a hero pick can be played at phone size, start to result screen (browser check), and on the owner's phone",
+      "result": "NOT RUN",
+      "evidence": "Automated part passed: scripts/phone-check.cjs at iPhone 13 size picked Kail + Seri on the pick screen, played cards, gave a Farm order, and a full match reached the result screen ('PHONE CHECK OK'). Waiting for the owner's own phone."
+    },
+    {
+      "id": "T6",
+      "text": "Owner plays matches with different heroes and gives a verdict: fun? readable? any hero clearly too strong or too weak?",
+      "result": "NOT RUN",
+      "evidence": ""
+    }
+  ],
+  "risks": [
+    "Twenty heroes on first-guess numbers will be unbalanced until people play them",
+    "More effects on a small screen may be hard to read",
+    "The bot will not use every hero cleverly",
+    "PLAN-001 owner playtest (T1, T6) is still open; this build replaces the preview, so that playtest happens on the new version"
+  ],
+  "cost": "RM0. Free tools; private preview page. Several build sessions (estimate).",
+  "decisions": [
+    "DEC-006",
+    "DEC-007"
+  ],
+  "reports": [
+    "REP-004"
+  ],
+  "changes": {
+    "added": [],
+    "changed": [],
+    "fixed": [],
+    "removed": []
+  },
+  "userNotes": [
+    "20 heroes from a folk-tale world, each with a Trait, an automatic Power and a level-4 Ultimate.",
+    "Pick 2 heroes before each match; the bot picks 2 at random.",
+    "New effects: stun, silence, pull, push-back, shields, healing, poison, fog, lanterns that reveal, flying, duels, decoys, summons and taking over enemy troops.",
+    "Folk-tale names: Semangat (mana), Pusaka (Core), Silat Guards, Pemanah, Kerbau, Kelip-kelip, Perisai, Petir."
+  ],
+  "approval": {
+    "status": "approved",
+    "evidence": "create and build in total 20 chracters",
+    "date": "2026-11-12"
+  },
+  "delivery": "implemented",
+  "release": "unreleased"
+}

@@ -3,7 +3,7 @@
 // seeded random numbers, so a match with the same seed and the same human moves replays exactly.
 import { Rng, idiv, within } from './math';
 import { CAMPS, LANES, type LaneId, nearestS } from './map';
-import { CARDS, DEPLOY, MANA, type CardId, type HeroKind } from './rules';
+import { DEPLOY, HEROES, MANA, type CardId, type HeroKind } from './rules';
 import type { Command, Ent, Player, Sim } from './sim';
 
 export type BotLevel = 'easy' | 'normal';
@@ -24,8 +24,8 @@ const ATTACKERS: CardId[] = ['ram', 'spearmen', 'shieldbearer', 'archers', 'imps
 export class Bot {
   private rng: Rng;
   private nextThink = 0;
-  private nextHeroThink: Record<HeroKind, number> = { ranger: 0, warden: 0 };
-  private lastGank = -10_000;
+  private nextHeroThink: Partial<Record<HeroKind, number>> = {};
+  private lastGank: Partial<Record<HeroKind, number>> = {};
   private supportLane: LaneId | -1 = -1;
 
   constructor(readonly player: Player, seed: number, readonly level: BotLevel = 'normal') {
@@ -35,8 +35,8 @@ export class Bot {
   think(sim: Sim): Command[] {
     if (sim.result) return [];
     const out: Command[] = [];
-    for (const kind of ['ranger', 'warden'] as const) {
-      if (sim.tick >= this.nextHeroThink[kind]) {
+    for (const kind of sim.players[this.player].picks) {
+      if (sim.tick >= (this.nextHeroThink[kind] ?? 0)) {
         const c = this.heroOrder(sim, kind);
         if (c) out.push(c);
         this.nextHeroThink[kind] = sim.tick + 30 + this.rng.int(30);
@@ -136,9 +136,10 @@ export class Bot {
 
     // 3. Bring out heroes once the match is under way.
     if (sim.tick > 200) {
-      for (const hero of ['warden', 'ranger'] as const) {
-        if (pl.hand.includes(hero) && pl.mana >= (CARDS[hero].cost + 1) * MANA.perMana) {
-          const lane = this.attackLane(sim, views);
+      for (const hero of pl.picks) {
+        if (pl.hand.includes(hero) && pl.mana >= (sim.costOf(me, hero) + 1) * MANA.perMana) {
+          const defender = HEROES[hero].best === 'defend';
+          const lane = defender && worst && worst.threat > 0 ? worst.lane : this.attackLane(sim, views);
           return this.place(sim, hero, lane, sim.maxU(me, lane) - 300);
         }
       }
@@ -199,29 +200,32 @@ export class Bot {
 
     const danger = [...views].sort((a, b) => (b.threat - b.defence) - (a.threat - a.defence) || a.lane - b.lane)[0];
     const current = sim.heroLane(h);
+    const best = HEROES[kind].best;
+    const goPush = (lane: LaneId) => order({ t: 'order', player: me, hero: kind, order: current === lane ? 'push' : 'gank', lane });
 
-    if (kind === 'warden') {
+    if (best === 'defend') {
       if (danger && danger.threat > 30) {
         const tower = sim.towerOf(me, danger.lane);
         if (tower && tower.alive) return order({ t: 'order', player: me, hero: kind, order: 'defend', lane: danger.lane });
       }
-      const lane = this.attackLane(sim, views);
-      return order({ t: 'order', player: me, hero: kind, order: current === lane ? 'push' : 'gank', lane });
+      return goPush(this.attackLane(sim, views));
     }
 
-    // Ranger: gank where it helps, farm when quiet, otherwise push.
     if (h.order.type === 'gank' || h.order.type === 'farm') return null;
-    if (sim.tick - this.lastGank > 300) {
+
+    if (best === 'gank' && sim.tick - (this.lastGank[kind] ?? -10_000) > 300) {
       const target = views
         .filter((v) => v.lane !== current && (v.threat > 20 || v.push > 20))
         .sort((a, b) => b.threat + b.push - (a.threat + a.push) || a.lane - b.lane)[0];
       if (target) {
-        this.lastGank = sim.tick;
+        this.lastGank[kind] = sim.tick;
         return { t: 'order', player: me, hero: kind, order: 'gank', lane: target.lane };
       }
     }
+
     const quiet = views.every((v) => v.threat < 15);
-    if (quiet && h.level < 4 && this.rng.chance(35)) {
+    const farmChance = best === 'farm' ? 70 : best === 'gank' ? 30 : 0;
+    if (quiet && h.level < 4 && h.targets === 'any' && this.rng.chance(farmChance)) {
       const camps = sim.camps();
       let pick = -1;
       let bestD = Infinity;
@@ -233,6 +237,7 @@ export class Bot {
       });
       if (pick >= 0) return { t: 'order', player: me, hero: kind, order: 'farm', camp: pick };
     }
+    if (best === 'push') return goPush(this.attackLane(sim, views));
     return order({ t: 'order', player: me, hero: kind, order: 'push', lane: current });
   }
 }

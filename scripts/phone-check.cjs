@@ -29,6 +29,15 @@ async function page(browser, query) {
     const { p, errors } = await page(browser, '?seed=7');
     await p.screenshot({ path: `${out}/1-help.png` });
     await p.click('button[data-action="start"]');
+    // Pick screen: choose Kail and Seri.
+    await p.waitForSelector('#pick.show');
+    await p.click('#pick-kail');
+    await p.click('#pick-seri');
+    await p.screenshot({ path: `${out}/1b-pick.png` });
+    await p.click('#pick-go');
+    const picks = await p.evaluate(() => window.__game.sim.players[0].picks);
+    if (JSON.stringify(picks) !== '["kail","seri"]') fail('pick screen did not start a match with Kail + Seri: ' + JSON.stringify(picks));
+    else console.log('PASS pick screen starts a match with the two chosen heroes');
     const st = () => p.evaluate(() => { const g = window.__game; const s = g.sim; return { hand: s.players[0].hand, mana: s.players[0].mana, heroes: Object.keys(s.players[0].heroIds), L: g.layout, units: s.ents.filter((e) => e.kind === 'unit' && e.owner === 0 && e.unit !== 'minion').length }; });
     let s = await st();
     const c = (r) => [r.x + r.w / 2, r.y + r.h / 2];
@@ -38,7 +47,7 @@ async function page(browser, query) {
       for (let k = 1; k <= 8; k++) await p.mouse.move(a[0] + (b[0] - a[0]) * k / 8, a[1] + (b[1] - a[1]) * k / 8);
       await p.waitForTimeout(60); await p.mouse.up();
     };
-    const hero = s.hand.includes('warden') ? 'warden' : s.hand.includes('ranger') ? 'ranger' : null;
+    const hero = s.hand.includes('seri') ? 'seri' : s.hand.includes('kail') ? 'kail' : null;
     if (hero) {
       const lp = w2s(570, 4600);
       await drag(c(s.L.cards[s.hand.indexOf(hero)]), [lp[0], lp[1] + 28]);
@@ -68,7 +77,7 @@ async function page(browser, query) {
     if (s.units <= before) fail('tap card + tap lane did not place troops');
     else console.log('PASS tap a card, then tap a lane, places troops');
     if (hero) {
-      const slot = c(s.L.heroSlots[hero === 'ranger' ? 0 : 1]);
+      const slot = c(s.L.heroSlots[hero === 'kail' ? 0 : 1]);
       const camp = w2s(1260, 3470);
       await p.mouse.move(slot[0], slot[1]); await p.mouse.down();
       for (let k = 1; k <= 8; k++) await p.mouse.move(slot[0] + (camp[0] - slot[0]) * k / 8, slot[1] + (camp[1] + 28 - slot[1]) * k / 8);
@@ -94,6 +103,17 @@ async function page(browser, query) {
       console.log('PASS full match reached the result screen:', JSON.stringify(r));
       await p.screenshot({ path: `${out}/6-result.png` });
     } catch (e) { fail('match did not reach the result screen: ' + e.message); }
+    if (errors.length) fail('page errors: ' + errors.join(' | '));
+  }
+
+  // 2b. A mid-match look with heroes and powers (bot plays both sides).
+  {
+    const { p, errors } = await page(browser, '?seed=12&nohelp=1&autoplay=1&speed=8');
+    await p.waitForFunction(() => window.__game.sim.tick > 3000, null, { timeout: 60_000 });
+    await p.evaluate(() => window.__game.setRunning(false));
+    await p.screenshot({ path: `${out}/6b-midgame.png` });
+    const info = await p.evaluate(() => ({ picks: window.__game.sim.players.map((x) => x.picks), heroes: window.__game.sim.ents.filter((e) => e.kind === 'hero').map((e) => `${e.hero} Lv${e.level}`) }));
+    console.log('INFO mid-match heroes:', JSON.stringify(info));
     if (errors.length) fail('page errors: ' + errors.join(' | '));
   }
 

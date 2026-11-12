@@ -15,10 +15,10 @@ describe('determinism', () => {
     expect(b.sim.tick).toBe(a.sim.tick);
   });
 
-  test('replaying only the logged moves reproduces the match exactly', () => {
-    for (const lanes of [3, 2] as const) {
-      const a = botMatch(7, lanes);
-      const r = replay(7, lanes, a.log);
+  test('replaying only the logged moves reproduces the match exactly (random hero picks)', () => {
+    for (const [seed, lanes] of [[7, 3], [8, 2], [21, 3], [33, 3]] as const) {
+      const a = botMatch(seed, lanes);
+      const r = replay(seed, lanes, a.log, a.picks);
       expect(r.hash()).toBe(a.sim.hash());
       expect(r.result).toEqual(a.sim.result);
     }

@@ -14,6 +14,11 @@ export const COLORS = {
   hud: '#16211a', ink: '#f3efe4', muted: '#a9b3a6', card: '#e9e2cf', spell: '#d9c8ee', hero: '#f6e3a6',
 } as const;
 
+/** Ring colour of a hero = its best order. */
+export const ORDER_COLORS: Record<'push' | 'defend' | 'gank' | 'farm', string> = {
+  push: '#ff9f43', defend: '#54a0ff', gank: '#ff6b6b', farm: '#7bd389',
+};
+
 export interface UiState {
   dragCard: { index: number; card: CardId; x: number; y: number; moved: boolean } | null;
   selectedCard: number;
@@ -23,7 +28,7 @@ export interface UiState {
   toast: { text: string; until: number } | null;
 }
 
-interface Fx { ev: GameEvent; born: number }
+interface Fx { ev: GameEvent; born: number; slot: number }
 
 export const DRAG_LIFT = 28; // dragged cards preview a little above the finger
 
@@ -35,7 +40,16 @@ export class Renderer {
   private showRanges = false;
 
   addEvents(evs: GameEvent[], now: number): void {
-    for (const ev of evs) this.fx.push({ ev, born: now });
+    for (const ev of evs) {
+      // Stack pop-up texts that appear at the same place at the same time, so they don't overlap.
+      let slot = 0;
+      if (ev.k === 'text') {
+        for (const f of this.fx) {
+          if (f.ev.k === 'text' && now - f.born < 800 && Math.abs(f.ev.x - ev.x) < 600 && Math.abs(f.ev.y - ev.y) < 400) slot = Math.max(slot, f.slot + 1);
+        }
+      }
+      this.fx.push({ ev, born: now, slot });
+    }
     if (this.fx.length > 400) this.fx.splice(0, this.fx.length - 400);
   }
 
@@ -186,12 +200,126 @@ export class Renderer {
   // ---------- entities ----------
 
   private drawEnts(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, alpha: number, now: number): void {
+    this.drawZones(ctx, l, sim);
     for (const e of sim.ents) if (e.kind === 'camp') this.drawCamp(ctx, l, e);
     for (const e of sim.ents) if (e.kind === 'tower' || e.kind === 'core') this.drawStructure(ctx, l, sim, e, this.showRanges);
     // own heroes' order lines under units
     for (const e of sim.ents) if (e.kind === 'hero' && e.owner === 0 && e.alive) this.drawOrderLine(ctx, l, sim, e, alpha);
     for (const e of sim.ents) if (e.kind === 'unit' && e.alive) this.drawUnit(ctx, l, e, alpha);
     for (const e of sim.ents) if (e.kind === 'hero') this.drawHero(ctx, l, e, alpha, now);
+    this.drawDuels(ctx, l, sim, alpha);
+  }
+
+  private drawZones(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim): void {
+    for (const z of sim.zones) {
+      const left = (z.until - sim.tick) / TICKS_PER_SECOND;
+      const fade = Math.min(1, left / 1.5);
+      ctx.save();
+      if (z.kind === 'lantern' || z.kind === 'fog') {
+        const [x, y] = toScreen(l, z.x, z.y);
+        ctx.globalAlpha = fade;
+        if (z.kind === 'lantern') {
+          ctx.strokeStyle = z.owner === 0 ? 'rgba(255,209,102,0.45)' : 'rgba(255,138,128,0.45)';
+          ctx.setLineDash([3, 5]);
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(x, y, z.r * l.scale, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#ffd166';
+          ctx.beginPath();
+          ctx.arc(x, y, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255,209,102,0.25)';
+          ctx.beginPath();
+          ctx.arc(x, y, 11, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = 'rgba(225,235,240,0.32)';
+          ctx.beginPath();
+          ctx.arc(x, y, z.r * l.scale, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else {
+        // Lane-wide effects: tint the lane.
+        ctx.globalAlpha = 0.35 * fade;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = LANE_HALF * 2 * l.scale;
+        ctx.strokeStyle = z.kind === 'flood' ? '#4f8fbf' : z.owner === 0 ? '#7cc4ff' : '#ff8a80';
+        this.lanePath(ctx, l, z.lane);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  private drawDuels(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, alpha: number): void {
+    for (const e of sim.ents) {
+      if (e.kind !== 'hero' || !e.alive || !e.duelWith || e.id > e.duelWith) continue;
+      const o = sim.get(e.duelWith);
+      if (!o || !o.alive) continue;
+      const [x1, y1] = toScreen(l, ...this.pos(e, alpha));
+      const [x2, y2] = toScreen(l, ...this.pos(o, alpha));
+      ctx.save();
+      ctx.strokeStyle = '#ff6b4a';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([2, 3]);
+      ctx.beginPath();
+      ctx.arc((x1 + x2) / 2, (y1 + y2) / 2, Math.hypot(x2 - x1, y2 - y1) / 2 + 16, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  /** Small marks for effects on a unit or hero. */
+  private marks(ctx: CanvasRenderingContext2D, e: Ent, x: number, y: number, r: number): void {
+    ctx.save();
+    if (e.slow > 0) {
+      ctx.strokeStyle = '#9be7ff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, r + 2.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (e.shield > 0) {
+      ctx.strokeStyle = '#e8f6ff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(x, y, r + 4.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (e.charm > 0) {
+      ctx.strokeStyle = '#c38bff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, r + 3, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (e.mark > 0) {
+      ctx.strokeStyle = '#ff4d4d';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x - r - 5, y); ctx.lineTo(x + r + 5, y);
+      ctx.moveTo(x, y - r - 5); ctx.lineTo(x, y + r + 5);
+      ctx.stroke();
+    }
+    let icons = '';
+    if (e.stun > 0) icons += '✶';
+    if (e.silence > 0) icons += '⊘';
+    if (e.dot > 0) icons += '•';
+    if (e.immune > 0) icons += '◆';
+    if (icons) {
+      ctx.font = 'bold 10px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+      ctx.strokeText(icons, x, y - r - 12);
+      ctx.fillStyle = e.dot > 0 && icons === '•' ? '#8be36b' : '#ffe066';
+      ctx.fillText(icons, x, y - r - 12);
+    }
+    ctx.restore();
   }
 
   private drawCamp(ctx: CanvasRenderingContext2D, l: Layout, e: Ent): void {
@@ -255,7 +383,13 @@ export class Renderer {
     roundRect(ctx, x - w / 2, y - h / 2, w, h, 4);
     ctx.fill();
     ctx.stroke();
-    if (isCore) label(ctx, 'CORE', x, y + 1, '#fff', 10);
+    if (isCore) label(ctx, 'PUSAKA', x, y + 1, '#fff', 9);
+    if (e.shield > 0) {
+      ctx.strokeStyle = '#e8f6ff';
+      ctx.lineWidth = 3;
+      roundRect(ctx, x - w / 2 - 4, y - h / 2 - 4, w + 8, h + 8, 6);
+      ctx.stroke();
+    }
     if (e.kind === 'tower' && sim.tick < MATCH.towerShieldUntil) {
       ctx.strokeStyle = 'rgba(255,209,102,0.7)';
       ctx.lineWidth = 1.5;
@@ -280,6 +414,9 @@ export class Renderer {
     if (e.deploy > 0) ctx.globalAlpha = 0.45;
     ctx.fillStyle = mine ? COLORS.youLight : COLORS.foeLight;
     if (e.unit === 'minion') ctx.fillStyle = mine ? '#a9d4ff' : '#ffb3ab';
+    if (e.unit === 'puppet') ctx.fillStyle = mine ? '#4b3f8f' : '#7a2f45';
+    if (e.unit === 'decoy') ctx.globalAlpha *= 0.55;
+    if (e.unit === 'watchtower') ctx.fillStyle = '#b8a35a';
     ctx.strokeStyle = mine ? COLORS.youDark : COLORS.foeDark;
     ctx.lineWidth = 1.2;
     ctx.beginPath();
@@ -291,6 +428,7 @@ export class Renderer {
         ctx.closePath();
         break;
       case 'ram': // square
+      case 'watchtower':
         ctx.rect(x - r, y - r, r * 2, r * 2);
         break;
       case 'imp': // diamond
@@ -312,14 +450,9 @@ export class Renderer {
       ctx.arc(x, y, r * 0.55, 0, Math.PI * 2);
       ctx.stroke();
     }
-    if (e.slow > 0) {
-      ctx.strokeStyle = '#9be7ff';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(x, y, r + 2, 0, Math.PI * 2);
-      ctx.stroke();
-    }
+    if (e.unit === 'watchtower') label(ctx, '⌂', x, y + 0.5, '#3b2f10', Math.round(r * 1.4));
     ctx.restore();
+    this.marks(ctx, e, x, y, r);
     if (e.hp < e.maxHp && e.unit !== 'minion') hpBar(ctx, x, y - r - 4, Math.max(12, r * 2.2), e.hp / e.maxHp, mine ? COLORS.youLight : COLORS.foeLight);
   }
 
@@ -348,11 +481,25 @@ export class Renderer {
     }
     const [x, y] = toScreen(l, wx, wy);
     const r = Math.max(11, e.r * l.scale * 1.3);
+    const def = HEROES[e.hero as HeroKind];
     ctx.save();
+    if (e.flying) {
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(x + 4, y + r + 6, r * 0.9, r * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (e.ultReady) {
+      ctx.strokeStyle = 'rgba(255,209,102,0.55)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(x, y, r + 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     if (e.deploy > 0) ctx.globalAlpha = 0.5;
     if (mine && e.hidden) ctx.globalAlpha = 0.6;
     ctx.fillStyle = mine ? COLORS.you : COLORS.foe;
-    ctx.strokeStyle = COLORS.accent;
+    ctx.strokeStyle = ORDER_COLORS[def.best];
     ctx.lineWidth = 2.5;
     if (mine && e.hidden) ctx.setLineDash([3, 3]);
     ctx.beginPath();
@@ -360,20 +507,15 @@ export class Renderer {
     ctx.fill();
     ctx.stroke();
     ctx.setLineDash([]);
-    label(ctx, HEROES[e.hero as HeroKind].letter, x, y + 1, '#fff', Math.round(r * 1.05));
+    label(ctx, def.code, x, y + 1, '#fff', Math.round(r * 0.85));
     // level pip
     ctx.fillStyle = COLORS.accent;
     ctx.beginPath();
     ctx.arc(x + r * 0.8, y + r * 0.8, 6, 0, Math.PI * 2);
     ctx.fill();
     label(ctx, String(e.level), x + r * 0.8, y + r * 0.8 + 0.5, '#1a1a1a', 9);
-    if (e.slow > 0) {
-      ctx.strokeStyle = '#9be7ff';
-      ctx.beginPath();
-      ctx.arc(x, y, r + 3, 0, Math.PI * 2);
-      ctx.stroke();
-    }
     ctx.restore();
+    this.marks(ctx, e, x, y, r);
     hpBar(ctx, x, y - r - 6, r * 2.4, e.hp / e.maxHp, mine ? COLORS.youLight : COLORS.foeLight);
   }
 
@@ -444,6 +586,19 @@ export class Renderer {
           ctx.stroke();
           break;
         }
+        case 'line': {
+          if (age > 260) break;
+          const [x1, y1] = toScreen(l, ev.x1, ev.y1);
+          const [x2, y2] = toScreen(l, ev.x2, ev.y2);
+          ctx.globalAlpha = 1 - age / 260;
+          ctx.strokeStyle = ev.owner === 0 ? '#bfe3ff' : '#ffc9c2';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          break;
+        }
         case 'death': {
           if (age > 450) break;
           const [x, y] = toScreen(l, ev.x, ev.y);
@@ -458,14 +613,15 @@ export class Renderer {
         case 'text': {
           const [x, y] = toScreen(l, ev.x, ev.y);
           ctx.globalAlpha = 1 - age / 1100;
-          const color = ev.tone === 'mana' ? '#e3b8ff' : ev.tone === 'ambush' ? '#ffd166' : ev.tone === 'level' ? '#b6f5a6' : '#ffffff';
-          ctx.font = 'bold 12px system-ui';
+          const color = ev.tone === 'mana' ? '#e3b8ff' : ev.tone === 'ambush' || ev.tone === 'ult' ? '#ffd166' : ev.tone === 'level' ? '#b6f5a6' : '#ffffff';
+          ctx.font = ev.tone === 'ult' ? 'bold 15px system-ui' : 'bold 12px system-ui';
           ctx.textAlign = 'center';
           ctx.lineWidth = 3;
           ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-          ctx.strokeText(ev.text, x, y - age / 40);
+          const ty = y - age / 40 - f.slot * 15;
+          ctx.strokeText(ev.text, x, ty);
           ctx.fillStyle = color;
-          ctx.fillText(ev.text, x, y - age / 40);
+          ctx.fillText(ev.text, x, ty);
           break;
         }
       }
@@ -496,7 +652,8 @@ export class Renderer {
       ctx.stroke();
       const icon = t.order === 'push' ? '↑' : t.order === 'gank' ? '⤳' : t.order === 'defend' ? '⛨' : t.order === 'farm' ? '✦' : '⌂';
       label(ctx, icon, x, y + 1, on ? '#1a1a1a' : COLORS.accent, 14);
-      pill(ctx, t.label, x, t.labelAbove ? y - 25 : y + 25, on);
+      const best = hero && HEROES[hero.hero as HeroKind].best === t.order;
+      pill(ctx, best ? `★ ${t.label}` : t.label, x, t.labelAbove ? y - 25 : y + 25, on);
     }
     ctx.restore();
     if (pt && ui.dragHero && ui.dragHero.moved) {
@@ -508,7 +665,7 @@ export class Renderer {
       ctx.arc(pt.x, pt.y - DRAG_LIFT, 16, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      label(ctx, HEROES[kind].letter, pt.x, pt.y - DRAG_LIFT + 1, '#fff', 15);
+      label(ctx, HEROES[kind].code, pt.x, pt.y - DRAG_LIFT + 1, '#fff', 13);
       ctx.restore();
     }
   }
@@ -530,7 +687,7 @@ export class Renderer {
     ctx.fillText(sudden ? `Sudden death ${mm}:${ss}` : `⏱ ${mm}:${ss}`, t.x + 12, t.y + t.h / 2);
     if (sim.doubleMana() && !sim.result) {
       const w = ctx.measureText(sudden ? `Sudden death ${mm}:${ss}` : `⏱ ${mm}:${ss}`).width;
-      pill(ctx, '×2 mana', t.x + 12 + w + 34, t.y + t.h / 2, true);
+      pill(ctx, `×2 ${MANA.name}`, t.x + 12 + w + 44, t.y + t.h / 2, true);
     }
     ctx.textAlign = 'center';
     ctx.font = 'bold 15px system-ui';
@@ -557,8 +714,10 @@ export class Renderer {
 
     // Hero slots
     const infos: string[] = [];
-    (['ranger', 'warden'] as const).forEach((kind, i) => {
+    pl.picks.forEach((kind, i) => {
       const r = l.heroSlots[i];
+      if (!r) return;
+      const def = HEROES[kind];
       const h = sim.heroOf(0, kind);
       const cx = r.x + r.w / 2;
       const cy = r.y + 21;
@@ -572,26 +731,33 @@ export class Renderer {
         ctx.arc(cx, cy, 19, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
-        label(ctx, HEROES[kind].letter, cx, cy + 1, '#4c5d51', 15);
+        label(ctx, def.code, cx, cy + 1, '#4c5d51', 14);
         label(ctx, 'in deck', cx, r.y + r.h - 3, '#6b7a6f', 9);
       } else {
         ctx.globalAlpha = h.alive ? 1 : 0.45;
         ctx.fillStyle = COLORS.you;
-        ctx.strokeStyle = sel ? '#fff' : COLORS.accent;
+        ctx.strokeStyle = sel ? '#fff' : ORDER_COLORS[def.best];
         ctx.lineWidth = sel ? 4 : 3;
         ctx.beginPath();
         ctx.arc(cx, cy, 19, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        label(ctx, HEROES[kind].letter, cx, cy + 1, '#fff', 16);
+        label(ctx, def.code, cx, cy + 1, '#fff', 14);
         ctx.globalAlpha = 1;
         if (h.alive) {
+          // Power cooldown: a ring that fills up; full = ready.
+          const ready = 1 - Math.min(1, h.powerCd / Math.max(1, def.powerTicks));
+          ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(cx, cy, 23, -Math.PI / 2, -Math.PI / 2 + ready * Math.PI * 2);
+          ctx.stroke();
           hpBar(ctx, cx, r.y + r.h - 7, 40, h.hp / h.maxHp, COLORS.youLight);
-          pill(ctx, `Lv${h.level}`, cx, r.y - 1, true);
-          infos.push(`${HEROES[kind].letter}: ${orderLabel(h)}${h.hidden ? ' (hidden)' : ''}`);
+          pill(ctx, h.ultReady ? 'ULT' : `Lv${h.level}`, cx, r.y - 1, true);
+          infos.push(`${def.name}: ${orderLabel(h)}${h.hidden ? ' (hidden)' : ''}`);
         } else {
           label(ctx, `${Math.ceil(h.respawn / TICKS_PER_SECOND)}s`, cx, cy + 1, '#fff', 14);
-          infos.push(`${HEROES[kind].letter}: back in ${Math.ceil(h.respawn / TICKS_PER_SECOND)}s · ${orderLabel(h)}`);
+          infos.push(`${def.name}: back in ${Math.ceil(h.respawn / TICKS_PER_SECOND)}s · ${orderLabel(h)}`);
         }
       }
       ctx.restore();

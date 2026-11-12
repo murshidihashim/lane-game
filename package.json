@@ -10,7 +10,8 @@
     "test": "vitest run",
     "soak": "SOAK=1 vitest run",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run typecheck && npm run test && npm run build && node tools/app-kit/appkit.mjs check"
+    "verify": "npm run typecheck && npm run test && npm run build && node --experimental-strip-types --no-warnings scripts/heroes-doc.mjs --check && node tools/app-kit/appkit.mjs check",
+    "docs:heroes": "node --experimental-strip-types --no-warnings scripts/heroes-doc.mjs"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

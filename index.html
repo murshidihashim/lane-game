@@ -43,6 +43,23 @@
       table { width: 100%; border-collapse: collapse; font-size: 14px; }
       td { padding: 5px 2px; border-bottom: 1px solid #263429; }
       td:last-child { text-align: right; }
+      .pick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 8px 0 10px; }
+      .tile { position: relative; display: grid; justify-items: center; gap: 2px; padding: 8px 2px 6px; border-radius: 10px;
+        background: #1f2d24; border: 2px solid transparent; color: var(--ink); font-size: 11px; line-height: 1.15; }
+      .tile .sig { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px;
+        background: var(--you); color: #fff; box-shadow: inset 0 0 0 3px var(--ring); }
+      .tile .nm { font-weight: 700; font-size: 12px; }
+      .tile .rl { color: var(--muted); font-size: 10.5px; }
+      .tile .cs { position: absolute; top: 4px; left: 5px; font-weight: 800; font-size: 11px; color: #e3c6ff; }
+      .tile.sel { border-color: var(--accent); background: #2b3a2f; }
+      .tile .n { position: absolute; top: 3px; right: 4px; background: var(--accent); color: #1a1a1a; border-radius: 999px; font-weight: 800; font-size: 10px; padding: 1px 5px; }
+      .detail { background: #1f2d24; border-radius: 10px; padding: 10px 12px; font-size: 13.5px; line-height: 1.4; }
+      .detail h3 { margin: 0 0 2px; font-size: 16px; }
+      .detail .meta { color: var(--muted); font-size: 12.5px; margin-bottom: 6px; }
+      .detail p { margin: 4px 0; font-size: 13.5px; }
+      .detail b { color: var(--accent); }
+      .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+      .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
     </style>
   </head>
   <body>
@@ -53,22 +70,34 @@
         <h1>Lane Game · prototype</h1>
         <p class="muted">Test build. Simple shapes, no sound. You are blue (bottom); the bot is red (top).</p>
         <h2>Goal</h2>
-        <p>Destroy the enemy Core. If time runs out, whoever destroyed more towers wins.</p>
+        <p>Destroy the enemy Pusaka (the heirloom behind their towers). If time runs out, whoever destroyed more towers wins.</p>
         <h2>Cards</h2>
         <ul>
           <li>Drag a card into a lane (or tap a card, then tap a lane). It snaps onto the lane on your side.</li>
-          <li>Cards cost mana (purple bar). Mana refills by itself, twice as fast in the last minute.</li>
+          <li>Cards cost Semangat (spirit, the purple bar). It refills by itself, twice as fast in the last minute.</li>
           <li>Break an enemy tower to drop cards further up that lane.</li>
         </ul>
         <h2>Heroes</h2>
         <ul>
-          <li>Ranger and Warden are hero cards. Once played they stay all match, level up and come back after dying.</li>
+          <li>You pick 2 of 20 heroes before each match. Hero cards stay on the map all match, level up and come back after dying.</li>
+          <li>Each hero has a <b>Trait</b> (always on), a <b>Power</b> that fires by itself (the ring on its portrait), and an <b>Ultimate</b> at level 4, once per life (portrait shows ULT).</li>
           <li>Drag a hero's portrait (above your cards) onto the map to give an order:
-            <b>Push</b> or <b>Gank</b> (a lane), <b>Defend</b> (your tower), <b>Farm</b> (a ✦ camp), <b>Retreat</b> (your Core).</li>
+            <b>Push</b> or <b>Gank</b> (a lane), <b>Defend</b> (your tower), <b>Farm</b> (a ✦ camp), <b>Retreat</b> (your Pusaka). The ★ order is the hero's best: +15% damage.</li>
           <li>A hero in the jungle is hidden from the enemy. Its first hit after that is an <b>Ambush</b> (double damage).</li>
           <li>The middle lane is longer and winding. Its tower sits right in front of the Core.</li>
         </ul>
-        <button class="primary" data-action="start">Start match</button>
+        <button class="primary" data-action="start">Choose heroes</button>
+      </div>
+    </div>
+
+    <div id="pick" class="overlay">
+      <div class="card">
+        <h1>Pick 2 heroes</h1>
+        <div class="legend"><span><i style="background:#ff6b6b"></i>Gank</span><span><i style="background:#54a0ff"></i>Defend</span><span><i style="background:#ff9f43"></i>Push</span><span><i style="background:#7bd389"></i>Farm</span><span>ring = best order · number = cost</span></div>
+        <div class="pick-grid" id="pick-grid"></div>
+        <div class="detail" id="pick-detail"></div>
+        <div class="row"><button data-action="random-picks">Random 2</button></div>
+        <button class="primary" data-action="go" id="pick-go">Start match</button>
       </div>
     </div>
 
@@ -82,7 +111,7 @@
         <h2>Bot</h2>
         <div class="row" data-group="bot"><button data-value="easy">Easy</button><button data-value="normal">Normal</button></div>
         <p class="muted">Changing lanes or bot starts a new match.</p>
-        <div class="row"><button data-action="help">How to play</button><button data-action="restart">Restart match</button></div>
+        <div class="row"><button data-action="help">How to play</button><button data-action="change-heroes">Change heroes</button><button data-action="restart">Restart match</button></div>
         <button class="primary" data-action="close">Back to match</button>
       </div>
     </div>
@@ -93,7 +122,7 @@
         <p class="result-sub" id="result-sub"></p>
         <table id="result-table"></table>
         <p class="muted" id="result-note">Test notes: was it easy to follow every lane? Did you want to play again?</p>
-        <div class="row"><button data-action="settings">Settings</button></div>
+        <div class="row"><button data-action="change-heroes">Change heroes</button><button data-action="settings">Settings</button></div>
         <button class="primary" data-action="rematch">Rematch</button>
       </div>
     </div>

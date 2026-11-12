@@ -1,7 +1,7 @@
 // Runs a match in the browser: fixed-step simulation, the bot, input, drawing and menus.
 import { Bot, type BotLevel } from '../game/bot';
 import { CARDS, MANA, TICKS_PER_SECOND, type CardId, type HeroKind } from '../game/rules';
-import { type Command, Sim } from '../game/sim';
+import { type Command, DEFAULT_PICKS, Sim, randomPicks } from '../game/sim';
 import { type Layout, computeLayout, inField, inRect, toWorld } from './layout';
 import { cardCommand, orderCommand, orderTargets, placeCard } from './placement';
 import { DRAG_LIFT, Renderer, type UiState, nearestTarget } from './render';
@@ -18,6 +18,8 @@ const TAP_SLOP = 10;
 export class Game {
   sim!: Sim;
   settings: Settings;
+  /** Your two heroes for the next match. */
+  picks: HeroKind[] = [...DEFAULT_PICKS];
   /** Every accepted command with its tick: seed + this log replays the match exactly. */
   log: { tick: number; cmd: Command }[] = [];
   private bot!: Bot;
@@ -50,7 +52,8 @@ export class Game {
 
   newMatch(seed?: number): void {
     const s = seed ?? this.opts.seed ?? (Date.now() ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0;
-    this.sim = new Sim({ seed: s, lanes: this.settings.lanes });
+    const botPicks = randomPicks(s);
+    this.sim = new Sim({ seed: s, lanes: this.settings.lanes, picks: [this.opts.autoplay ? randomPicks(s ^ 0x1234567) : this.picks, botPicks] });
     this.bot = new Bot(1, s, this.settings.bot);
     this.autoBot = this.opts.autoplay ? new Bot(0, s ^ 0x5bd1e995, 'normal') : null;
     this.log = [];
@@ -121,8 +124,8 @@ export class Game {
   }
 
   private heroAt(x: number, y: number): HeroKind | null {
-    const kinds = ['ranger', 'warden'] as const;
-    for (let i = 0; i < 2; i++) if (inRect(this.layout.heroSlots[i], x, y) && this.sim.heroOf(0, kinds[i])) return kinds[i];
+    const kinds = this.sim.players[0].picks;
+    for (let i = 0; i < kinds.length; i++) if (inRect(this.layout.heroSlots[i], x, y) && this.sim.heroOf(0, kinds[i])) return kinds[i];
     return null;
   }
 

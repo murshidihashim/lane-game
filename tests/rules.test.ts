@@ -55,7 +55,7 @@ describe('cards', () => {
     const sim = new Sim({ seed: 1, waves: false });
     sim.players[0].hand = ['spearmen', 'archers', 'imps', 'ram'];
     sim.players[0].next = 'firebolt';
-    sim.players[0].queue = ['shieldbearer', 'ranger', 'warden'];
+    sim.players[0].queue = ['shieldbearer', 'rimba', 'benteng'];
     sim.players[0].mana = MANA.max;
     sim.submit({ t: 'card', player: 0, card: 'spearmen', lane: 0, u: 99999 }); // too far: gets clamped
     sim.step();
@@ -67,7 +67,7 @@ describe('cards', () => {
     expect(sim.maxU(0, 0)).toBe(Math.trunc(half) - DEPLOY.riverGap);
     expect(sim.players[0].mana).toBe(MANA.max - 3 * MANA.perMana + MANA.regenPerTick);
     expect(sim.players[0].hand).toEqual(['firebolt', 'archers', 'imps', 'ram']);
-    expect(sim.players[0].queue).toEqual(['ranger', 'warden', 'spearmen']);
+    expect(sim.players[0].queue).toEqual(['rimba', 'benteng', 'spearmen']);
   });
 
   test('a card you cannot afford, or a lane that is not in play, is refused', () => {
@@ -82,15 +82,15 @@ describe('cards', () => {
 
   test('a played hero leaves the card cycle for good', () => {
     const sim = new Sim({ seed: 1, waves: false });
-    sim.players[0].hand = ['ranger', 'archers', 'imps', 'ram'];
+    sim.players[0].hand = ['rimba', 'archers', 'imps', 'ram'];
     sim.players[0].next = 'spearmen';
-    sim.players[0].queue = ['warden', 'firebolt', 'shieldbearer'];
+    sim.players[0].queue = ['benteng', 'firebolt', 'shieldbearer'];
     sim.players[0].mana = MANA.max;
-    sim.submit({ t: 'card', player: 0, card: 'ranger', lane: 1, u: 1000 });
+    sim.submit({ t: 'card', player: 0, card: 'rimba', lane: 1, u: 1000 });
     sim.step();
-    expect(sim.heroOf(0, 'ranger')).toBeDefined();
+    expect(sim.heroOf(0, 'rimba')).toBeDefined();
     const all = [...sim.players[0].hand, sim.players[0].next, ...sim.players[0].queue];
-    expect(all).not.toContain('ranger');
+    expect(all).not.toContain('rimba');
     expect(all).toHaveLength(7);
   });
 });

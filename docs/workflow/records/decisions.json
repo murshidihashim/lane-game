@@ -152,9 +152,11 @@
       "cost": "none (names need roster and MyIPO checks before launch)",
       "owner": "Murshidi",
       "approval": {
-        "status": "proposed"
+        "status": "approved",
+        "evidence": "go with the folk tale namez",
+        "date": "2026-11-12"
       },
-      "delivery": "not started",
+      "delivery": "implemented",
       "reports": [
         "REP-003"
       ],
@@ -179,9 +181,11 @@
       "cost": "none until built",
       "owner": "Murshidi",
       "approval": {
-        "status": "proposed"
+        "status": "approved",
+        "evidence": "appriove power",
+        "date": "2026-11-12"
       },
-      "delivery": "not started",
+      "delivery": "implemented",
       "reports": [
         "REP-003"
       ],
@@ -300,6 +304,74 @@
     {
       "at": "2026-11-12 11:49",
       "text": "Hero concept v1 written (docs/design/characters-v1.md) and shown to the owner as a private roster page."
+    },
+    {
+      "at": "2026-11-12 12:12",
+      "text": "Owner approved DEC-006: \"go with the folk tale namez\"."
+    },
+    {
+      "at": "2026-11-12 12:12",
+      "text": "Owner approved DEC-007: \"appriove power\"."
+    },
+    {
+      "at": "2026-11-12 12:12",
+      "text": "DEC-006 delivery: in progress."
+    },
+    {
+      "at": "2026-11-12 12:12",
+      "text": "DEC-007 delivery: in progress."
+    },
+    {
+      "at": "2026-11-12 12:12",
+      "text": "PLAN-002 proposed: 20 heroes with powers."
+    },
+    {
+      "at": "2026-11-12 12:13",
+      "text": "Owner approved PLAN-002: \"create and build in total 20 chracters\"."
+    },
+    {
+      "at": "2026-11-12 12:13",
+      "text": "PLAN-002 delivery: in progress."
+    },
+    {
+      "at": "2026-11-12 12:33",
+      "text": "PLAN-002 T1: PASS (npm run verify: tests/heroes.test.ts 23/23 pass; 'all 20 heroes can be picked, played and given every order' plus one kit test per hero (power, trait, ultimate) for all 20)."
+    },
+    {
+      "at": "2026-11-12 12:33",
+      "text": "PLAN-002 T2: PASS (tests/heroes.test.ts: 'an ultimate unlocks at level 4, fires once, and is ready again after respawn' passes; each hero's ultimate test checks it fires on its trigger and ultReady turns false; Belang's always-on ultimate checked)."
+    },
+    {
+      "at": "2026-11-12 12:33",
+      "text": "PLAN-002 T3: PASS (tests/determinism.test.ts 4/4 pass, including logged-move replays with random hero picks (seeds 7, 8, 21, 33; 3 and 2 lanes))."
+    },
+    {
+      "at": "2026-11-12 12:33",
+      "text": "PLAN-002 T4: PASS (npm run soak: 'SOAK 100 matches in 36.2 s, results {blue:34, red:37, draw:29, core:35, towers:29, sudden:7}'; every one of the 20 heroes played (7 to 26 matches each); 20 two-lane matches also pass)."
+    },
+    {
+      "at": "2026-11-12 12:33",
+      "text": "PLAN-002 T5: NOT RUN (Automated part passed: scripts/phone-check.cjs at iPhone 13 size picked Kail + Seri on the pick screen, played cards, gave a Farm order, and a full match reached the result screen ('PHONE CHECK OK'). Waiting for the owner's own phone.)."
+    },
+    {
+      "at": "2026-11-12 12:33",
+      "text": "PLAN-002 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 12:33",
+      "text": "DEC-006 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 12:33",
+      "text": "DEC-007 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 12:33",
+      "text": "PLAN-002 built: 20 heroes playable; private preview page updated (Version 2) and the roster page updated to 20 heroes."
+    },
+    {
+      "at": "2026-11-12 12:33",
+      "text": "REP-004 written: PLAN-002: 20 heroes built."
     }
   ]
 }

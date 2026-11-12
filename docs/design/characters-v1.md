@@ -1,5 +1,7 @@
 # Heroes and powers · concept v1
 
+> **Superseded** by `docs/design/heroes.md` (roster v2, 20 heroes, generated from the game data) after the owner approved DEC-006 and DEC-007 and asked for 20 heroes (PLAN-002). Kept as the record of concept v1.
+
 Owner: Murshidi. Written 12 Nov 2026 (Asia/Kuala_Lumpur). Status: **proposed, not approved**.
 Request: "develop charactor game concept and powers, use dota & clash royale as inspiration".
 Builds on DEC-002 (heroes are special cards you give orders to) and DEC-004 (powers fire

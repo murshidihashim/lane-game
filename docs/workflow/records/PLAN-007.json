@@ -19,38 +19,38 @@
     {
       "id": "T1",
       "text": "No stalls: in 60 matches of random player orders, no hero stands still without a reason (detector); collision rules tested",
-      "result": "NOT RUN",
-      "evidence": ""
+      "result": "PASS",
+      "evidence": "Stall detector (player gives random orders every 3 s, 60 matches): before the fix 14 real stalls (heroes shoved back by their own wave; head-on deadlocks with teammates); after: 0. Now a permanent soak test (SOAK stalls: 0). ai.test.ts: a hero walks through its own troops; two heroes walking at each other pass."
     },
     {
       "id": "T2",
       "text": "Smarter heroes: tower-dive wait, fall back when hurt, target choice (automated tests)",
-      "result": "NOT RUN",
-      "evidence": ""
+      "result": "PASS",
+      "evidence": "tests/ai.test.ts: waits outside an enemy tower (unhurt) until own troops are in its reach, then attacks it; falls back home below 25% health, heals to 80%, returns to its lane; picks an enemy hero in reach over a nearer troop."
     },
     {
       "id": "T3",
       "text": "Attack order: chases a visible enemy, refuses unseen or invalid targets, returns to its job after (automated)",
-      "result": "NOT RUN",
-      "evidence": ""
+      "result": "PASS",
+      "evidence": "tests/ai.test.ts: Attack chases and kills a chosen visible enemy then returns to Push; refuses an enemy in the fog and a troop Gergasi can't hit; a camp becomes Farm; stops when the enemy vanishes into the fog."
     },
     {
       "id": "T4",
       "text": "Command menu: select, choose, highlighted targets, tap to order, cancel, for every order (browser check)",
-      "result": "NOT RUN",
-      "evidence": ""
+      "result": "PASS",
+      "evidence": "phone-check: tapping a panel opens the menu; Farm (grove), Ward (cairn), Move (open spot), Push (tap anywhere on a lane), Attack (tap an enemy ring), Retreat (instant), Cancel, tap the hero on the map, and the drag shortcut all work; PHONE CHECK OK; screenshots checked."
     },
     {
       "id": "T5",
       "text": "Balance still in the PLAN-005 targets; determinism; soak",
-      "result": "NOT RUN",
-      "evidence": ""
+      "result": "PASS",
+      "evidence": "npm run balance (1,200 matches): species 46-56%, heroes 43-59%, draws 11%, decided before 2:30: 3; determinism 4/4; soak 100 + 20 matches; 93/93 unit tests."
     },
     {
       "id": "T6",
       "text": "On the owner's phone",
       "result": "NOT RUN",
-      "evidence": ""
+      "evidence": "Not yet tried on the owner's phone."
     },
     {
       "id": "T7",
@@ -68,19 +68,26 @@
   "decisions": [
     "DEC-017"
   ],
-  "reports": [],
+  "reports": [
+    "REP-009"
+  ],
   "changes": {
     "added": [],
     "changed": [],
     "fixed": [],
     "removed": []
   },
-  "userNotes": [],
+  "userNotes": [
+    "Fixed: heroes no longer stop after an order (they were being pushed back by their own troops or locking up with a teammate).",
+    "Command menu: tap a hero, pick Move, Attack, Push, Gank, Defend, Farm, Ward or Retreat, then tap a highlighted target.",
+    "New Attack order: send a hero after an enemy you can see.",
+    "Smarter heroes: they wait for their troops before walking under an enemy tower, go home to heal when badly hurt, and go for enemy heroes first."
+  ],
   "approval": {
     "status": "approved",
     "evidence": "make it so that heroes are smarter, now currently the heroes would suddenly stop moving after commands are given ... make the instruction for heroes more intuitive, it should be player clicking on the hero's icon, select a few available option, and target where to go/what to aim etc etc",
     "date": "2026-11-12"
   },
-  "delivery": "in progress",
+  "delivery": "implemented",
   "release": "unreleased"
 }

@@ -995,7 +995,9 @@ export class Renderer {
       ctx.fillRect(bx, b.y + 44, bw * f, 5);
       ctx.font = '9.5px system-ui';
       ctx.fillStyle = '#5a4630';
-      const order = alive ? `${orderLabel(h, sim)}${h.hidden ? ' · hidden' : ''}` : 'Down';
+      // what the hero is doing, including when it acts on its own (DEC-017)
+      const doing = h.fallback ? 'Healing at home' : h.waiting ? `${orderLabel(h, sim)} · waiting for troops` : orderLabel(h, sim);
+      const order = alive ? `${doing}${h.hidden ? ' · hidden' : ''}` : 'Down';
       ctx.fillText(fit(ctx, order, bw), bx, b.y + 56);
     }
     // item slots

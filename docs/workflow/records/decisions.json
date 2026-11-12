@@ -450,7 +450,7 @@
         "evidence": "make it so that heroes are smarter, now currently the heroes would suddenly stop moving after commands are given ... make the instruction for heroes more intuitive, it should be player clicking on the hero's icon, select a few available option, and target where to go/what to aim etc etc",
         "date": "2026-11-12"
       },
-      "delivery": "not started",
+      "delivery": "implemented",
       "reports": [],
       "reviewTrigger": "Players feel heroes act on their own too much, or the menu is slow."
     }
@@ -955,6 +955,46 @@
     {
       "at": "2026-11-12 18:13",
       "text": "PLAN-007 delivery: in progress."
+    },
+    {
+      "at": "2026-11-12 18:39",
+      "text": "PLAN-007 T1: PASS (Stall detector (player gives random orders every 3 s, 60 matches): before the fix 14 real stalls (heroes shoved back by their own wave; head-on deadlocks with teammates); after: 0. Now a permanent soak test (SOAK stalls: 0). ai.test.ts: a hero walks through its own troops; two heroes walking at each other pass.)."
+    },
+    {
+      "at": "2026-11-12 18:39",
+      "text": "PLAN-007 T2: PASS (tests/ai.test.ts: waits outside an enemy tower (unhurt) until own troops are in its reach, then attacks it; falls back home below 25% health, heals to 80%, returns to its lane; picks an enemy hero in reach over a nearer troop.)."
+    },
+    {
+      "at": "2026-11-12 18:39",
+      "text": "PLAN-007 T3: PASS (tests/ai.test.ts: Attack chases and kills a chosen visible enemy then returns to Push; refuses an enemy in the fog and a troop Gergasi can't hit; a camp becomes Farm; stops when the enemy vanishes into the fog.)."
+    },
+    {
+      "at": "2026-11-12 18:39",
+      "text": "PLAN-007 T4: PASS (phone-check: tapping a panel opens the menu; Farm (grove), Ward (cairn), Move (open spot), Push (tap anywhere on a lane), Attack (tap an enemy ring), Retreat (instant), Cancel, tap the hero on the map, and the drag shortcut all work; PHONE CHECK OK; screenshots checked.)."
+    },
+    {
+      "at": "2026-11-12 18:39",
+      "text": "PLAN-007 T5: PASS (npm run balance (1,200 matches): species 46-56%, heroes 43-59%, draws 11%, decided before 2:30: 3; determinism 4/4; soak 100 + 20 matches; 93/93 unit tests.)."
+    },
+    {
+      "at": "2026-11-12 18:39",
+      "text": "PLAN-007 T6: NOT RUN (Not yet tried on the owner's phone.)."
+    },
+    {
+      "at": "2026-11-12 18:39",
+      "text": "PLAN-007 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 18:39",
+      "text": "DEC-017 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 18:39",
+      "text": "REP-009 written: PLAN-007: smarter heroes and a tap-to-command menu."
+    },
+    {
+      "at": "2026-11-12 18:41",
+      "text": "PLAN-007 implemented: T1-T5 PASS (0 stalls in 60 matches, ai tests, menu phone check, balance 1,200 matches in targets); T6/T7 wait for the owner. REP-009 written."
     }
   ]
 }

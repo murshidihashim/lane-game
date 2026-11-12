@@ -1,0 +1,90 @@
+{
+  "id": "PLAN-008",
+  "title": "Look test: anime heroes with Malay heritage art",
+  "problem": "The owner likes Demon Slayer's art style (DEC-018). Before any money goes on real art, we need to see whether anime heroes with Malay patterns and heritage-art ultimates read well on a phone and feel right.",
+  "scope": [
+    "A 'Look' switch in the settings menu: Hikayat (default) or the test look; the choice is remembered on the device",
+    "All 20 heroes in the test look through the shared drawing parts: thicker painterly outlines, hard two-tone shading, anime eyes and hair, and one signature Malay pattern each (songket, batik or a woodcarving motif) on the main garment",
+    "Hero portraits (panels, draft, versus screen, ultimate banners) in the same look",
+    "Troops get matching outlines and shading (no new designs)",
+    "Three ultimates redrawn as heritage art: Kail's water as a batik wave, Benteng's dome as songket gold, Senja's moon as a wayang shadow",
+    "Docs (a test-look section in art-style.md), phone-check screenshots of both looks, records"
+  ],
+  "exclusions": [
+    "Paid art or an artist",
+    "Game rules (src/game) and balance",
+    "Making the test look the default",
+    "New dependencies (no bone-animation tool yet)",
+    "Copying the show's characters, patterns, colours or effects; only the approach is borrowed",
+    "Restyling the map, towers and menus (they stay Hikayat)"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "The settings switch changes every hero, portrait and troop between the two looks, and the choice is remembered (browser check)",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T2",
+      "text": "Readable at play size: the 20 heroes in the test look are distinct as grey silhouettes and at 34 px (screenshots reviewed)",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T3",
+      "text": "Three heritage-art ultimates (Kail, Benteng, Senja) show in the test look (browser check screenshots)",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T4",
+      "text": "Speed: drawing 100 cached figures stays under 1 ms on average, as now (measured)",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T5",
+      "text": "Game unchanged: verify, determinism, soak and phone check pass; no change in src/game",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T6",
+      "text": "On the owner's phone",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T7",
+      "text": "Owner's verdict: is this the look for the full game?",
+      "result": "NOT RUN",
+      "evidence": ""
+    }
+  ],
+  "risks": [
+    "Code-drawn anime looks simpler than real anime art: the test shows direction, not final quality",
+    "Faces and hair may not read at 34 px; T2 checks this",
+    "Extra drawing could slow older phones; figures stay cached as now (T4)",
+    "Borrowing an approach is normal; copying designs is not. General research, not legal advice"
+  ],
+  "cost": "RM0 (code-drawn; no new services or dependencies).",
+  "decisions": [
+    "DEC-018"
+  ],
+  "reports": [
+    "REP-011"
+  ],
+  "changes": {
+    "added": [],
+    "changed": [],
+    "fixed": [],
+    "removed": []
+  },
+  "userNotes": [],
+  "approval": {
+    "status": "awaiting approval"
+  },
+  "delivery": "not started",
+  "release": "unreleased"
+}

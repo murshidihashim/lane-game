@@ -1,6 +1,6 @@
 # Current state · Lane Game
 
-Updated 2026-11-12 19:39 (Asia/Kuala_Lumpur) by the app steward.
+Updated 2026-11-12 19:47 (Asia/Kuala_Lumpur) by the app steward.
 
 ## Where we are
 - **Stage:** playable prototype. You draft 3 heroes against the bot, then command them and choose
@@ -12,9 +12,10 @@ Updated 2026-11-12 19:39 (Asia/Kuala_Lumpur) by the app steward.
   tap-to-command menu" is approved and **implemented**: T1–T5 PASS; T6 (owner's phone) and T7
   (owner's verdict) wait. Report: REP-009.
 - **Decided:** DEC-001 to DEC-017. DEC-017 (command menu, Attack order, smarter heroes) is implemented.
-- **Awaiting the owner:** DEC-018 "Art direction for the full game": five styles researched
-  (REP-010, `docs/research/art-style-options.md`). Recommended: keep Hikayat for now; wayang living
-  puppets on a batik board for the full game; toy-box 3D as runner-up.
+- **Awaiting the owner:** DEC-018 "Art direction for the full game" (REP-010, REP-011,
+  `docs/research/art-style-options.md`). The owner likes Demon Slayer's style, so option 6 (anime
+  heroes with Malay heritage art) is now recommended. PLAN-008 "Look test: anime heroes with Malay
+  heritage art" is proposed and awaits approval.
 
 ## What was built
 - `src/game/rules.ts`: tuning numbers (balanced in PLAN-005), species, items, vision, 20 heroes.
@@ -33,7 +34,7 @@ Updated 2026-11-12 19:39 (Asia/Kuala_Lumpur) by the app steward.
 | Live | not published | none |
 | Preview | private preview page "Lane Game" (owner-only; link in the session reply) | PLAN-007, version 7, 2026-11-12 |
 | Roster page | private page "Lane Game Heroes" (owner-only) | roster v2; out of date (shows card costs) |
-| Art styles page | private page "Lane Game Art Styles" (owner-only) | sketches of the 5 DEC-018 styles, 2026-11-12 |
+| Art styles page | private page "Lane Game Art Styles" (owner-only) | sketches of the 6 DEC-018 styles (version 2), 2026-11-12 |
 
 ## Checks
 - `npm run verify`: type check, 93 tests, build, docs check, records check all pass (2026-11-12).
@@ -43,8 +44,8 @@ Updated 2026-11-12 19:39 (Asia/Kuala_Lumpur) by the app steward.
 - Readiness: build-ready PASS; use-ready NOT RUN (owner's phone and verdict); release-ready not claimed.
 
 ## Open items
-- **Art direction (DEC-018):** owner picks 1–2 styles for a free look test, says whether there is an
-  art budget, and names any look they like.
+- **Art direction (DEC-018):** owner approves the PLAN-008 look test and says roughly what art
+  budget there might be.
 - **Owner playtest:** checklist in `OWNER-BRIEF.md`. Menu intuitive? Heroes smart but not too
   independent? Pace, zoom, characters, fairness, draft, 3 heroes?
 - **Balance:** measured bot against bot; real players will find other strong picks.
@@ -53,12 +54,12 @@ Updated 2026-11-12 19:39 (Asia/Kuala_Lumpur) by the app steward.
 
 ## Checkpoint
 - **Branch:** ccr-d5847beb-6m9vey.
-- **Commit:** see git log (art-style research commit after PLAN-007).
+- **Commit:** see git log (art-style research commits after PLAN-007).
 - **Uncommitted:** none after this commit.
 - **Active approvals:** PLAN-001 to PLAN-007, all implemented.
 - **Checks:** verify, soak, balance and phone check all pass.
-- **Blocker:** owner playtest; owner's art choice (DEC-018).
-- **Next step:** the owner plays and reports, and picks styles for a look test (a new plan).
+- **Blocker:** owner playtest; owner's approval of PLAN-008.
+- **Next step:** if the owner approves PLAN-008, build the look test; otherwise wait for the playtest.
 
 ## Resume instruction
 "Read the project instructions and current state. Inspect the current Git state. Tell me where we
@@ -68,4 +69,5 @@ stopped and recommend the next small task. Wait for my approval before implement
 ## Pending approvals (generated)
 
 - DEC-018: Art direction for the full game (awaiting approval)
+- PLAN-008: Look test: anime heroes with Malay heritage art (awaiting approval)
 <!-- appkit:pending:end -->

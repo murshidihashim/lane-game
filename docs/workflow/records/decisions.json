@@ -463,10 +463,11 @@
         "2. Toy-box 3D (rounded, glossy, toy-like characters)",
         "3. Wayang kulit 'living puppets' (coloured, jointed leather puppets on a lamp-lit board)",
         "4. Batik paper-cut diorama, 2.5D (layered paper and batik, die-cut standees)",
-        "5. Anime cel-shaded 2D (line art, two-tone shading, splash portraits)"
+        "5. Anime cel-shaded 2D (line art, two-tone shading, splash portraits)",
+        "6. Anime heroes with Malay heritage art: cel-shaded anime figures with thick outlines, one signature Malay pattern per hero, and ultimates drawn as heritage art (batik, songket, wayang). Added after the owner's reference: Demon Slayer"
       ],
-      "choice": "Not chosen yet. Recommended: keep Hikayat during development; for the full game, option 3 (wayang living puppets) with batik colours and paper layering from option 4 on the board. Runner-up: option 2 if the aim is the widest mass-market reach and an art budget allows it.",
-      "rationale": "Wayang is the one look that is clearly ours and fits the Malay folk-tale world; jointed puppets suit cheaper bone (cut-out) animation and today's flat-figure engine. It is harder to make readable at 34 px, so it needs a look test on the owner's phone first. Evidence and sources: docs/research/art-style-options.md and REP-010.",
+      "choice": "Not chosen yet. Recommended (after the owner's reference, Demon Slayer): option 6, anime heroes with Malay heritage art, tried first as a code-drawn look test (PLAN-008). Hikayat stays the default until the owner decides.",
+      "rationale": "The owner likes Demon Slayer's look. That show pairs anime characters with traditional Japanese art (its makers cite ukiyo-e prints) and gives each hero a traditional pattern. Option 6 takes the same approach with Malay art, so it suits the owner's taste and stays original. Play figures must stay simple to read at 34 px, so full anime art goes on portraits, the draft and ultimate banners. Evidence: docs/research/art-style-options.md, REP-010, REP-011.",
       "impact": {
         "user": "Changes how the whole game looks; play stays the same.",
         "technical": "Options 1, 3, 4 and 5 keep the Canvas 2D engine. Option 2 needs a 3D engine or 3D models rendered to sprites. Bone animation (for example Spine) would be a new dependency and needs its own plan.",
@@ -479,9 +480,10 @@
       },
       "delivery": "not started",
       "reports": [
-        "REP-010"
+        "REP-010",
+        "REP-011"
       ],
-      "reviewTrigger": "A look test reads poorly on the owner's phone, a cultural adviser raises concerns, or the art budget changes."
+      "reviewTrigger": "The look test reads poorly on the owner's phone, the owner prefers another option after seeing it, or the art budget changes."
     }
   ],
   "history": [
@@ -1032,6 +1034,18 @@
     {
       "at": "2026-11-12 19:31",
       "text": "REP-010 written: Five art styles for the full game."
+    },
+    {
+      "at": "2026-11-12 19:46",
+      "text": "Owner's reference for DEC-018: \"i like demon slayer's artstyle\". Option 6 added (anime heroes with Malay heritage art); recommendation changed to option 6."
+    },
+    {
+      "at": "2026-11-12 19:46",
+      "text": "PLAN-008 proposed: Look test: anime heroes with Malay heritage art."
+    },
+    {
+      "at": "2026-11-12 19:46",
+      "text": "REP-011 written: Your reference (Demon Slayer): look 6 and a look-test proposal."
     }
   ]
 }

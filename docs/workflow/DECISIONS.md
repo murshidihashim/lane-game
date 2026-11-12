@@ -9,6 +9,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | ID | What | Status |
 |---|---|---|
 | DEC-018 | Art direction for the full game | Awaiting approval |
+| PLAN-008 | Look test: anime heroes with Malay heritage art | Awaiting approval |
 
 ## Decisions
 
@@ -44,6 +45,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | PLAN-005 | Balance pass, three heroes each, draft-style hero select | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
 | PLAN-006 | Slower pace, zoomable map, re-balance, character polish | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
 | PLAN-007 | Smarter heroes and a tap-to-command menu | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
+| PLAN-008 | Look test: anime heroes with Malay heritage art | Awaiting approval | Not started | 0/7 | Unreleased |
 
 ## Decision details
 
@@ -288,16 +290,16 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 ### DEC-018 · Art direction for the full game
 
 - **Question:** Which look should the full game grow into, once real art is made?
-- **Options:** 1. Hikayat board game, painted by an artist (the current look, finished by hand) · 2. Toy-box 3D (rounded, glossy, toy-like characters) · 3. Wayang kulit 'living puppets' (coloured, jointed leather puppets on a lamp-lit board) · 4. Batik paper-cut diorama, 2.5D (layered paper and batik, die-cut standees) · 5. Anime cel-shaded 2D (line art, two-tone shading, splash portraits)
-- **Choice:** Not chosen yet. Recommended: keep Hikayat during development; for the full game, option 3 (wayang living puppets) with batik colours and paper layering from option 4 on the board. Runner-up: option 2 if the aim is the widest mass-market reach and an art budget allows it.
-- **Rationale:** Wayang is the one look that is clearly ours and fits the Malay folk-tale world; jointed puppets suit cheaper bone (cut-out) animation and today's flat-figure engine. It is harder to make readable at 34 px, so it needs a look test on the owner's phone first. Evidence and sources: docs/research/art-style-options.md and REP-010.
+- **Options:** 1. Hikayat board game, painted by an artist (the current look, finished by hand) · 2. Toy-box 3D (rounded, glossy, toy-like characters) · 3. Wayang kulit 'living puppets' (coloured, jointed leather puppets on a lamp-lit board) · 4. Batik paper-cut diorama, 2.5D (layered paper and batik, die-cut standees) · 5. Anime cel-shaded 2D (line art, two-tone shading, splash portraits) · 6. Anime heroes with Malay heritage art: cel-shaded anime figures with thick outlines, one signature Malay pattern per hero, and ultimates drawn as heritage art (batik, songket, wayang). Added after the owner's reference: Demon Slayer
+- **Choice:** Not chosen yet. Recommended (after the owner's reference, Demon Slayer): option 6, anime heroes with Malay heritage art, tried first as a code-drawn look test (PLAN-008). Hikayat stays the default until the owner decides.
+- **Rationale:** The owner likes Demon Slayer's look. That show pairs anime characters with traditional Japanese art (its makers cite ukiyo-e prints) and gives each hero a traditional pattern. Option 6 takes the same approach with Malay art, so it suits the owner's taste and stays original. Play figures must stay simple to read at 34 px, so full anime art goes on portraits, the draft and ultimate banners. Evidence: docs/research/art-style-options.md, REP-010, REP-011.
 - **User impact:** Changes how the whole game looks; play stays the same.
 - **Technical impact:** Options 1, 3, 4 and 5 keep the Canvas 2D engine. Option 2 needs a 3D engine or 3D models rendered to sprites. Bone animation (for example Spine) would be a new dependency and needs its own plan.
 - **Data and privacy:** None.
 - **Cost:** RM0 to decide and to make code-drawn look tests. A full art pass by an artist is a paid service and needs separate approval; rough vendor prices: US$250-1,500 per 2D character, US$1,500-4,000 per rigged 3D character (REP-010).
 - **Approval:** Awaiting approval
 - **Delivery:** Not started
-- **Review trigger:** A look test reads poorly on the owner's phone, a cultural adviser raises concerns, or the art budget changes.
+- **Review trigger:** The look test reads poorly on the owner's phone, the owner prefers another option after seeing it, or the art budget changes.
 
 ## History (oldest first)
 
@@ -438,3 +440,6 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 - 2026-11-12 18:41 · PLAN-007 implemented: T1-T5 PASS (0 stalls in 60 matches, ai tests, menu phone check, balance 1,200 matches in targets); T6/T7 wait for the owner. REP-009 written.
 - 2026-11-12 19:31 · DEC-018 proposed: Art direction for the full game.
 - 2026-11-12 19:31 · REP-010 written: Five art styles for the full game.
+- 2026-11-12 19:46 · Owner's reference for DEC-018: "i like demon slayer's artstyle". Option 6 added (anime heroes with Malay heritage art); recommendation changed to option 6.
+- 2026-11-12 19:46 · PLAN-008 proposed: Look test: anime heroes with Malay heritage art.
+- 2026-11-12 19:46 · REP-011 written: Your reference (Demon Slayer): look 6 and a look-test proposal.

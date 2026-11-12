@@ -146,7 +146,7 @@ and versus screens. This look is familiar to Southeast Asian players from many h
 | Art cost | low | high | medium | medium | medium–high |
 | Engine change | none | large (or sprites) | small | small | small |
 
-## Recommendation
+## First recommendation (before the owner's reference)
 
 - **For now:** keep Hikayat while the game is still changing. It is free and readable.
 - **For the full game:** wayang "living puppets" (3), with batik colours and paper layering
@@ -156,6 +156,45 @@ and versus screens. This look is familiar to Southeast Asian players from many h
   budget to match.
 - **Before choosing:** make a code-drawn look test of one lane in one or two styles (RM0), and
   check it on the owner's phone at real size.
+
+## Update: the owner's reference, Demon Slayer (2026-11-12)
+
+The owner replied: "i like demon slayer's artstyle". Report REP-011 adds a sixth option and changes
+the recommendation.
+
+**What makes that look work**, in three parts we can borrow as an approach, without copying any
+designs:
+- **Painterly anime characters.** Thick, painterly outlines and hard cel shading (the app
+  steward's own description of the look).
+- **Traditional art in the effects.** The makers say they drew on old ukiyo-e woodblock prints,
+  including Hokusai, for the look of the sword techniques ([Comicbook.com][ds-ukiyoe],
+  [Popverse][ds-popverse]).
+- **A signature pattern per hero.** Each main character wears one traditional Japanese textile
+  pattern, which makes them easy to recognise ([Fun Japan][ds-patterns],
+  [Tokyo Weekender][wagara]).
+
+Several search results about the show were fan or low-quality pages. Only the interview quotes
+above are relied on.
+
+### 6. Anime heroes with Malay heritage art
+
+The same three parts, built from our own world:
+- cel-shaded anime heroes with thick outlines;
+- one signature Malay pattern each (songket, batik or a woodcarving motif);
+- ultimates drawn as moving heritage art, such as a batik wave, songket gold or a wayang shadow.
+
+Assessment:
+- **Fit:** high. The patterns and effects carry the Malay world, so the style is more than costumes.
+- **Phone readability:** medium. Faces vanish at 34 px, so play figures stay simple, and the full
+  anime art goes on portraits, the draft, the versus screen and ultimate banners. The signature
+  pattern helps tell heroes apart.
+- **Cost and work:** medium to high. It needs two art sets (play figures and portraits). The engine
+  stays the same.
+- **Against:** borrow the approach only, never the show's characters, patterns, colours or effects.
+  Anime still reminds some players of gacha games.
+
+**New recommendation:** option 6, tried first as a free, code-drawn look test (PLAN-008), with a
+switch in the settings menu. Hikayat stays the default until the owner decides.
 
 [bugnet]: https://bugnet.io/blog/readable-game-art-why-clarity-beats-detail
 [rocketbrush]: https://rocketbrush.com/blog/shape-language-in-game-character-design-how-to-make-characters-readable-and-consistent
@@ -175,3 +214,7 @@ and versus screens. This look is familiar to Southeast Asian players from many h
 [britannica]: https://www.britannica.com/art/wayang
 [fmt-anim]: https://www.freemalaysiatoday.com/category/leisure/2025/08/22/how-malaysian-animations-are-promoting-local-culture-to-the-world
 [mm]: https://marketingmagazine.com.my/?p=133919
+[ds-ukiyoe]: https://comicbook.com/anime/news/demon-slayer-movie-infinity-castle-animation
+[ds-popverse]: https://www.thepopverse.com/movies-demon-slayer-kimetsu-no-yaiba-infinity-castle-ufotable-dynamic-anime-honors-koyoharu-gotouge
+[ds-patterns]: https://www.fun-japan.jp/en/articles/14279
+[wagara]: https://www.tokyoweekender.com/art_and_culture/japanese-culture/wagara-japanese-patterns-and-what-they-mean/

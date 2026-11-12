@@ -1,0 +1,196 @@
+{
+  "app": "Lane Game",
+  "owner": "Murshidi",
+  "timezone": "Asia/Kuala_Lumpur",
+  "decisions": [
+    {
+      "id": "DEC-001",
+      "title": "Screen orientation",
+      "question": "Portrait (one thumb, like Clash Royale) or landscape (like MLBB)?",
+      "options": [
+        "Portrait",
+        "Landscape"
+      ],
+      "choice": "Portrait",
+      "rationale": "One-thumb play like Clash Royale; all three lanes visible at once.",
+      "impact": {
+        "user": "Played upright with one hand.",
+        "technical": "Field is tall and narrow; lanes are about a third of the screen width each.",
+        "data": "None."
+      },
+      "cost": "none",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "approved",
+        "evidence": "portrait",
+        "date": "2026-11-12"
+      },
+      "delivery": "not started",
+      "reports": [],
+      "reviewTrigger": "Players miss threats or hit the wrong lane in play tests."
+    },
+    {
+      "id": "DEC-002",
+      "title": "Hero model",
+      "question": "How do heroes work: a special card, a commander you move between lanes, or no hero?",
+      "options": [
+        "Hero as a special card",
+        "Commander hero moved between lanes",
+        "No hero"
+      ],
+      "choice": "Hero cards that stay on the map; the player gives them orders (push, defend, gank, farm, retreat)",
+      "rationale": "Adds Dota-style strategy (ganks, rotations, defence) without steering a hero by hand, which the research links to Star Wars: Force Arena failing.",
+      "impact": {
+        "user": "Drag a hero portrait onto the map to give an order; heroes fight on their own in between.",
+        "technical": "Hero AI with five orders, levels, respawn, hidden while in the jungle.",
+        "data": "None."
+      },
+      "cost": "none",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "approved",
+        "evidence": "special carrds, with players having the option to instruct the heroes to gank/defend basically strategising like in dota",
+        "date": "2026-11-12"
+      },
+      "delivery": "not started",
+      "reports": [],
+      "reviewTrigger": "Play tests show orders feel like a chore or are ignored."
+    },
+    {
+      "id": "DEC-003",
+      "title": "Middle lane shape",
+      "question": "Should the three lanes be the same?",
+      "options": [
+        "Three identical lanes",
+        "Longer winding middle lane, symmetrical map"
+      ],
+      "choice": "The middle lane is longer (it winds) but the map stays symmetrical",
+      "rationale": "Gives the middle lane its own identity: slower to push, decisive when its tower falls, close to both jungles.",
+      "impact": {
+        "user": "Middle pushes take longer; breaking the middle tower exposes the Core.",
+        "technical": "Lanes are waypoint paths; the map is the same when turned upside down.",
+        "data": "None."
+      },
+      "cost": "none",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "approved",
+        "evidence": "edit so that the mid lane is different, like make the middle lane longer but still simmetrical",
+        "date": "2026-11-12"
+      },
+      "delivery": "not started",
+      "reports": [],
+      "reviewTrigger": "The middle lane is always ignored or always the only lane that matters."
+    },
+    {
+      "id": "DEC-004",
+      "title": "Hero abilities",
+      "question": "Do hero abilities fire automatically or from a button the player taps?",
+      "options": [
+        "Automatic",
+        "Button the player taps"
+      ],
+      "choice": "Automatically",
+      "rationale": "Keeps the first test focused on orders and cards; less to track on a phone.",
+      "impact": {
+        "user": "No ability button to manage.",
+        "technical": "Hero AI decides when to use abilities.",
+        "data": "None."
+      },
+      "cost": "none",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "approved",
+        "evidence": "fire automatically",
+        "date": "2026-11-12"
+      },
+      "delivery": "not started",
+      "reports": [],
+      "reviewTrigger": "Players ask for more control over key moments."
+    },
+    {
+      "id": "DEC-005",
+      "title": "Where the game lives",
+      "question": "A new repository from the app-kit template, or a branch of the template?",
+      "options": [
+        "New repository from the template",
+        "Branch of the template repository"
+      ],
+      "choice": "New repository (lane-game)",
+      "rationale": "Keeps the template clean; the game has its own records and history.",
+      "impact": {
+        "user": "None.",
+        "technical": "Repository murshidihashim/lane-game; research and concept moved here.",
+        "data": "None."
+      },
+      "cost": "none",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "approved",
+        "evidence": "yes new repo",
+        "date": "2026-11-12"
+      },
+      "delivery": "not started",
+      "reports": [],
+      "reviewTrigger": "None."
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-11-12 08:49",
+      "text": "Project records started for Lane Game."
+    },
+    {
+      "at": "2026-11-12 08:49",
+      "text": "DEC-001 proposed: Screen orientation."
+    },
+    {
+      "at": "2026-11-12 08:49",
+      "text": "DEC-002 proposed: Hero model."
+    },
+    {
+      "at": "2026-11-12 08:49",
+      "text": "DEC-003 proposed: Middle lane shape."
+    },
+    {
+      "at": "2026-11-12 08:49",
+      "text": "DEC-004 proposed: Hero abilities."
+    },
+    {
+      "at": "2026-11-12 08:49",
+      "text": "DEC-005 proposed: Where the game lives."
+    },
+    {
+      "at": "2026-11-12 08:49",
+      "text": "Owner approved DEC-001: \"portrait\"."
+    },
+    {
+      "at": "2026-11-12 08:49",
+      "text": "Owner approved DEC-002: \"special carrds, with players having the option to instruct the heroes to gank/defend basically strategising like in dota\"."
+    },
+    {
+      "at": "2026-11-12 08:49",
+      "text": "Owner approved DEC-003: \"edit so that the mid lane is different, like make the middle lane longer but still simmetrical\"."
+    },
+    {
+      "at": "2026-11-12 08:49",
+      "text": "Owner approved DEC-004: \"fire automatically\"."
+    },
+    {
+      "at": "2026-11-12 08:49",
+      "text": "Owner approved DEC-005: \"yes new repo\"."
+    },
+    {
+      "at": "2026-11-12 08:49",
+      "text": "PLAN-001 proposed: Grey-box prototype vs bot."
+    },
+    {
+      "at": "2026-11-12 08:50",
+      "text": "REP-001 written: Research, concept and first prototype proposal."
+    },
+    {
+      "at": "2026-11-12 08:50",
+      "text": "Research and concept moved in from the template repository's branch ccr-d5847beb-6m9vey."
+    }
+  ]
+}

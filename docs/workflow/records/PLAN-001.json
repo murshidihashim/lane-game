@@ -1,0 +1,94 @@
+{
+  "id": "PLAN-001",
+  "title": "Grey-box prototype vs bot",
+  "problem": "We do not know yet whether three real-time lanes can be followed on a portrait phone screen, or whether giving hero orders on top of playing cards is fun. No released game has proven either. A cheap prototype played against a computer opponent answers both before any server, store or art spending.",
+  "scope": [
+    "A web game that opens from a link on a phone, in portrait",
+    "Map: 3 lanes, 1 tower per lane per side plus a Core, two jungle strips with one camp each, long winding middle lane, early tower shield",
+    "One resource (placeholder name \"mana\"): start 5, max 10, +1 every 2.8 s, double speed in the last minute",
+    "One fixed deck of 8 cards (6 regular + 2 heroes), 4 in hand, next card shown; cards snap onto a lane",
+    "Minion waves every 20 s in every lane",
+    "Two heroes (Ranger, Warden): stay on the map, level 1-4, respawn, abilities fire automatically",
+    "Five hero orders by dragging the portrait: push, defend, gank (through the jungle, hidden), farm, retreat",
+    "Rule-based computer opponent (bot)",
+    "Win by destroying the Core; at time-out more towers wins; then 1 minute of sudden death; then a draw",
+    "Test settings: 2-lane / 3-lane switch, game speed",
+    "Game rules in their own module, whole-number maths only, no graphics code inside",
+    "Result screen with a rematch button"
+  ],
+  "exclusions": [
+    "Online play",
+    "Accounts and saving progress",
+    "Deck building and card collection",
+    "Shop and payments",
+    "Real art and sound",
+    "River boss objective",
+    "Different rewards per lane"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "A full match can be played from a link on a phone in portrait, from start to result screen",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T2",
+      "text": "Same starting seed and same moves give exactly the same match result (rules are deterministic)",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T3",
+      "text": "Each of the five hero orders (push, defend, gank, farm, retreat) makes the hero do the right thing",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T4",
+      "text": "Bot against bot: 100 matches finish with no errors",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T5",
+      "text": "The 2-lane / 3-lane switch works (2 lanes = the two side lanes)",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T6",
+      "text": "Owner plays 5 or more matches on their own phone and notes: readable? fun? which lane count?",
+      "result": "NOT RUN",
+      "evidence": ""
+    }
+  ],
+  "risks": [
+    "Grey shapes may undersell the fun",
+    "The browser may run slowly on a cheap Android phone; check early",
+    "Hero orders on top of cards may still be too much to track; T6 is there to catch it",
+    "All numbers are first guesses and will need tuning"
+  ],
+  "cost": "RM0. Free tools; preview is a private web link. About 1-2 build sessions (estimate).",
+  "decisions": [
+    "DEC-001",
+    "DEC-002",
+    "DEC-003",
+    "DEC-004"
+  ],
+  "reports": [
+    "REP-001"
+  ],
+  "changes": {
+    "added": [],
+    "changed": [],
+    "fixed": [],
+    "removed": []
+  },
+  "userNotes": [],
+  "approval": {
+    "status": "proposed"
+  },
+  "delivery": "not started",
+  "release": "unreleased"
+}

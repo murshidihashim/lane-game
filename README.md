@@ -6,8 +6,8 @@ heroes to move, push, gank, defend, farm and ward, buy them items, and call thei
 are no hand-played cards. A MOBA-style map with a jungle and fog of war rewards exploring. Matches
 last about 5 minutes. Portrait, one thumb. The look is "Hikayat", a painted folk-tale board game.
 
-**Status:** playable prototype (PLAN-005: balance pass, 3 heroes each, draft and versus screen),
-waiting for the owner's playtest. Check balance with `npm run balance`.
+**Status:** playable prototype (PLAN-006: calmer pace, zoomable map, re-balance, polished
+characters), waiting for the owner's playtest. Check balance with `npm run balance`.
 
 Run it: `npm install`, then `npm run dev` (local) or `npm run build` (one self-contained page in
 `dist/lane-game.html`). Check it: `npm run verify`, `npm run soak`, `node scripts/phone-check.cjs out`.

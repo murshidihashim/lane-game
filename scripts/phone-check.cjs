@@ -142,6 +142,47 @@ async function page(browser, query) {
     await p.screenshot({ path: `${out}/6-ult-fired.png` });
     if (await p.evaluate(() => window.__game.sim.heroOf(0, 'kail').ultReady)) fail('the called ultimate did not fire when enemies came');
     else console.log('PASS the called ultimate fires at a good moment (banner and effect on screen)');
+
+    // Zoom and pan (DEC-016): zoom button, drag to look around, an order while zoomed, double-tap out, pinch.
+    const cam = () => p.evaluate(() => { const L = window.__game.layout; return { scale: L.scale, base: L.baseScale, vx: L.vx, vy: L.vy, field: L.field, zoomBtn: L.zoomBtn }; });
+    let v = await cam();
+    await p.mouse.click(v.zoomBtn.x + v.zoomBtn.w / 2, v.zoomBtn.y + v.zoomBtn.h / 2);
+    await p.waitForTimeout(150);
+    v = await cam();
+    if (Math.abs(v.scale / v.base - 1.8) > 0.01) fail('zoom button did not zoom in: ' + (v.scale / v.base));
+    else console.log('PASS the zoom button zooms the map in (1.8x)');
+    await p.screenshot({ path: `${out}/7-zoomed.png` });
+    const mid = [v.field.x + v.field.w / 2, v.field.y + v.field.h / 2];
+    await drag(mid, [mid[0] + 60, mid[1] + 90]);
+    await p.waitForTimeout(120);
+    const v2 = await cam();
+    if (!(v2.vx < v.vx - 10 && v2.vy < v.vy - 10)) fail('dragging the zoomed map did not pan: ' + JSON.stringify([v.vx, v.vy, v2.vx, v2.vy]));
+    else console.log('PASS dragging the zoomed map looks around');
+    // order while zoomed: drop Kail in the middle of the zoomed view; the order must change
+    const before = await p.evaluate(() => JSON.stringify(window.__game.sim.heroOf(0, 'kail').order));
+    await drag(portrait, [mid[0], mid[1] + 28]);
+    await p.waitForTimeout(150);
+    const after = await p.evaluate(() => window.__game.sim.heroOf(0, 'kail').order);
+    if (JSON.stringify(after) === before) fail('dropping a hero on the zoomed map gave no new order');
+    else console.log(`PASS hero orders still work while zoomed in (new order: ${after.type})`);
+    await p.mouse.click(mid[0], mid[1]);
+    await p.mouse.click(mid[0], mid[1]);
+    await p.waitForTimeout(150);
+    v = await cam();
+    if (Math.abs(v.scale - v.base) > 0.001) fail('double-tap did not zoom back out');
+    else console.log('PASS double-tap zooms back out to the whole map');
+    // pinch with two fingers
+    await p.evaluate(([x, y]) => {
+      const c = document.getElementById('game');
+      const ev = (type, id, px, py) => c.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: px, clientY: py, bubbles: true, pointerType: 'touch' }));
+      ev('pointerdown', 11, x - 30, y); ev('pointerdown', 12, x + 30, y);
+      for (let k = 1; k <= 6; k++) { ev('pointermove', 11, x - 30 - k * 8, y); ev('pointermove', 12, x + 30 + k * 8, y); }
+      ev('pointerup', 11, x - 78, y); ev('pointerup', 12, x + 78, y);
+    }, mid);
+    await p.waitForTimeout(120);
+    v = await cam();
+    if (!(v.scale / v.base > 1.5)) fail('pinch did not zoom in: ' + (v.scale / v.base));
+    else console.log(`PASS a two-finger pinch zooms in (${(v.scale / v.base).toFixed(2)}x)`);
     if (errors.length) fail('page errors: ' + errors.join(' | '));
   }
 

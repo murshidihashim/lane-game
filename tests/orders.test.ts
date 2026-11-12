@@ -29,7 +29,7 @@ describe('hero orders', () => {
     const before = nearestS(LANES[0], h.x, h.y);
     stepN(sim, 100);
     expect(h.order.type).toBe('push');
-    expect(nearestS(LANES[0], h.x, h.y)).toBeGreaterThan(before + 800);
+    expect(nearestS(LANES[0], h.x, h.y)).toBeGreaterThan(before + HEROES.rimba.speed * 70); // most of 100 ticks at walking speed
   });
 
   test('defend: a hero goes to the chosen tower and stays there', () => {

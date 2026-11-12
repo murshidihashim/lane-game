@@ -297,22 +297,38 @@ export function pusaka(ctx: CanvasRenderingContext2D, x: number, y: number, s: n
 export class MapPainter {
   private canvas: HTMLCanvasElement | null = null;
   private key = '';
+  private res = 1;
 
-  /** The painted field for this layout and lane setup, drawn once and reused. */
+  /** The painted field for this screen size and lane setup: the whole map at zoom 1, drawn once,
+   *  at extra resolution so it stays sharp when the camera zooms in (DEC-016). */
   get(l: Layout, sim: Sim): HTMLCanvasElement {
     const key = `${Math.round(l.field.w)}x${Math.round(l.field.h)}@${l.dpr}/${sim.laneCount}`;
     if (this.canvas && this.key === key) return this.canvas;
+    // Up to 2x the screen density, but no more than ~3.5 million pixels (phone memory).
+    const area = Math.max(1, l.field.w * l.field.h);
+    this.res = Math.max(1, Math.min(l.dpr * 2, Math.sqrt(3_500_000 / area)));
     const c = document.createElement('canvas');
-    c.width = Math.max(1, Math.round(l.field.w * l.dpr));
-    c.height = Math.max(1, Math.round(l.field.h * l.dpr));
+    c.width = Math.max(1, Math.round(l.field.w * this.res));
+    c.height = Math.max(1, Math.round(l.field.h * this.res));
     const ctx = c.getContext('2d');
     if (ctx) {
-      ctx.setTransform(l.dpr, 0, 0, l.dpr, 0, 0);
-      paintField(ctx, l, sim);
+      ctx.setTransform(this.res, 0, 0, this.res, 0, 0);
+      paintField(ctx, { ...l, scale: l.baseScale, vx: FIELD.minX, vy: FIELD.minY }, sim);
     }
     this.canvas = c;
     this.key = key;
     return c;
+  }
+
+  /** Draw the part of the painted map the camera sees into the field. */
+  draw(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim): void {
+    const c = this.get(l, sim);
+    const k = this.res * l.baseScale; // cache pixels per world unit
+    const sx = (l.vx - FIELD.minX) * k;
+    const sy = (l.vy - FIELD.minY) * k;
+    const sw = (l.field.w / l.scale) * k;
+    const sh = (l.field.h / l.scale) * k;
+    ctx.drawImage(c, sx, sy, sw, sh, l.field.x, l.field.y, l.field.w, l.field.h);
   }
 }
 

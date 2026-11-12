@@ -300,7 +300,7 @@ describe('hero kits', () => {
     const melee = foe(sim, h, 'spearman', 0, -120);
     melee.deploy = 0;
     const hp = h.hp;
-    stepN(sim, 40);
+    stepN(sim, 80);
     expect(h.hp).toBe(hp); // melee troops can't hit a flier
     expect(melee.hp).toBeLessThan(UNITS.spearman.hp);
     const archer = foe(sim, h, 'archer', 0, -300);
@@ -445,7 +445,8 @@ describe('hero kits', () => {
     expect(tower.hp).toBeGreaterThan(1000);
 
     const b = arena('tukang', 4);
-    b.sim.towerOf(0, 2)!.hp = 900;
+    const hurtTower = b.sim.towerOf(0, 2)!;
+    hurtTower.hp = Math.trunc(hurtTower.maxHp * 0.4); // below half: Bamboo Bulwark's moment
     b.sim.step();
     for (const t of b.sim.ents.filter((e) => e.kind === 'tower' && e.owner === 0)) expect(t.shield).toBeGreaterThan(0);
   });

@@ -50,14 +50,19 @@ Serangga `#b5892a`, Batu `#7d7f86`.
 2. **Team colour is the base and a sash, never the character's own colours.** The base disc and a
    sash, headband or collar are blue (you) or red (the bot), so a hero keeps its own look on either
    side and the side still reads at a glance. The bottom/top split helps colour-blind players.
-3. **Pieces move like pieces.** Four walk frames (leg swing and bob), two attack frames (wind-up,
-   strike), facing the way they walk. Fliers hover above their shadow. Heroes are about 34 px tall,
-   troops about 21 px (lane-wave troops a little smaller).
+3. **Pieces move like pieces.** Eight walk frames whose steps follow the distance actually walked
+   (so a slow golem plods and a monkey scampers), four idle breathing frames, and three attack beats
+   (wind-up, strike with a white swoosh or a release spark, follow-through). A piece flashes
+   white and recoils when hit, and rises from its base with a puff of dust when it appears. Simple
+   cel shading: light from the top-left, a darker crescent on the far side, a small highlight.
+   Heroes carry a small team-coloured pennant. Fliers hover above their shadow. Heroes are about
+   34 px tall, troops about 21 px (lane-wave troops a little smaller); both grow when you zoom in.
 4. **Shape says what kind of thing it is.**
    - small figure: a troop; a big figure with a level badge and health bar: a hero
    - hip-roofed timber kubu: a tower, with a big health bar and its number
    - the Pusaka pavilion: the heirloom you protect
-5. **The map is painted once.** Ground, river, trees, roads, bridges, camps, cairns and shrines are
+5. **The map is painted once,** at up to twice the screen's sharpness, so zooming in (DEC-016,
+   up to 2×) stays crisp. Ground, river, trees, roads, bridges, camps, cairns and shrines are
    drawn once into a cached picture (MapPainter). Only moving things are redrawn each frame,
    which keeps phones cool.
 6. **Text is serif for names and titles, sans for numbers and help.** Georgia (or the phone's

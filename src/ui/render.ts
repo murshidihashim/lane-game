@@ -5,7 +5,7 @@ import { CORES, LANES, LANE_HALF, pointAt } from '../game/map';
 import { CLASSES, HEROES, ITEMS, ITEM_SLOTS, MANA, MATCH, TICKS_PER_SECOND, UNITS, WARDS, type HeroKind, type ItemId } from '../game/rules';
 import type { Ent, GameEvent, Sim } from '../game/sim';
 import { MapPainter, PAL, SPECIES_COLORS, glyph, kubu, pusaka, songket, teamColors, type Glyph } from './art';
-import { drawHeroFigure, drawPortrait, drawTroopFigure } from './figures';
+import { drawHeroFigure, drawPortrait, drawTroopFigure, heroScale } from './figures';
 import { type HeroPanel, type Layout, type Rect, toScreen } from './layout';
 import { type OrderTarget, orderLabel, orderTargets } from './placement';
 import { ULT_BANNER_MS, ULT_BURST_MS, type UltFx, drawUltAura, drawUltBanner, drawUltBurst } from './ultfx';
@@ -35,6 +35,8 @@ export class Renderer {
   private ults: UltFx[] = [];
   private lastSeen = new Map<number, { x: number; y: number; at: number }>();
   private facing = new Map<number, 1 | -1>();
+  /** Per-piece animation memory (drawing only): distance walked, last health, when it was hit and first seen. */
+  private anim = new Map<number, { dist: number; x: number; y: number; hp: number; hurtAt: number; born: number }>();
   private vision: [number, number, number][] = [];
   private fogCanvas: HTMLCanvasElement | null = null;
   private painter = new MapPainter();
@@ -63,6 +65,7 @@ export class Renderer {
     this.ults = [];
     this.lastSeen.clear();
     this.facing.clear();
+    this.anim.clear();
   }
 
   draw(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState, alpha: number, now: number): void {
@@ -84,6 +87,7 @@ export class Renderer {
     this.drawHealthOverFog(ctx, l, sim);
     this.drawUltBanners(ctx, l, now);
     ctx.restore();
+    this.drawZoomButton(ctx, l);
     this.drawOrderTargets(ctx, l, sim, ui);
     this.drawTop(ctx, l, sim);
     this.drawHud(ctx, l, sim, ui);
@@ -102,7 +106,7 @@ export class Renderer {
     ctx.strokeStyle = PAL.gold;
     ctx.lineWidth = 1;
     ctx.stroke();
-    ctx.drawImage(this.painter.get(l, sim), f.x, f.y, f.w, f.h);
+    this.painter.draw(ctx, l, sim);
   }
 
   private lanePath(ctx: CanvasRenderingContext2D, l: Layout, id: number, fromS = 0, toS = Infinity): void {
@@ -176,6 +180,10 @@ export class Renderer {
     for (const e of sim.ents) if (e.kind === 'hero' && e.owner === 0 && e.alive) this.drawOrderLine(ctx, l, sim, e, alpha);
     // Characters, back to front (higher on screen first), fliers on top.
     const people = sim.ents.filter((e) => (e.kind === 'unit' || e.kind === 'hero') && e.alive);
+    if (this.anim.size > people.length + 200) {
+      const live = new Set(people.map((e) => e.id));
+      for (const id of this.anim.keys()) if (!live.has(id)) this.anim.delete(id);
+    }
     people.sort((a, b) => (a.flying === b.flying ? a.y - b.y || a.id - b.id : a.flying ? 1 : -1));
     for (const e of people) {
       if (e.kind === 'hero') this.drawHero(ctx, l, sim, e, alpha, now);
@@ -350,30 +358,53 @@ export class Renderer {
     return f;
   }
 
-  private pose(e: Ent, now: number): { walk: number; attack: number } {
+  /**
+   * Animation inputs for a piece's figure: the walk cycle follows the distance actually walked
+   * (one full stride per STRIDE world units), idle breathing when standing, a flash when it was
+   * just hit, and a rise when it first appears.
+   */
+  private pose(e: Ent, wx: number, wy: number, now: number): { walk: number; attack: number; idle: number; hurt: number; spawn: number } {
+    let a = this.anim.get(e.id);
+    if (!a) { a = { dist: 0, x: wx, y: wy, hp: e.hp, hurtAt: -1e9, born: now }; this.anim.set(e.id, a); }
+    a.dist += Math.hypot(wx - a.x, wy - a.y);
+    a.x = wx;
+    a.y = wy;
+    if (e.hp < a.hp) a.hurtAt = now;
+    a.hp = e.hp;
+    const STRIDE = e.kind === 'hero' ? 260 : 210;
     const moving = e.x !== e.px || e.y !== e.py;
-    const walk = moving ? ((now / 420 + e.id * 0.37) % 1) : 0;
+    const walk = moving ? ((a.dist / STRIDE + e.id * 0.37) % 1) || 0.001 : 0;
     const since = e.attackTicks - e.atkCd; // ticks since the last swing started
-    const attack = e.atkCd > 0 && since >= 0 && since < 6 && e.targetId ? (since + 1) / 6 : 0;
-    return { walk, attack };
+    const attack = e.atkCd > 0 && since >= 0 && since < 8 && e.targetId ? (since + 1) / 8 : 0;
+    return {
+      walk, attack,
+      idle: (now / 1600 + e.id * 0.13) % 1,
+      hurt: Math.max(0, 1 - (now - a.hurtAt) / 220),
+      spawn: Math.min(1, (now - a.born) / 380),
+    };
+  }
+
+  /** Characters grow with the zoom, a bit less than the map does, so a zoomed view still fits. */
+  private grow(l: Layout): number {
+    return 1 + (l.scale / l.baseScale - 1) * 0.75;
   }
 
   private drawUnit(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, e: Ent, alpha: number, now: number): void {
     const [wx, wy] = this.pos(e, alpha);
     const [x, y] = toScreen(l, wx, wy);
+    const g = this.grow(l);
     const kind = e.unit ?? 'spearman';
     if (kind === 'watchtower') {
       kubu(ctx, x, y, 18, e.owner, true);
     } else {
-      const { walk, attack } = this.pose(e, now);
+      const p = this.pose(e, wx, wy, now);
       const faded = kind === 'decoy' && e.owner !== 0 ? 1 : kind === 'decoy' ? 0.55 : 1;
-      drawTroopFigure(ctx, kind, x, y, TROOP_H, e.owner, l.dpr, {
-        facing: this.face(e), walk, attack, flying: e.flying, wave: e.wave, alpha: (e.deploy > 0 ? 0.5 : 1) * faded,
+      drawTroopFigure(ctx, kind, x, y, TROOP_H * g, e.owner, l.dpr, {
+        facing: this.face(e), ...p, flying: e.flying, wave: e.wave, alpha: (e.deploy > 0 ? 0.5 : 1) * faded,
       });
     }
-    const r = 7;
-    this.marks(ctx, e, x, y - 9, r);
-    if (e.hp < e.maxHp) hpBar(ctx, x, y - TROOP_H - 3, 16, e.hp / e.maxHp, teamColors(e.owner).light);
+    this.marks(ctx, e, x, y - 9 * g, 7 * g);
+    if (e.hp < e.maxHp) hpBar(ctx, x, y - TROOP_H * g - 4, 16 * g, e.hp / e.maxHp, teamColors(e.owner).light);
     void sim;
   }
 
@@ -384,33 +415,34 @@ export class Renderer {
     const [wx, wy] = this.pos(e, alpha);
     const [x, y] = toScreen(l, wx, wy);
     const kind = e.hero as HeroKind;
-    const { walk, attack } = this.pose(e, now);
+    const p = this.pose(e, wx, wy, now);
     const fly = e.flying;
-    const ht = HERO_H * (kind === 'gergasi' ? 1.2 : kind === 'pelanduk' ? 0.85 : 1);
-    const top = y - ht - (fly ? 12 : 0) - 4;
+    const g = this.grow(l);
+    const ht = HERO_H * g * heroScale(kind);
+    const top = y - ht * 1.06 - (fly ? 12 * g : 0) - 4; // clear of the head and the team pennant
     ctx.save();
     // ULT ready (yours): a gold ring at the feet; called: a pulsing one.
     if (mine && e.ultReady) {
       const pulse = e.ultArmed ? 0.5 + 0.5 * Math.sin(now / 140) : 0.6;
       ctx.strokeStyle = `rgba(224,176,74,${0.45 + 0.4 * pulse})`;
       ctx.lineWidth = e.ultArmed ? 3 : 2;
-      ctx.beginPath(); ctx.ellipse(x, y + 1, 17, 6.5, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(x, y + 1, 17 * g, 6.5 * g, 0, 0, Math.PI * 2); ctx.stroke();
     }
     if (e.ultUntil > sim.tick) drawUltAura(ctx, kind, x, y, ht, now);
-    drawHeroFigure(ctx, kind, x, y, HERO_H, e.owner, l.dpr, {
-      facing: this.face(e), walk, attack, flying: fly, transformed: e.transformed,
-      alpha: e.deploy > 0 ? 0.5 : mine && e.hidden ? 0.6 : 1,
+    drawHeroFigure(ctx, kind, x, y, HERO_H * g, e.owner, l.dpr, {
+      facing: this.face(e), ...p, flying: fly, transformed: e.transformed,
+      alpha: mine && e.hidden ? 0.6 : 1,
     });
     // level badge and fury
     ctx.fillStyle = PAL.gold;
     ctx.strokeStyle = INK;
     ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(x + 13, top + 2, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    label(ctx, String(e.level), x + 13, top + 2.5, INK, 9);
-    if (e.fury > 0) label(ctx, '✹', x - 14, top + 2, '#ff7a3d', 11);
+    ctx.beginPath(); ctx.arc(x + 13 * g, top + 2, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    label(ctx, String(e.level), x + 13 * g, top + 2.5, INK, 9);
+    if (e.fury > 0) label(ctx, '✹', x - 14 * g, top + 2, '#ff7a3d', 11);
     ctx.restore();
-    this.marks(ctx, e, x, y - ht * 0.5, 12);
-    hpBar(ctx, x - 2, top + 2, 22, e.hp / e.maxHp, mine ? PAL.youLight : PAL.foeLight);
+    this.marks(ctx, e, x, y - ht * 0.5, 12 * g);
+    hpBar(ctx, x - 2, top + 2, 22 * g, e.hp / e.maxHp, mine ? PAL.youLight : PAL.foeLight);
   }
 
   /** An enemy hero that slipped into the fog or the jungle: a fading "?" where it was last seen. */
@@ -626,6 +658,31 @@ export class Renderer {
     pill(ctx, 'or drop anywhere else: Move', l.field.x + l.field.w / 2, l.field.y + 29, false);
     ctx.restore();
     if (pt && ui.dragHero && ui.dragHero.moved) drawPortrait(ctx, kind, pt.x, pt.y - DRAG_LIFT - 18, 15, 0, l.dpr);
+  }
+
+  /** The zoom button in the field's corner (DEC-016): + to zoom in, − to see the whole map. */
+  private drawZoomButton(ctx: CanvasRenderingContext2D, l: Layout): void {
+    const r = l.zoomBtn;
+    const cx = r.x + r.w / 2;
+    const cy = r.y + r.h / 2;
+    const zoomed = l.scale > l.baseScale * 1.01;
+    ctx.save();
+    ctx.fillStyle = 'rgba(43,29,20,0.82)';
+    ctx.strokeStyle = PAL.gold;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(cx, cy, r.w / 2 - 1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // a magnifying glass with + or −
+    ctx.strokeStyle = PAL.parchment;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx - 2, cy - 2, 6.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx + 3, cy + 3); ctx.lineTo(cx + 8, cy + 8); ctx.stroke();
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(cx - 5.5, cy - 2); ctx.lineTo(cx + 1.5, cy - 2);
+    if (!zoomed) { ctx.moveTo(cx - 2, cy - 5.5); ctx.lineTo(cx - 2, cy + 1.5); }
+    ctx.stroke();
+    ctx.restore();
   }
 
   // ---------- top bar and HUD ----------

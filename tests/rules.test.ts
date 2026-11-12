@@ -2,7 +2,7 @@
 import { describe, expect, test } from 'vitest';
 import { LANES, CENTER, rotate } from '../src/game/map';
 import { isqrt } from '../src/game/math';
-import { CLASSES, HEROES, ITEMS, ITEM_SLOTS, MANA, MATCH, STRUCTURES, UNITS, WAVES, sec } from '../src/game/rules';
+import { CLASSES, HEROES, ITEMS, ITEM_SLOTS, MANA, MATCH, MOVE, STRUCTURES, UNITS, WAVES, sec } from '../src/game/rules';
 import { Sim } from '../src/game/sim';
 import { heroOnLane, parkHeroes, stepN } from './helpers';
 
@@ -56,6 +56,21 @@ describe('Semangat', () => {
     sim.players[0].mana = 0;
     stepN(sim, sec(4));
     expect(sim.players[0].mana).toBe(MANA.perMana);
+  });
+});
+
+describe('pace (DEC-016)', () => {
+  test('troops and heroes walk at 70% of their listed speed, in whole world units per tick', () => {
+    expect(MOVE.speedPct).toBe(70);
+    // listed speed -> walking speed
+    expect(UNITS.spearman.speed).toBe(6); // 9
+    expect(UNITS.kera.speed).toBe(11); // 15
+    expect(UNITS.golem.speed).toBe(4); // 5
+    expect(UNITS.watchtower.speed).toBe(0); // doesn't move
+    expect(HEROES.rimba.speed).toBe(8); // 12
+    expect(HEROES.layang.speed).toBe(10); // 14
+    for (const u of Object.values(UNITS)) expect(Number.isInteger(u.speed)).toBe(true);
+    for (const h of Object.values(HEROES)) expect(Number.isInteger(h.speed)).toBe(true);
   });
 });
 

@@ -18,8 +18,11 @@ export interface Layout {
   top: Rect;
   towers: Rect; // the tower health strip in the top bar
   gear: Rect;
-  field: Rect; // the drawn battlefield
-  scale: number; // CSS px per world unit
+  field: Rect; // the drawn battlefield (the screen area; the camera decides what part of the map it shows)
+  scale: number; // CSS px per world unit, at the current zoom
+  baseScale: number; // CSS px per world unit with the whole map in view (zoom 1)
+  vx: number; vy: number; // world point at the field's top-left corner (the camera, DEC-016)
+  zoomBtn: Rect; // the zoom button in the field's corner
   waves: Rect[]; // the lane wave chips (left, middle, right)
   heroes: HeroPanel[]; // one per hero (DEC-014: three)
   mana: Rect;
@@ -44,6 +47,7 @@ export function computeLayout(w: number, h: number, dpr: number): Layout {
   const fw = worldW * scale;
   const fh = worldH * scale;
   const field: Rect = { x: cx + (cw - fw) / 2, y: TOP_H + (fieldAvailH - fh) / 2, w: fw, h: fh };
+  const zoomBtn: Rect = { x: field.x + field.w - 40, y: field.y + field.h - 40, w: 34, h: 34 }; // bottom-right: clear of ultimate banners
   const top: Rect = { x: cx, y: 0, w: cw, h: TOP_H };
   const gear: Rect = { x: cx + cw - 44, y: 0, w: 42, h: 32 };
   const towers: Rect = { x: cx + 8, y: 32, w: cw - 16, h: 20 };
@@ -70,7 +74,34 @@ export function computeLayout(w: number, h: number, dpr: number): Layout {
   const bottomY = panelY + PANEL_H;
   const shop: Rect = { x: cx + cw - 8 - 104, y: bottomY + 2, w: 104, h: BOTTOM_H - 8 };
   const mana: Rect = { x: cx + 8, y: bottomY + 2, w: cw - 16 - 104 - 10, h: BOTTOM_H - 8 };
-  return { w, h, dpr, col, top, towers, gear, field, scale, waves, heroes, mana, shop };
+  return { w, h, dpr, col, top, towers, gear, field, scale, baseScale: scale, vx: FIELD.minX, vy: FIELD.minY, zoomBtn, waves, heroes, mana, shop };
+}
+
+/** The camera (DEC-016): zoom 1 shows the whole map; up to MAX_ZOOM, centred on a world point. */
+export interface View { zoom: number; cx: number; cy: number }
+
+export const MAX_ZOOM = 2;
+
+/** Keep a view inside the map: zoom between 1 and MAX_ZOOM, and no empty space past the edges. */
+export function clampView(base: Layout, v: View): View {
+  const zoom = Math.max(1, Math.min(MAX_ZOOM, v.zoom));
+  const halfW = base.field.w / (2 * base.baseScale * zoom);
+  const halfH = base.field.h / (2 * base.baseScale * zoom);
+  const cx = Math.max(FIELD.minX + halfW, Math.min(FIELD.maxX - halfW, v.cx));
+  const cy = Math.max(FIELD.minY + halfH, Math.min(FIELD.maxY - halfH, v.cy));
+  return { zoom, cx, cy };
+}
+
+/** The layout as seen through a camera view. */
+export function applyView(base: Layout, v: View): Layout {
+  const c = clampView(base, v);
+  const scale = base.baseScale * c.zoom;
+  return { ...base, scale, vx: c.cx - base.field.w / (2 * scale), vy: c.cy - base.field.h / (2 * scale) };
+}
+
+/** The whole map in view. */
+export function homeView(): View {
+  return { zoom: 1, cx: (FIELD.minX + FIELD.maxX) / 2, cy: (FIELD.minY + FIELD.maxY) / 2 };
 }
 
 export function inRect(r: Rect, x: number, y: number): boolean {
@@ -78,11 +109,11 @@ export function inRect(r: Rect, x: number, y: number): boolean {
 }
 
 export function toScreen(l: Layout, wx: number, wy: number): [number, number] {
-  return [l.field.x + (wx - FIELD.minX) * l.scale, l.field.y + (wy - FIELD.minY) * l.scale];
+  return [l.field.x + (wx - l.vx) * l.scale, l.field.y + (wy - l.vy) * l.scale];
 }
 
 export function toWorld(l: Layout, sx: number, sy: number): [number, number] {
-  return [FIELD.minX + (sx - l.field.x) / l.scale, FIELD.minY + (sy - l.field.y) / l.scale];
+  return [l.vx + (sx - l.field.x) / l.scale, l.vy + (sy - l.field.y) / l.scale];
 }
 
 export function inField(l: Layout, sx: number, sy: number): boolean {

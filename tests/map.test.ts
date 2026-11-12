@@ -100,13 +100,15 @@ describe('map rewards', () => {
     const { sim, h } = withHero('helang', 3000);
     const boss = sim.camps()[4];
     expect(boss.alive).toBe(false);
+    sim.submit({ t: 'order', player: 0, hero: 'helang', order: 'retreat' }); // wait safely at home
     stepN(sim, NEUTRALS.boss.first);
+    expect(h.alive).toBe(true);
     expect(boss.alive).toBe(true);
     boss.hp = 40;
     boss.lastHitTick = sim.tick; // otherwise an untouched camp heals back to full
     sim.place(h, BOSS_PIT[0], BOSS_PIT[1] + 600);
     sim.submit({ t: 'order', player: 0, hero: 'helang', order: 'farm', camp: 4 });
-    for (let i = 0; i < 100 && boss.alive; i++) sim.step();
+    for (let i = 0; i < 300 && boss.alive; i++) { boss.lastHitTick = sim.tick; sim.step(); }
     expect(boss.alive).toBe(false);
     const ally = sim.ents.find((e) => e.kind === 'unit' && e.unit === 'gajahmina');
     expect(ally?.owner).toBe(0);

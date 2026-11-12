@@ -27,6 +27,7 @@ None.
 | DEC-013 | Character figures, visible ultimates and tower health | Approved (owner, 2026-11-12) | Implemented |
 | DEC-014 | Three heroes per player | Approved (owner, 2026-11-12) | Implemented |
 | DEC-015 | Draft-style hero select and versus screen | Approved (owner, 2026-11-12) | Implemented |
+| DEC-016 | Slower movement and a zoomable map | Approved (owner, 2026-11-12) | Implemented |
 
 ## Work packages
 
@@ -37,6 +38,7 @@ None.
 | PLAN-003 | Creep species, wards, map rewards and art style | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
 | PLAN-004 | Hero command: no hand cards, items, called ultimates, fog of war, characters | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
 | PLAN-005 | Balance pass, three heroes each, draft-style hero select | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
+| PLAN-006 | Slower pace, zoomable map, re-balance, character polish | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
 
 ## Decision details
 
@@ -250,6 +252,20 @@ None.
 - **Delivery:** Implemented
 - **Review trigger:** The draft feels slow on repeat matches (a quick rematch skips it).
 
+### DEC-016 · Slower movement and a zoomable map
+
+- **Question:** How do we make the map feel bigger and the pieces less rushed?
+- **Options:** Slower movement plus a zoomable, pannable map view (built) · Slower movement only · A bigger map (everything drawn smaller)
+- **Choice:** All troops and heroes move about 30% slower (attacks and powers unchanged), and walking animations follow the distance actually walked. The map keeps showing the whole battlefield by default; you can zoom in (zoom button, double-tap, or pinch) up to 2x and drag to look around, and zoom back out the same way.
+- **Rationale:** The owner felt the map was small or the pieces too fast. Slower movement gives fights, ganks and rotations more room; a zoom makes the characters and map bigger on a phone without losing the whole-map view.
+- **User impact:** Calmer pace; a zoom button on the map; drag to pan when zoomed.
+- **Technical impact:** Speed numbers in the rules; camera (zoom and pan) in the screen layer; map painted at higher resolution.
+- **Data and privacy:** None.
+- **Cost:** none
+- **Approval:** Approved: “the map feels slightly small/or the characters are just moving too fast ... think of balance changes ... polish the character designs and animations please” (2026-11-12)
+- **Delivery:** Implemented
+- **Review trigger:** Matches feel slow or zooming gets in the way of giving orders.
+
 ## History (oldest first)
 
 - 2026-11-12 08:49 · Project records started for Lane Game.
@@ -357,3 +373,18 @@ None.
 - 2026-11-12 17:18 · DEC-015 delivery: implemented.
 - 2026-11-12 17:18 · REP-007 written: PLAN-005: balance pass, three heroes, draft hero select.
 - 2026-11-12 17:19 · PLAN-005 implemented: T1-T5 PASS (balance 1,200 matches in targets, 84 tests, soak, phone check OK); T6/T7 wait for the owner. REP-007 written.
+- 2026-11-12 17:30 · DEC-016 proposed: Slower movement and a zoomable map.
+- 2026-11-12 17:30 · PLAN-006 proposed: Slower pace, zoomable map, re-balance, character polish.
+- 2026-11-12 17:30 · Owner approved DEC-016: "the map feels slightly small/or the characters are just moving too fast ... think of balance changes ... polish the character designs and animations please".
+- 2026-11-12 17:30 · Owner approved PLAN-006: "the map feels slightly small/or the characters are just moving too fast ... think of balance changes ... polish the character designs and animations please".
+- 2026-11-12 17:30 · PLAN-006 delivery: in progress.
+- 2026-11-12 17:55 · PLAN-006 T1: PASS (rules.test.ts pace test: every troop and hero walks at 70% of its listed speed in whole units per tick (e.g. Silat Guard 9->6, Kera 15->11, Rimba 12->8); determinism 4/4 unchanged; 85/85 tests.).
+- 2026-11-12 17:55 · PLAN-006 T2: PASS (npm run balance after the slowdown (1,200 matches): species 45-56%, heroes 42-58%, draws 9.8%, decided before 2:30: 1 match, average 5:21. Pace kept by towers 1,700 health, waves +18% a minute and a 90 s sudden death (60 s was too short at the slower pace: draws 19%).).
+- 2026-11-12 17:55 · PLAN-006 T3: PASS (phone-check: zoom button zooms to 1.8x; dragging the zoomed map pans; dropping a hero on the zoomed map gives a new order; double-tap zooms back out; a two-finger pinch zooms to 2x; PHONE CHECK OK.).
+- 2026-11-12 17:55 · PLAN-006 T4: PASS (All 20 heroes and 22 troops redrawn with cel shading, faces, trims and team pennants; 8 walk frames (steps follow distance walked), 4 idle, 3 attack beats, hit flash, spawn rise; sprite sheets and in-game screenshots reviewed; drawing 100 figures at 2x density takes under 1 ms a frame after warm-up.).
+- 2026-11-12 17:55 · PLAN-006 T5: PASS (tests/determinism.test.ts 4/4; npm run soak 100 + 20 matches, no errors, every hero and species played; phone check OK.).
+- 2026-11-12 17:55 · PLAN-006 T6: NOT RUN (Not yet tried on the owner's phone.).
+- 2026-11-12 17:55 · PLAN-006 delivery: implemented.
+- 2026-11-12 17:55 · DEC-016 delivery: implemented.
+- 2026-11-12 17:55 · REP-008 written: PLAN-006: slower pace, zoomable map, re-balance, character polish.
+- 2026-11-12 17:56 · PLAN-006 implemented: T1-T5 PASS (balance 1,200 matches in targets after the slowdown, 85 tests, soak, phone check with zoom OK); T6/T7 wait for the owner. REP-008 written.

@@ -1,0 +1,94 @@
+{
+  "id": "PLAN-006",
+  "title": "Slower pace, zoomable map, re-balance, character polish",
+  "problem": "The owner finds the map slightly small or the characters too fast, asked to think of balance changes, and asked to polish the character designs and animations.",
+  "scope": [
+    "Movement about 30% slower for every troop and hero; walk animation tied to distance walked",
+    "Zoomable map view: zoom button, double-tap and pinch (1x to 2x), drag to pan, clamped to the map; whole map by default",
+    "Re-balance after the slowdown with npm run balance (same targets as PLAN-005) plus pace (match length, draws)",
+    "Character polish: better proportions, shading and detail for 20 heroes and 22 troops; smoother animation (more walk frames, idle breathing, wind-up and strike, hit flash, spawn and fall)",
+    "Tests, phone check, docs, records"
+  ],
+  "exclusions": [
+    "Online play",
+    "Sound",
+    "Commissioned art",
+    "New heroes or species",
+    "Longer matches (5:00 stays)"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "All troops and heroes move about 30% slower; the rules stay whole-number and deterministic (automated)",
+      "result": "PASS",
+      "evidence": "rules.test.ts pace test: every troop and hero walks at 70% of its listed speed in whole units per tick (e.g. Silat Guard 9->6, Kera 15->11, Rimba 12->8); determinism 4/4 unchanged; 85/85 tests."
+    },
+    {
+      "id": "T2",
+      "text": "Balance after the slowdown: npm run balance passes (species 40-60%, heroes 35-65%, draws under 15%, early finishes at most 10%)",
+      "result": "PASS",
+      "evidence": "npm run balance after the slowdown (1,200 matches): species 45-56%, heroes 42-58%, draws 9.8%, decided before 2:30: 1 match, average 5:21. Pace kept by towers 1,700 health, waves +18% a minute and a 90 s sudden death (60 s was too short at the slower pace: draws 19%)."
+    },
+    {
+      "id": "T3",
+      "text": "Zoom and pan: button, double-tap and pinch zoom; pan when zoomed; orders and wave chips still work zoomed in (browser check)",
+      "result": "PASS",
+      "evidence": "phone-check: zoom button zooms to 1.8x; dragging the zoomed map pans; dropping a hero on the zoomed map gives a new order; double-tap zooms back out; a two-finger pinch zooms to 2x; PHONE CHECK OK."
+    },
+    {
+      "id": "T4",
+      "text": "Character polish: all heroes and troops redrawn and animated; sprite sheet reviewed; no slowdown on a phone-size screen",
+      "result": "PASS",
+      "evidence": "All 20 heroes and 22 troops redrawn with cel shading, faces, trims and team pennants; 8 walk frames (steps follow distance walked), 4 idle, 3 attack beats, hit flash, spawn rise; sprite sheets and in-game screenshots reviewed; drawing 100 figures at 2x density takes under 1 ms a frame after warm-up."
+    },
+    {
+      "id": "T5",
+      "text": "Same seed + same moves = same match; soak and phone check pass",
+      "result": "PASS",
+      "evidence": "tests/determinism.test.ts 4/4; npm run soak 100 + 20 matches, no errors, every hero and species played; phone check OK."
+    },
+    {
+      "id": "T6",
+      "text": "On the owner's phone",
+      "result": "NOT RUN",
+      "evidence": "Not yet tried on the owner's phone."
+    },
+    {
+      "id": "T7",
+      "text": "Owner's verdict: pace right? map big enough? characters better?",
+      "result": "NOT RUN",
+      "evidence": ""
+    }
+  ],
+  "risks": [
+    "Slower movement can make matches drawn out: watched with the balance check (match length, draws)",
+    "Zoomed in, targets off the screen cannot be ordered until you pan or zoom out",
+    "Richer figures cost more drawing time: kept cached"
+  ],
+  "cost": "RM0. Free tools; private preview page. Several build sessions (estimate).",
+  "decisions": [
+    "DEC-016"
+  ],
+  "reports": [
+    "REP-008"
+  ],
+  "changes": {
+    "added": [],
+    "changed": [],
+    "fixed": [],
+    "removed": []
+  },
+  "userNotes": [
+    "Calmer pace: every troop and hero walks about 30% slower; steps now match how far a piece walks.",
+    "Zoom: tap the magnifier, double-tap or pinch the map to look closer (up to 2x), drag to look around.",
+    "Re-balanced for the slower pace: towers 1,700 health, waves grow 18% a minute, sudden death 1:30; species and heroes stay between 42% and 58% against the bot.",
+    "Polished characters: shading, faces, team pennants, smoother walking, breathing, attack swings, hit flashes and arrivals."
+  ],
+  "approval": {
+    "status": "approved",
+    "evidence": "the map feels slightly small/or the characters are just moving too fast ... think of balance changes ... polish the character designs and animations please",
+    "date": "2026-11-12"
+  },
+  "delivery": "implemented",
+  "release": "unreleased"
+}

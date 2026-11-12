@@ -7,7 +7,7 @@ export const sec = (s: number): number => Math.round(s * TICKS_PER_SECOND);
 
 export const MATCH = {
   regulation: sec(300), // 5:00
-  suddenDeath: sec(60), // then 1:00 of sudden death
+  suddenDeath: sec(90), // then 1:30 of sudden death (pieces walk slower since DEC-016)
   doubleManaFrom: sec(240), // last minute of regulation (and all of sudden death)
   towerShieldUntil: sec(60), // towers take half damage for the first minute
   towerShieldPercent: 50,
@@ -31,7 +31,7 @@ export const WAVES = {
   first: sec(5),
   every: sec(20),
   spawnU: 300, // distance from own Core end along the lane
-  growPctPerMinute: 15, // waves are the only troops (DEC-011): +15% health and damage each minute
+  growPctPerMinute: 18, // waves are the only troops (DEC-011): +18% health and damage each minute
   waveXp: 24, // XP a whole wave is worth to nearby enemy heroes
 } as const;
 
@@ -153,33 +153,39 @@ export interface UnitStats {
   spawn?: { kind: UnitKind; count: number; every: number; life: number };
 }
 
+/** Movement pace (DEC-016): every troop and hero walks at this percent of its listed speed. */
+export const MOVE = { speedPct: 70 } as const;
+
+/** A listed speed at the game's pace, as whole world units per tick (fixed data, same on every device). */
+const pace = (speed: number): number => (speed === 0 ? 0 : Math.max(3, Math.round((speed * MOVE.speedPct) / 100)));
+
 const u = (name: string, hp: number, damage: number, attack: number, range: number, speed: number, radius: number, extra: Partial<UnitStats> = {}): UnitStats => ({
-  name, hp, damage, attackTicks: sec(attack), range, sight: Math.max(500, range + 120), speed, radius, targets: 'any', xp: XP.troop, ...extra,
+  name, hp, damage, attackTicks: sec(attack), range, sight: Math.max(500, range + 120), speed: pace(speed), radius, targets: 'any', xp: XP.troop, ...extra,
 });
 
 export const UNITS: Record<UnitKind, UnitStats> = {
   spearman: u('Silat Guard', 400, 64, 1.1, 160, 9, 60, { ability: 'Sturdy melee fighters' }),
-  archer: u('Pemanah', 230, 52, 1.2, 550, 9, 55, { ability: 'Ranged; can hit fliers' }),
+  archer: u('Pemanah', 230, 56, 1.2, 550, 9, 55, { ability: 'Ranged; can hit fliers' }),
   shieldbearer: u('Perisai', 1400, 75, 1.3, 170, 8, 80, { armorRanged: 60, ability: 'Tank; takes 40% less from ranged hits' }),
   ram: u('Kerbau', 1700, 250, 1.5, 160, 6, 100, { targets: 'buildings', ability: 'Only hits towers and the Pusaka' }),
 
-  kera: u('Kera', 125, 30, 0.7, 130, 15, 40, { ability: 'Very fast monkey swarm' }),
+  kera: u('Kera', 135, 30, 0.7, 130, 15, 40, { ability: 'Very fast monkey swarm' }),
   harimau: u('Harimau Bintang', 680, 110, 1.0, 150, 14, 65, { leap: 450, ability: 'Leopard; leaps onto its first target' }),
   enggang: u('Enggang', 260, 50, 1.1, 420, 11, 60, { flying: true, ability: 'Flying hornbills; ranged' }),
   seladang: u('Seladang', 1600, 90, 1.4, 170, 8, 100, { charge: true, ability: 'Gaur tank; first hit knocks back and stuns' }),
 
   ketam: u('Ketam', 1400, 70, 1.2, 160, 7, 85, { armorRanged: 50, ability: 'Crab tank; takes half damage from ranged hits' }),
-  sumpit: u('Ikan Sumpit', 220, 55, 1.1, 520, 9, 55, { slowOnHit: 75, ability: 'Archerfish; ranged, hits slow' }),
-  belut: u('Belut', 420, 50, 1.0, 200, 11, 55, { chain: 60, ability: 'Electric eels; hits jump to a second enemy' }),
+  sumpit: u('Ikan Sumpit', 220, 52, 1.1, 520, 9, 55, { slowOnHit: 75, ability: 'Archerfish; ranged, hits slow' }),
+  belut: u('Belut', 400, 50, 1.0, 200, 11, 55, { chain: 60, ability: 'Electric eels; hits jump to a second enemy' }),
 
-  kerengga: u('Kerengga', 78, 22, 0.6, 120, 13, 32, { xp: 4, ability: 'Weaver-ant swarm' }),
-  tebuan: u('Tebuan', 135, 28, 0.8, 140, 14, 38, { flying: true, poisonOnHit: 3, ability: 'Flying hornets; hits poison' }),
-  kumbang: u('Kumbang', 1400, 70, 1.3, 170, 7, 90, { armor: 80, ability: 'Rhino beetle; takes 20% less damage' }),
-  ratu: u('Ratu Sarang', 800, 30, 1.2, 400, 5, 90, { spawn: { kind: 'kerengga', count: 2, every: sec(6), life: sec(12) }, ability: 'Hive queen; hatches ants every 6 s' }),
+  kerengga: u('Kerengga', 84, 24, 0.6, 120, 13, 32, { xp: 4, ability: 'Weaver-ant swarm' }),
+  tebuan: u('Tebuan', 135, 31, 0.8, 140, 14, 38, { flying: true, poisonOnHit: 3, ability: 'Flying hornets; hits poison' }),
+  kumbang: u('Kumbang', 1400, 78, 1.3, 170, 7, 90, { armor: 80, ability: 'Rhino beetle; takes 20% less damage' }),
+  ratu: u('Ratu Sarang', 850, 30, 1.2, 400, 5, 90, { spawn: { kind: 'kerengga', count: 2, every: sec(6), life: sec(12) }, ability: 'Hive queen; hatches ants every 6 s' }),
 
   kerikil: u('Kerikil', 160, 0, 1, 120, 13, 45, { targets: 'buildings', bomb: 200, ability: 'Rolling pebbles; burst on a building' }),
-  golem: u('Batu Besar', 1900, 100, 1.6, 170, 5, 115, { armor: 80, ability: 'Boulder golem; takes 20% less damage' }),
-  lontar: u('Lontar', 420, 105, 2.2, 650, 5, 75, { splash: 150, ability: 'Stone sling; long range, splash' }),
+  golem: u('Batu Besar', 1800, 100, 1.6, 170, 5, 115, { armor: 80, ability: 'Boulder golem; takes 20% less damage' }),
+  lontar: u('Lontar', 420, 98, 2.2, 650, 5, 75, { splash: 150, ability: 'Stone sling; long range, splash' }),
 
   puppet: u('Shadow puppet', 220, 38, 1.0, 150, 9, 50, { xp: 4 }),
   decoy: { ...u('Decoy', 250, 0, 1.0, 0, 14, 60), sight: 0, xp: 0 },
@@ -212,7 +218,7 @@ export const SPECIES: Record<SpeciesId, SpeciesDef> = {
 export const SPECIES_IDS = Object.keys(SPECIES) as SpeciesId[];
 
 export const STRUCTURES = {
-  tower: { hp: 1900, damage: 55, attackTicks: sec(0.8), range: 750, radius: 150 },
+  tower: { hp: 1700, damage: 55, attackTicks: sec(0.8), range: 750, radius: 150 },
   core: { hp: 3200, damage: 80, attackTicks: sec(0.8), range: 800, radius: 270 },
 } as const;
 
@@ -255,6 +261,7 @@ function hero(h: HeroInput): HeroDef {
   const { attack, power_s, ...rest } = h;
   return {
     ...rest,
+    speed: pace(h.speed),
     sight: h.sight ?? Math.max(600, h.range + 100),
     targets: h.targets ?? 'any',
     flying: h.flying ?? false,

@@ -12,7 +12,7 @@ Everything here should work from a phone.
 1. You'll get a message that a change is ready and the checks are green.
 2. Open the preview on your phone (refresh if it looks old) and follow the checklist.
 
-## 2 · Checklist for PLAN-001 to PLAN-005 (about 30 minutes)
+## 2 · Checklist for PLAN-001 to PLAN-006 (about 30 minutes)
 Write down what you **saw**, not just "it's fine".
 - [ ] It opens in portrait. "How to play", then the species step, make sense.
 - [ ] The draft: you and the bot take turns. Tap heroes to see them on the stage (Trait, Power,
@@ -22,6 +22,9 @@ Write down what you **saw**, not just "it's fine".
       after 1:30, your Pusaka, and an empty spot (Move). Or tap the portrait, then tap the map.
 - [ ] Open the Shop and buy items. At level 4, watch for "ULT NOW" and tap it.
 - [ ] Is the fog clear? Can you read the characters and tower health on your phone?
+- [ ] Try the zoom: tap the magnifier (bottom-right of the map), double-tap or pinch; drag to look
+      around. Does the pace feel right now (everyone walks about 30% slower)?
+- [ ] Watch the characters: walking, breathing, attacking, flashing when hit. Better than before?
 - [ ] Play 5 or more matches with different species and heroes. Rematch keeps your line-up.
 - [ ] Answer these questions:
   1. Do matches feel fair? Any species or hero still clearly too strong or too weak?

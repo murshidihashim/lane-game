@@ -4,7 +4,7 @@
 //   node --experimental-strip-types --no-warnings scripts/heroes-doc.mjs --check  fail if one is out of date
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
-const { HEROES, HERO_IDS, MANA, HERO_RULES, SPECIES, SPECIES_IDS, CLASSES, UNITS, ITEMS, ITEM_IDS, ITEM_SLOTS, VISION, WAVES, NEUTRALS, FURY, WARDS, RELICS, BOUNTY } = await import('../src/game/rules.ts');
+const { HEROES, HERO_IDS, MANA, MATCH, HERO_RULES, SPECIES, SPECIES_IDS, CLASSES, UNITS, ITEMS, ITEM_IDS, ITEM_SLOTS, VISION, WAVES, NEUTRALS, FURY, WARDS, RELICS, BOUNTY } = await import('../src/game/rules.ts');
 const OUT = 'docs/design/heroes.md';
 const OUT2 = 'docs/design/species.md';
 const sec = (t) => `${+(t / 20).toFixed(1)} s`;
@@ -74,6 +74,8 @@ S.push('## Items', '');
 S.push(`Bought with ${MANA.name} in the Shop, for one hero, ${ITEM_SLOTS} slots each, kept through death. No random rewards. ${MANA.name} starts at ${sp(MANA.start)}, refills 1 every ${sec(MANA.perMana / MANA.regenPerTick)} (twice as fast in the last minute) and holds at most ${sp(MANA.max)}.`, '');
 S.push('| Item | Cost | What it does |', '|---|---|---|');
 for (const id of ITEM_IDS) S.push(`| ${ITEMS[id].name} | ${ITEMS[id].cost} | ${ITEMS[id].text} |`);
+S.push('', '## Winning', '');
+S.push(`Destroy the enemy Pusaka. At ${sec(MATCH.regulation)} the side that destroyed more towers wins. If level, ${sec(MATCH.suddenDeath)} of sudden death: towers and the Pusaka take ${MATCH.suddenTowerDamagePercent / 100}× damage and the next tower to fall wins; otherwise a draw. Towers take half damage for the first ${sec(MATCH.towerShieldUntil)}.`, '');
 S.push('', '## Fog of war', '');
 S.push(`Each side sees only around its own pieces: heroes ${VISION.hero}, troops ${VISION.unit}, towers ${VISION.tower}, Pusaka ${VISION.core}, wards ${VISION.ward}, Tukang's watchtower ${VISION.watchtower}, and Seri's lanterns. Towers, both Pusaka, camps and relics are always shown. Heroes hidden in the jungle stay unseen until revealed.`, '');
 S.push('## Map rewards', '', '| Spot | Reward | Comes back |', '|---|---|---|');

@@ -1,8 +1,8 @@
 // PLAN-001 T3, PLAN-004 T2: each hero order makes the hero do the right thing.
 import { describe, expect, test } from 'vitest';
 import { LANES, CORES, nearestS, pointAt, towerPos, uToS } from '../src/game/map';
-import { HEROES, HERO_RULES, MANA } from '../src/game/rules';
-import { type Ent, Sim } from '../src/game/sim';
+import { HEROES, HERO_RULES, MANA, type HeroKind } from '../src/game/rules';
+import { DRAFT_ORDER, type Ent, Sim, botDraftPick, randomPicks } from '../src/game/sim';
 import { heroOnLane, parkHeroes, stepN } from './helpers';
 
 /** A quiet match (no waves) with every hero waiting at home. */
@@ -121,14 +121,15 @@ describe('hero orders', () => {
     expect(h.order).toMatchObject({ type: 'defend', lane: 2 });
   });
 
-  test('heroes start on the map: both walk out from the Pusaka with an order (DEC-011)', () => {
-    const sim = new Sim({ seed: 3, picks: [['helang', 'benteng'], ['rimba', 'seri']] });
+  test('heroes start on the map: all three walk out from the Pusaka, one to each lane (DEC-011, DEC-014)', () => {
+    const sim = new Sim({ seed: 3, picks: [['helang', 'ombak', 'benteng'], ['rimba', 'seri', 'kail']] });
     for (const p of [0, 1] as const) {
       const hs = sim.heroes(p);
-      expect(hs).toHaveLength(2);
+      expect(hs).toHaveLength(3);
       for (const h of hs) expect(near(h, CORES[p][0], CORES[p][1], 700)).toBe(true);
     }
     expect(sim.heroOf(0, 'helang')!.order).toMatchObject({ type: 'push', lane: 0 });
+    expect(sim.heroOf(0, 'ombak')!.order).toMatchObject({ type: 'push', lane: 1 });
     expect(sim.heroOf(0, 'benteng')!.order).toMatchObject({ type: HEROES.benteng.best, lane: 2 });
     stepN(sim, HERO_RULES.startDelay + 100);
     expect(near(sim.heroOf(0, 'helang')!, CORES[0][0], CORES[0][1], 700)).toBe(false);
@@ -152,5 +153,40 @@ describe('hero orders', () => {
     sim.step();
     expect(h.order.x).toBeGreaterThanOrEqual(0);
     expect(h.order.y).toBeLessThan(99999);
+  });
+
+  test('three heroes a side, never the same hero on both sides; 2 lanes: the third joins the left lane', () => {
+    const sim = new Sim({ seed: 3, lanes: 2, picks: [['helang', 'ombak', 'benteng'], ['helang', 'seri']] });
+    const mine = sim.players[0].picks;
+    const theirs = sim.players[1].picks;
+    expect(mine).toEqual(['helang', 'ombak', 'benteng']);
+    expect(theirs).toHaveLength(3);
+    expect(theirs.some((k) => mine.includes(k))).toBe(false);
+    expect(new Set(theirs).size).toBe(3);
+    expect(sim.heroOf(0, 'helang')!.order.lane).toBe(0);
+    expect(sim.heroOf(0, 'ombak')!.order.lane).toBe(2);
+    expect(sim.heroOf(0, 'benteng')!.order.lane).toBe(0);
+  });
+
+  test('draft helpers: the bot never takes a taken hero, prefers a new job, and is repeatable', () => {
+    const taken: HeroKind[] = [];
+    const bot: HeroKind[] = [];
+    const me: HeroKind[] = [];
+    for (const side of DRAFT_ORDER) {
+      if (side === 1) {
+        const k = botDraftPick(77, taken, bot);
+        expect(taken).not.toContain(k);
+        expect(botDraftPick(77, taken, bot)).toBe(k);
+        bot.push(k);
+        taken.push(k);
+      } else {
+        const k = randomPicks(5, taken, 1)[0];
+        me.push(k);
+        taken.push(k);
+      }
+    }
+    expect(bot).toHaveLength(3);
+    expect(me).toHaveLength(3);
+    expect(new Set(bot.map((k) => HEROES[k].best)).size).toBe(3); // three different jobs
   });
 });

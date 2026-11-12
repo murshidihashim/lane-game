@@ -52,23 +52,17 @@
       table { width: 100%; border-collapse: collapse; font-size: 14px; }
       td { padding: 5px 2px; border-bottom: 1px solid var(--parchment-dark); }
       td:last-child { text-align: right; }
-      .pick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 8px 0 10px; }
       .species-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; margin: 8px 0 8px; }
       .tile { position: relative; display: grid; justify-items: center; gap: 2px; padding: 8px 2px 6px; border-radius: 10px;
         background: #fbf3df; border: 2px solid var(--parchment-dark); color: var(--ink); font-size: 11px; line-height: 1.15; }
-      .tile .pic { display: block; border-radius: 50%; box-shadow: 0 0 0 2.5px var(--ring); background: #e9d9b0; }
-      .tile.sp .pic { border-radius: 10px; box-shadow: 0 0 0 2.5px var(--spc); }
+      .tile .pic { display: block; border-radius: 10px; box-shadow: 0 0 0 2.5px var(--spc); background: #e9d9b0; }
       .tile .nm { font: 700 12px var(--serif); }
       .tile .rl { color: var(--muted); font-size: 10.5px; }
       .tile.sel { border-color: var(--ink); background: var(--gold); }
-      .tile .n { position: absolute; top: 3px; right: 4px; background: var(--maroon); color: var(--parchment); border-radius: 999px; font-weight: 800; font-size: 10px; padding: 1px 5px; }
       .detail { background: #fbf3df; border: 1.5px solid var(--parchment-dark); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; line-height: 1.4; }
       .detail h3 { margin: 0 0 2px; font: 700 16px var(--serif); }
-      .detail .meta { color: var(--muted); font-size: 12.5px; margin-bottom: 6px; }
       .detail p { margin: 4px 0; font-size: 13.5px; }
       .detail b { color: var(--maroon); }
-      .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-      .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; border: 1px solid var(--ink); }
       /* Shop (DEC-011): a bottom sheet, so the battle stays in view above it. */
       .sheet { position: fixed; left: 0; right: 0; bottom: 0; display: none; justify-content: center; z-index: 9; pointer-events: none; }
       .sheet.show { display: flex; }
@@ -85,6 +79,76 @@
       .item.own { border-color: var(--ink); background: var(--gold); }
       .item.no { opacity: 0.5; }
       .msg { min-height: 18px; font-size: 13px; color: var(--maroon); margin: 6px 0 0; }
+
+      /* Hero draft and versus screens (DEC-015): a night stage lit by an oil lamp, songket gold. */
+      .screen { position: fixed; inset: 0; display: none; justify-content: center; z-index: 11; color: var(--parchment);
+        background: radial-gradient(130% 75% at 50% 40%, #3b2414 0%, #1a1016 55%, #0b0810 100%); }
+      .screen.show { display: flex; }
+      .draft { width: min(420px, 100%); height: 100%; display: flex; flex-direction: column; gap: 6px;
+        padding: calc(8px + env(safe-area-inset-top, 0px)) 10px calc(8px + env(safe-area-inset-bottom, 0px)); }
+      .lineup { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; padding: 6px 8px 7px; border-radius: 12px;
+        background: linear-gradient(#2c1b12, #1a100b); border: 1.5px solid var(--gold-dark); box-shadow: 0 4px 14px rgba(0,0,0,.5); }
+      .side { display: flex; flex-direction: column; gap: 3px; }
+      .side .tag { font: 800 10.5px system-ui; letter-spacing: .16em; }
+      .side.you .tag { color: #9cc0ff; }
+      .side.bot .tag { color: #f4a28c; text-align: right; }
+      .slots { display: flex; gap: 5px; }
+      .side.bot .slots { justify-content: flex-end; }
+      .slot { width: 40px; height: 40px; border-radius: 50%; border: 2px dashed rgba(243,230,196,.35); display: grid; place-items: center;
+        font: 700 13px var(--serif); color: rgba(243,230,196,.45); background: rgba(0,0,0,.25); }
+      .slot canvas { display: block; border-radius: 50%; }
+      .slot.full { border-style: solid; }
+      .side.you .slot.full { border-color: #6f9cf0; box-shadow: 0 0 10px rgba(47,95,179,.7); }
+      .side.bot .slot.full { border-color: #ee7b6c; box-shadow: 0 0 10px rgba(192,57,43,.7); }
+      .slot.now { border-color: var(--gold); animation: slotPulse 1s ease-in-out infinite; }
+      .slot.flash { animation: slotPop .45s ease-out; }
+      @keyframes slotPulse { 50% { box-shadow: 0 0 14px rgba(224,176,74,.9); transform: scale(1.06); } }
+      @keyframes slotPop { 0% { transform: scale(1.6); filter: brightness(2.2); } 100% { transform: scale(1); filter: none; } }
+      .vs-badge { width: 40px; height: 40px; transform: rotate(45deg); background: var(--maroon); border: 2px solid var(--gold); display: grid; place-items: center;
+        box-shadow: 0 0 16px rgba(224,176,74,.45); margin: 0 4px; }
+      .vs-badge span { transform: rotate(-45deg); font: 900 16px var(--serif); color: var(--gold); }
+      .band { height: 7px; border-radius: 3px; background: repeating-linear-gradient(45deg, transparent 0 4px, var(--gold) 4px 5px, transparent 5px 9px),
+        repeating-linear-gradient(-45deg, transparent 0 4px, var(--gold) 4px 5px, transparent 5px 9px), var(--maroon); }
+      .turn { position: relative; height: 28px; border-radius: 14px; background: rgba(0,0,0,.4); border: 1px solid rgba(224,176,74,.45); overflow: hidden;
+        display: grid; place-items: center; font: 700 14px var(--serif); flex: none; }
+      .turn i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: rgba(192,57,43,.5); }
+      .turn span { position: relative; }
+      .turn.you { color: var(--gold); border-color: var(--gold); }
+      .turn.bot { color: #f4a28c; }
+      .show-row { flex: 1 1 auto; min-height: 168px; display: grid; grid-template-columns: 47% 53%; gap: 7px; }
+      .stage { position: relative; border-radius: 12px; overflow: hidden; border: 1.5px solid var(--gold-dark); box-shadow: inset 0 0 24px rgba(0,0,0,.6); }
+      .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      .bio { display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+      .bio h2 { margin: 2px 0 0; font: 700 25px/1 var(--serif); color: var(--gold); text-shadow: 0 2px 0 #000; }
+      .bio .title { font: italic 13px var(--serif); color: var(--parchment-dark); }
+      .chips { display: flex; gap: 4px; flex-wrap: wrap; }
+      .chip { font: 700 10.5px system-ui; padding: 2px 7px; border-radius: 999px; background: rgba(243,230,196,.12); border: 1px solid rgba(243,230,196,.3); }
+      .chip.best { color: var(--ink); border-color: var(--ink); }
+      .btabs { display: flex; gap: 3px; }
+      .btabs button { flex: 1; padding: 4px 1px; font: 700 11px system-ui; border-radius: 7px; background: rgba(243,230,196,.08); color: var(--parchment);
+        border: 1px solid rgba(243,230,196,.3); }
+      .btabs button.on { background: var(--gold); color: var(--ink); border-color: var(--ink); }
+      .btext { flex: 1 1 auto; min-height: 0; overflow: auto; background: var(--parchment); color: var(--ink); border-radius: 9px; padding: 6px 9px;
+        font-size: 12.5px; line-height: 1.35; border: 1.5px solid var(--ink); box-shadow: inset 0 0 0 2px var(--parchment-dark); }
+      .btext b { display: block; font: 700 13.5px var(--serif); color: var(--maroon); }
+      .btext .when { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+      .roster { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; flex: none; }
+      .rost { position: relative; display: grid; justify-items: center; gap: 1px; padding: 3px 0 2px; border-radius: 10px; font-size: 10px;
+        background: rgba(243,230,196,.06); border: 2px solid transparent; color: var(--parchment); }
+      .rost .face { display: block; border-radius: 50%; box-shadow: 0 0 0 2px var(--ring); }
+      .rost .nm { font: 700 10px var(--serif); white-space: nowrap; }
+      .rost.hl { border-color: var(--gold); background: rgba(224,176,74,.2); box-shadow: 0 0 12px rgba(224,176,74,.5); }
+      .rost.taken { opacity: .5; }
+      .rost.taken.hl { opacity: .8; }
+      .rost .badge { position: absolute; top: 0; right: 1px; font: 800 8.5px system-ui; padding: 1px 4px; border-radius: 6px; color: #fff; }
+      .rost .badge.you { background: var(--you); }
+      .rost .badge.bot { background: var(--foe); }
+      .dactions { display: flex; gap: 6px; flex: none; }
+      .dactions button { padding: 10px 11px; font-size: 13.5px; }
+      .dactions button.primary { margin-top: 0; flex: 1; font-size: 16px; padding: 11px; box-shadow: 0 0 16px rgba(224,176,74,.35); }
+      .dactions button:disabled { opacity: .5; }
+      .versus { width: min(420px, 100%); height: 100%; position: relative; cursor: pointer; }
+      .versus canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
     </style>
   </head>
   <body>
@@ -96,7 +160,7 @@
         <p class="muted">Test build, no sound. You are blue (bottom); the bot is red (top).</p>
         <h2>You command, you don't deploy</h2>
         <ul>
-          <li>Before the match you pick a <b>species</b> (Kampung, Hutan, Sungai, Serangga or Batu) and 2 <b>heroes</b>. Both heroes start on the map.</li>
+          <li>Before the match you pick a <b>species</b> (Kampung, Hutan, Sungai, Serangga or Batu), then draft 3 <b>heroes</b>, taking turns with the bot: a hero can only be on one side. All three start on the map, one heading for each lane.</li>
           <li>Every 20 s each lane sends a <b>wave</b> of one of your species' troop classes. Tap a wave chip (above your heroes) to change what marches in that lane. Waves grow stronger every minute.</li>
           <li>There are no troop cards: you win with your lane choices and your heroes.</li>
         </ul>
@@ -120,23 +184,51 @@
           <li><b>Relics</b> glow at the shrines every 45 s: Semangat, XP or a boost for the hero who grabs one.</li>
         </ul>
         <h2>Goal</h2>
-        <p>Destroy the enemy Pusaka (behind their towers). Tower health shows on each tower and in the top bar. If time runs out, whoever destroyed more towers wins.</p>
+        <p>Destroy the enemy Pusaka (behind their towers). Tower health shows on each tower and in the top bar. If time runs out, whoever destroyed more towers wins. If it's level, a minute of sudden death follows: towers take triple damage and the next tower to fall wins.</p>
         <button class="primary" data-action="start">Choose species and heroes</button>
       </div>
     </div>
 
-    <div id="pick" class="overlay">
+    <div id="species" class="overlay">
       <div class="card">
         <h1>Choose your people</h1>
+        <p class="muted">Your species decides which troops march in your lanes. Then you draft 3 heroes against the bot.</p>
         <div class="species-grid" id="species-grid"></div>
         <div class="detail" id="species-detail"></div>
-        <h2>Pick 2 heroes</h2>
-        <div class="legend"><span><i style="background:#ff6b6b"></i>Gank</span><span><i style="background:#54a0ff"></i>Defend</span><span><i style="background:#ff9f43"></i>Push</span><span><i style="background:#7bd389"></i>Farm</span><span>ring = best order</span></div>
-        <div class="pick-grid" id="pick-grid"></div>
-        <div class="detail" id="pick-detail"></div>
-        <div class="row"><button data-action="random-picks">Random 2</button></div>
-        <button class="primary" data-action="go" id="pick-go">Start match</button>
+        <button class="primary" id="species-go">Choose heroes ›</button>
       </div>
+    </div>
+
+    <div id="draft" class="screen">
+      <div class="draft">
+        <div class="lineup">
+          <div class="side you"><span class="tag">YOU</span><div class="slots" id="draft-you"></div></div>
+          <div class="vs-badge"><span>VS</span></div>
+          <div class="side bot"><span class="tag">BOT</span><div class="slots" id="draft-bot"></div></div>
+        </div>
+        <div class="band"></div>
+        <div class="turn" id="draft-turn"><i id="draft-turn-bar"></i><span id="draft-turn-text"></span></div>
+        <div class="show-row">
+          <div class="stage"><canvas id="draft-stage"></canvas></div>
+          <div class="bio">
+            <h2 id="bio-name"></h2>
+            <div class="title" id="bio-title"></div>
+            <div class="chips" id="bio-chips"></div>
+            <div class="btabs" id="draft-tabs"><button type="button" data-tab="trait">Trait</button><button type="button" data-tab="power">Power</button><button type="button" data-tab="ult">Ultimate</button><button type="button" data-tab="vs">Vs</button></div>
+            <div class="btext" id="bio-text"></div>
+          </div>
+        </div>
+        <div class="roster" id="draft-roster"></div>
+        <div class="dactions">
+          <button type="button" id="draft-back">‹ People</button>
+          <button type="button" id="draft-random">Random</button>
+          <button type="button" class="primary" id="draft-lock">Lock in</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="versus" class="screen">
+      <div class="versus"><canvas id="versus-canvas"></canvas></div>
     </div>
 
     <div id="shop" class="sheet">

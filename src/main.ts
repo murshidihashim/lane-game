@@ -1,13 +1,12 @@
 // Entry point: reads test settings from the URL, wires the menus and starts the game.
 // URL options (for testing): ?lanes=2|3 &speed=1|1.5|2 &bot=easy|normal &seed=123 &autoplay=1 &nohelp=1
-//   &picks=kail,seri (your two heroes; with nohelp the pick screen is skipped) &species=batu
+//   &picks=kail,seri,rimba (your three heroes; with nohelp the species and draft screens are skipped)
+//   &species=batu &fast=1 (short bot thinking and versus screen, for automated checks)
 import type { BotLevel } from './game/bot';
 import { LANES } from './game/map';
-import { CLASSES, HEROES, HERO_IDS, ITEMS, ITEM_IDS, ITEM_SLOTS, MANA, SPECIES, SPECIES_IDS, TICKS_PER_SECOND, type HeroKind, type SpeciesId } from './game/rules';
-import { SPECIES_COLORS } from './ui/art';
-import { drawPortrait, drawTroopFigure } from './ui/figures';
-import { randomPicks } from './game/sim';
-import { ORDER_COLORS } from './ui/render';
+import { HEROES, HERO_RULES, ITEMS, ITEM_IDS, ITEM_SLOTS, MANA, SPECIES, TICKS_PER_SECOND, type HeroKind, type SpeciesId } from './game/rules';
+import { DEFAULT_PICKS } from './game/sim';
+import { type DraftSnapshot, PickFlow } from './ui/draft';
 import { Game, type Settings } from './ui/game';
 
 const params = new URLSearchParams(location.search);
@@ -46,7 +45,6 @@ const $ = (id: string): HTMLElement => {
   return el;
 };
 const help = $('help');
-const pick = $('pick');
 const settingsEl = $('settings');
 const result = $('result');
 const show = (el: HTMLElement, on: boolean) => el.classList.toggle('show', on);
@@ -58,13 +56,10 @@ const game = new Game($('game') as HTMLCanvasElement, loadSettings(), {
   onResult: (g) => showResult(g),
 });
 
-// ---------- hero picks ----------
+// ---------- species, draft and versus (DEC-014, DEC-015) ----------
 
 const PICKS_STORE = 'lane-game-picks';
 const SPECIES_STORE = 'lane-game-species';
-let chosen: HeroKind[] = [];
-let shown: HeroKind = HERO_IDS[0];
-let chosenSpecies: SpeciesId = 'kampung';
 
 function loadSpecies(): SpeciesId {
   const fromUrl = params.get('species');
@@ -78,166 +73,44 @@ function loadSpecies(): SpeciesId {
   return 'kampung';
 }
 
-/** A small drawn picture (character portrait or troop figure) for a pick-screen tile. */
-function picture(size: number, paint: (ctx: CanvasRenderingContext2D) => void): HTMLCanvasElement {
-  const dpr = Math.min(3, devicePixelRatio || 1);
-  const cv = document.createElement('canvas');
-  cv.className = 'pic';
-  cv.width = Math.round(size * dpr);
-  cv.height = Math.round(size * dpr);
-  cv.style.width = `${size}px`;
-  cv.style.height = `${size}px`;
-  const ctx = cv.getContext('2d');
-  if (ctx) { ctx.scale(dpr, dpr); paint(ctx); }
-  return cv;
-}
-
-function buildSpeciesGrid(): void {
-  const grid = $('species-grid');
-  grid.replaceChildren(...SPECIES_IDS.map((id) => {
-    const d = SPECIES[id];
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'tile sp';
-    b.id = `species-${id}`;
-    b.dataset.species = id;
-    b.style.setProperty('--spc', SPECIES_COLORS[id]);
-    b.style.setProperty('--ring', SPECIES_COLORS[id]);
-    b.innerHTML = `<span class="nm"></span><span class="rl"></span>`;
-    b.prepend(picture(36, (ctx) => drawTroopFigure(ctx, CLASSES[d.classes[0]].unit, 18, 33, 26, 0, devicePixelRatio || 1, { facing: 1, walk: 0, attack: 0 })));
-    (b.querySelector('.nm') as HTMLElement).textContent = d.name;
-    (b.querySelector('.rl') as HTMLElement).textContent = `${d.classes.length} classes`;
-    return b;
-  }));
-}
-
-function refreshSpecies(): void {
-  for (const b of $('species-grid').querySelectorAll<HTMLButtonElement>('.tile')) b.classList.toggle('sel', b.dataset.species === chosenSpecies);
-  const d = SPECIES[chosenSpecies];
-  const det = $('species-detail');
-  const h = document.createElement('h3');
-  h.textContent = `${d.name}, ${d.title}`;
-  const p = document.createElement('p');
-  p.textContent = d.text;
-  const list = document.createElement('p');
-  list.textContent = d.classes.map((c) => `${CLASSES[c].name} (×${CLASSES[c].wave} a wave): ${CLASSES[c].text}`).join(' · ');
-  det.replaceChildren(h, p, list);
-}
-
-$('species-grid').addEventListener('click', (ev) => {
-  const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('.tile');
-  if (!b) return;
-  chosenSpecies = b.dataset.species as SpeciesId;
-  refreshSpecies();
-  refreshPick();
-});
-
+/** Your heroes from the URL or the last draft: up to 3 valid ones, topped up with the defaults. */
 function loadPicks(): HeroKind[] {
-  const fromUrl = (params.get('picks') ?? '').split(',').filter((k): k is HeroKind => k in HEROES);
-  if (fromUrl.length) return [...new Set(fromUrl)].slice(0, 2);
-  try {
-    const saved = JSON.parse(localStorage.getItem(PICKS_STORE) ?? '[]') as string[];
-    const ok = saved.filter((k): k is HeroKind => k in HEROES);
-    if (ok.length === 2) return ok;
-  } catch {
-    // ignore: defaults below
-  }
-  return ['rimba', 'benteng'];
-}
-
-function buildPickGrid(): void {
-  const grid = $('pick-grid');
-  grid.replaceChildren(...HERO_IDS.map((id) => {
-    const d = HEROES[id];
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'tile';
-    b.id = `pick-${id}`;
-    b.dataset.hero = id;
-    b.style.setProperty('--ring', ORDER_COLORS[d.best]);
-    b.innerHTML = `<span class="nm"></span><span class="rl"></span>`;
-    b.prepend(picture(36, (ctx) => drawPortrait(ctx, id, 18, 18, 17, 0, devicePixelRatio || 1)));
-    (b.querySelector('.nm') as HTMLElement).textContent = d.name;
-    (b.querySelector('.rl') as HTMLElement).textContent = d.role;
-    return b;
-  }));
-}
-
-function refreshPick(): void {
-  for (const b of $('pick-grid').querySelectorAll<HTMLButtonElement>('.tile')) {
-    const id = b.dataset.hero as HeroKind;
-    const i = chosen.indexOf(id);
-    b.classList.toggle('sel', i >= 0);
-    b.querySelector('.n')?.remove();
-    if (i >= 0) {
-      const n = document.createElement('span');
-      n.className = 'n';
-      n.textContent = String(i + 1);
-      b.append(n);
+  let list: string[] = (params.get('picks') ?? '').split(',');
+  if (!list.some((k) => k in HEROES)) {
+    try {
+      const saved: unknown = JSON.parse(localStorage.getItem(PICKS_STORE) ?? '[]');
+      list = Array.isArray(saved) ? saved.filter((k): k is string => typeof k === 'string') : [];
+    } catch {
+      list = []; // ignore: defaults below
     }
   }
-  const d = HEROES[shown];
-  const det = $('pick-detail');
-  const line = (label: string, name: string, when: string, text: string) => {
-    const p = document.createElement('p');
-    const b = document.createElement('b');
-    b.textContent = `${label} · ${name}`;
-    p.append(b, document.createTextNode(when ? ` (${when}). ${text}` : `. ${text}`));
-    return p;
-  };
-  const h = document.createElement('h3');
-  h.textContent = `${d.name}, ${d.title}`;
-  const meta = document.createElement('div');
-  meta.className = 'meta';
-  meta.textContent = `${d.role} · best order: ${d.best} · ${d.range >= 300 ? 'ranged' : 'melee'}${d.flying ? ', flies' : ''}`;
-  const vs = document.createElement('p');
-  vs.textContent = `Strong vs ${d.strong}. Weak vs ${d.weak}.`;
-  det.replaceChildren(h, meta, line('Trait', d.trait.name, '', d.trait.text), line('Power', d.power.name, d.power.when, d.power.text), line('Ultimate, level 4 (you call it)', d.ult.name, `best moment: ${d.ult.when}`, d.ult.text), vs);
-  const go = $('pick-go') as HTMLButtonElement;
-  go.disabled = chosen.length !== 2;
-  go.textContent = chosen.length === 2 ? `Start: ${SPECIES[chosenSpecies].name} with ${HEROES[chosen[0]].name} + ${HEROES[chosen[1]].name}` : `Pick ${2 - chosen.length} more hero${chosen.length === 1 ? '' : 'es'}`;
+  const out = [...new Set(list.filter((k): k is HeroKind => k in HEROES))].slice(0, HERO_RULES.heroesPerPlayer);
+  for (const k of DEFAULT_PICKS) if (out.length < HERO_RULES.heroesPerPlayer && !out.includes(k)) out.push(k);
+  return out;
 }
 
-function openPick(): void {
-  game.setRunning(false);
-  chosen = [...game.picks];
-  chosenSpecies = game.species;
-  refreshSpecies();
-  shown = chosen[0] ?? HERO_IDS[0];
-  refreshPick();
-  show(pick, true);
-}
-
-function startWithPicks(): void {
-  if (chosen.length !== 2) return;
-  game.picks = [...chosen];
-  game.species = chosenSpecies;
-  try {
-    localStorage.setItem(PICKS_STORE, JSON.stringify(chosen));
-    localStorage.setItem(SPECIES_STORE, chosenSpecies);
-  } catch { /* not critical */ }
-  show(pick, false);
-  game.newMatch();
-  game.setRunning(true);
-}
-
-$('pick-grid').addEventListener('click', (ev) => {
-  const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('.tile');
-  if (!b) return;
-  const id = b.dataset.hero as HeroKind;
-  shown = id;
-  const i = chosen.indexOf(id);
-  if (i >= 0) chosen.splice(i, 1);
-  else {
-    // Your picks are the last two heroes you tapped.
-    if (chosen.length >= 2) chosen.shift();
-    chosen.push(id);
-  }
-  refreshPick();
+const flow = new PickFlow({
+  fast: params.get('fast') === '1',
+  onLocked: (l) => {
+    game.picks = [...l.mine];
+    game.botPicks = [...l.bot];
+    game.species = l.species;
+    try {
+      localStorage.setItem(PICKS_STORE, JSON.stringify(l.mine));
+      localStorage.setItem(SPECIES_STORE, l.species);
+    } catch { /* not critical */ }
+    game.newMatch();
+    const pl = game.sim.players;
+    return { mine: pl[0].picks, bot: pl[1].picks, mySpecies: pl[0].species, botSpecies: pl[1].species };
+  },
+  onStart: () => game.setRunning(true),
 });
 
-buildPickGrid();
-buildSpeciesGrid();
+function openDraft(): void {
+  game.setRunning(false);
+  flow.open(game.species, game.picks);
+}
+
 game.picks = loadPicks();
 game.species = loadSpecies();
 game.newMatch();
@@ -384,20 +257,12 @@ document.body.addEventListener('click', (ev) => {
       break;
     case 'start':
       show(help, false);
-      openPick();
-      break;
-    case 'go':
-      startWithPicks();
-      break;
-    case 'random-picks':
-      chosen = randomPicks((Date.now() ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0);
-      shown = chosen[0];
-      refreshPick();
+      openDraft();
       break;
     case 'change-heroes':
       show(result, false);
       show(settingsEl, false);
-      openPick();
+      openDraft();
       break;
     case 'help':
       show(settingsEl, false);
@@ -430,3 +295,4 @@ else show(help, true);
 
 // Exposed for automated browser checks and for reporting a match seed in bug reports.
 (window as unknown as { __game: Game }).__game = game;
+Object.defineProperty(window, '__draft', { get: (): DraftSnapshot => flow.snapshot() });

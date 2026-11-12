@@ -7,7 +7,7 @@ import { VISION } from '../src/game/rules';
 import { Sim } from '../src/game/sim';
 import { heroOnLane, parkHeroes } from './helpers';
 
-function quiet(picks: [Parameters<typeof heroOnLane>[2][], Parameters<typeof heroOnLane>[2][]] = [['rimba', 'benteng'], ['rimba', 'benteng']]): Sim {
+function quiet(picks: [Parameters<typeof heroOnLane>[2][], Parameters<typeof heroOnLane>[2][]] = [['rimba', 'benteng', 'kail'], ['seri', 'tedung', 'helang']]): Sim {
   const sim = new Sim({ seed: 5, waves: false, picks });
   parkHeroes(sim, 0);
   parkHeroes(sim, 1);
@@ -54,7 +54,7 @@ describe('fog of war', () => {
     sim.place(t, wx + 300, wy);
     expect(sim.sees(0, t)).toBe(true);
 
-    const s2 = quiet([['helang', 'benteng'], ['rimba', 'benteng']]);
+    const s2 = quiet([['helang', 'benteng', 'kail'], ['rimba', 'seri', 'tedung']]);
     const h = heroOnLane(s2, 0, 'helang', 1, 2500);
     const far = s2.summon(1, 'spearman', h.x, h.y - VISION.hero - 150, 1);
     expect(s2.sees(0, far)).toBe(false);
@@ -63,7 +63,7 @@ describe('fog of war', () => {
   });
 
   test('a hero hidden in the jungle stays unseen even close to your pieces, until revealed', () => {
-    const sim = quiet([['helang', 'benteng'], ['tedung', 'benteng']]);
+    const sim = quiet([['helang', 'benteng', 'kail'], ['tedung', 'rimba', 'seri']]);
     const h = heroOnLane(sim, 0, 'helang', 0, 2000);
     const e = heroOnLane(sim, 1, 'tedung', 0, 3000);
     e.deploy = 0;
@@ -79,21 +79,26 @@ describe('fog of war', () => {
 
   test('the bot does not react to an enemy hero it cannot see', () => {
     const run = (giveVision: boolean) => {
-      const sim = new Sim({ seed: 8, waves: false, picks: [['gergasi', 'rimba'], ['helang', 'benteng']] });
+      const sim = new Sim({ seed: 8, waves: false, picks: [['gergasi', 'rimba', 'tedung'], ['helang', 'benteng', 'kail']] });
       parkHeroes(sim, 0);
-      const helang = sim.heroOf(1, 'helang')!;
-      helang.hp = 0;
+      const away = [sim.heroOf(1, 'helang')!, sim.heroOf(1, 'kail')!];
+      for (const h of away) h.hp = 0;
       sim.step();
-      helang.respawn = 99_999; // out of the picture
+      for (const h of away) h.respawn = 99_999; // out of the picture
       const benteng = sim.heroOf(1, 'benteng')!;
       const g = heroOnLane(sim, 0, 'gergasi', 0, 4400); // deep on the bot's half of the left lane
       g.deploy = 99_999; // stands still
       if (giveVision) sim.summon(1, 'spearman', g.x + 300, g.y - 300, 0).speed = 0;
       const bot = new Bot(1, 8);
-      for (let i = 0; i < 200; i++) { for (const c of bot.think(sim)) sim.submit(c); sim.step(); }
-      return benteng.order;
+      let defended = false;
+      for (let i = 0; i < 200; i++) {
+        for (const c of bot.think(sim)) sim.submit(c);
+        sim.step();
+        if (benteng.order.type === 'defend' && benteng.order.lane === 0) defended = true;
+      }
+      return defended;
     };
-    expect(run(false)).not.toMatchObject({ type: 'defend', lane: 0 }); // unseen: carries on
-    expect(run(true)).toMatchObject({ type: 'defend', lane: 0 }); // seen: goes to defend the left lane
+    expect(run(false)).toBe(false); // unseen: carries on
+    expect(run(true)).toBe(true); // seen: goes to defend the left lane
   });
 });

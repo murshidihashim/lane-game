@@ -25,6 +25,7 @@ Short progress notes use STATUS, FINDING, NEXT. Plain English; the owner reads o
 | `npm run verify` | Type check, unit tests, build, roster-doc check, `appkit check`. Run before every commit. |
 | `npm run docs:heroes` | Rewrite `docs/design/heroes.md` and `docs/design/species.md` from `src/game/rules.ts` (run after changing heroes, species, troops, spells or map rewards). |
 | `npm run soak` | 100 + 20 bot-vs-bot matches (about 1 minute). Part of the full verify. |
+| `npm run balance` | Balance check: 1,200 bot-vs-bot matches (about 8 minutes); win rates by species and hero, draws, early finishes; fails outside the PLAN-005 targets. Run after changing numbers. |
 | `node scripts/phone-check.cjs <folder>` | Phone-size browser check with screenshots (after `npm run build`; needs Playwright with Chromium on the machine, not a project dependency). Part of the full verify. |
 | `npm run dev` | Run locally with hot reload (`?lanes=2&speed=2&seed=1&autoplay=1&nohelp=1` test options). |
 | `npm run build` | Build `dist/lane-game.html` (stand-alone page) and `dist/artifact.html` (preview fragment). |

@@ -1,4 +1,4 @@
-// PLAN-001 T1/T5, PLAN-002, PLAN-003, PLAN-004 T5: opens the built game at phone size and plays it.
+// PLAN-001 T1/T5, PLAN-002, PLAN-003, PLAN-004 T5, PLAN-005 T3/T5: opens the built game at phone size and plays it.
 // Needs Playwright with Chromium available on the machine (not a project dependency).
 // Usage: npm run build && node scripts/phone-check.cjs [screenshot-folder]
 const { chromium, devices } = require('playwright');
@@ -26,19 +26,38 @@ async function page(browser, query) {
 
   // 1. Controls (DEC-011): heroes on the map, wave chips, hero orders incl. Move, shop, ULT.
   {
-    const { p, errors } = await page(browser, '?seed=7');
+    const { p, errors } = await page(browser, '?seed=7&fast=1');
     await p.screenshot({ path: `${out}/1-help.png` });
     await p.click('button[data-action="start"]');
-    // Pick screen: choose the Batu species, then Kail and Seri.
-    await p.waitForSelector('#pick.show');
+    // Species step, then the draft (DEC-015): you and the bot take turns; you pick Kail, Seri, Ombak
+    // (or the next free hero if the bot took one).
+    await p.waitForSelector('#species.show');
     await p.click('#species-batu');
-    await p.click('#pick-kail');
-    await p.click('#pick-seri');
-    await p.screenshot({ path: `${out}/1b-pick.png` });
-    await p.click('#pick-go');
-    const picks = await p.evaluate(() => window.__game.sim.players[0].picks);
-    if (JSON.stringify(picks) !== '["kail","seri"]') fail('pick screen did not start a match with Kail + Seri: ' + JSON.stringify(picks));
-    else console.log('PASS pick screen starts a match with the two chosen heroes');
+    await p.screenshot({ path: `${out}/1b-species.png` });
+    await p.click('#species-go');
+    await p.waitForSelector('#draft.show');
+    const want = ['kail', 'seri', 'ombak', 'helang', 'tukang', 'benteng'];
+    const draft = () => p.evaluate(() => window.__draft);
+    for (let guard = 0; guard < 200; guard++) {
+      const d = await draft();
+      if (d.step !== 'draft' || d.mine.length >= 3) break;
+      if (d.whose !== 0) { await p.waitForTimeout(50); continue; }
+      const taken = [...d.mine, ...d.bot];
+      const hero = want.find((k) => !taken.includes(k));
+      await p.click(`#pick-${hero}`);
+      if (d.mine.length === 1) await p.screenshot({ path: `${out}/1c-draft.png` });
+      await p.click('#draft-lock');
+      await p.waitForTimeout(80);
+    }
+    await p.waitForSelector('#versus.show', { timeout: 10_000 });
+    await p.screenshot({ path: `${out}/1d-versus.png` });
+    await p.waitForFunction(() => !document.querySelector('#versus.show'), null, { timeout: 10_000 });
+    const d = await draft();
+    const lineup = await p.evaluate(() => ({ mine: window.__game.sim.players[0].picks, bot: window.__game.sim.players[1].picks }));
+    const overlap = lineup.mine.some((k) => lineup.bot.includes(k));
+    if (JSON.stringify(lineup.mine) !== JSON.stringify(d.mine) || JSON.stringify(lineup.bot) !== JSON.stringify(d.bot) || lineup.mine.length !== 3 || lineup.bot.length !== 3 || overlap) {
+      fail('the match line-ups do not match the draft: ' + JSON.stringify({ lineup, draft: d }));
+    } else console.log('PASS draft (you 3, bot 3, turns) and versus screen start a match with the drafted line-ups:', JSON.stringify(lineup));
     const sp = await p.evaluate(() => ({ species: window.__game.sim.players[0].species, lanes: window.__game.sim.players[0].laneClass }));
     if (sp.species !== 'batu' || !sp.lanes.every((c) => ['kerikil', 'golem', 'lontar'].includes(c))) fail('species pick did not give Batu lanes: ' + JSON.stringify(sp));
     else console.log('PASS species pick starts the match as Batu, lanes', JSON.stringify(sp.lanes));
@@ -51,9 +70,10 @@ async function page(browser, query) {
       for (let k = 1; k <= 8; k++) await p.mouse.move(a[0] + (b[0] - a[0]) * k / 8, a[1] + (b[1] - a[1]) * k / 8);
       await p.waitForTimeout(60); await p.mouse.up();
     };
-    // No hand cards (DEC-011): both heroes are on the map from the start.
-    if (JSON.stringify(s.heroes.sort()) !== '["kail","seri"]') fail('heroes did not start on the map: ' + JSON.stringify(s.heroes));
-    else console.log('PASS both heroes start on the map; there is no card row');
+    // No hand cards (DEC-011): all three heroes are on the map from the start (DEC-014).
+    if (JSON.stringify([...s.heroes].sort()) !== JSON.stringify([...lineup.mine].sort())) fail('heroes did not start on the map: ' + JSON.stringify(s.heroes));
+    else console.log('PASS all three heroes start on the map, one panel each; there is no card row');
+    const ki = lineup.mine.indexOf('kail');
     await p.waitForTimeout(2500);
     await p.screenshot({ path: `${out}/2-start.png` });
 
@@ -69,7 +89,7 @@ async function page(browser, query) {
     }
 
     // hero orders by dragging the portrait: a camp (Farm), a ward cairn (Ward), an empty spot (Move)
-    const portrait = c(s.L.heroes[0].portrait);
+    const portrait = c(s.L.heroes[ki].portrait);
     const orderOf = () => p.evaluate(() => window.__game.sim.heroOf(0, 'kail').order.type);
     const camp = w2s(1260, 3470);
     await p.mouse.move(...portrait); await p.mouse.down();
@@ -107,7 +127,7 @@ async function page(browser, query) {
     await p.evaluate(() => { const sim = window.__game.sim; const h = sim.heroOf(0, 'kail'); sim.giveXp(h, 450); });
     await p.waitForTimeout(200);
     await p.screenshot({ path: `${out}/5-ult-ready.png` });
-    await p.mouse.click(...c(s.L.heroes[0].ult));
+    await p.mouse.click(...c(s.L.heroes[ki].ult));
     await p.waitForTimeout(120);
     const armed = await p.evaluate(() => window.__game.sim.heroOf(0, 'kail').ultArmed);
     if (!armed) fail('tapping ULT did not call the ultimate');

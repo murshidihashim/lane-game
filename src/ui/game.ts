@@ -19,8 +19,10 @@ const TAP_SLOP = 10;
 export class Game {
   sim!: Sim;
   settings: Settings;
-  /** Your two heroes for the next match. */
+  /** Your three heroes for the next match (DEC-014). */
   picks: HeroKind[] = [...DEFAULT_PICKS];
+  /** The bot's heroes from the draft (DEC-015); null = the bot picks at random. */
+  botPicks: HeroKind[] | null = null;
   /** Your creep species for the next match (DEC-008). */
   species: SpeciesId = 'kampung';
   /** Every accepted command with its tick: seed + this log replays the match exactly. */
@@ -55,11 +57,12 @@ export class Game {
 
   newMatch(seed?: number): void {
     const s = seed ?? this.opts.seed ?? (Date.now() ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0;
-    const botPicks = randomPicks(s);
     const auto = !!this.opts.autoplay;
+    const mine = auto ? randomPicks(s ^ 0x1234567) : this.picks;
+    const botPicks = this.botPicks && !auto && !this.botPicks.some((k) => mine.includes(k)) ? this.botPicks : randomPicks(s, mine);
     this.sim = new Sim({
       seed: s, lanes: this.settings.lanes,
-      picks: [auto ? randomPicks(s ^ 0x1234567) : this.picks, botPicks],
+      picks: [mine, botPicks],
       species: [auto ? randomSpecies(s ^ 0x7654321) : this.species, randomSpecies(s)],
     });
     this.bot = new Bot(1, s, this.settings.bot);

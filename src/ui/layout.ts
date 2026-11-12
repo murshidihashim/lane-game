@@ -21,14 +21,14 @@ export interface Layout {
   field: Rect; // the drawn battlefield
   scale: number; // CSS px per world unit
   waves: Rect[]; // the lane wave chips (left, middle, right)
-  heroes: [HeroPanel, HeroPanel];
+  heroes: HeroPanel[]; // one per hero (DEC-014: three)
   mana: Rect;
   shop: Rect;
 }
 
 export const TOP_H = 58;
 const WAVE_H = 32;
-const PANEL_H = 98;
+const PANEL_H = 120;
 const BOTTOM_H = 42;
 const PAD = 8;
 
@@ -53,17 +53,19 @@ export function computeLayout(w: number, h: number, dpr: number): Layout {
   const chipW = (cw - 16 - 12) / 3;
   const waves: Rect[] = [0, 1, 2].map((i) => ({ x: cx + 8 + i * (chipW + 6), y: waveY, w: chipW, h: WAVE_H - 6 }));
 
+  // Three compact hero panels side by side: portrait and name, health, order, items, ULT.
   const panelY = waveY + WAVE_H;
-  const panelW = (cw - 16 - 8) / 2;
+  const gapP = 6;
+  const panelW = (cw - 16 - gapP * 2) / 3;
   const panel = (i: number): HeroPanel => {
-    const box: Rect = { x: cx + 8 + i * (panelW + 8), y: panelY, w: panelW, h: PANEL_H - 6 };
-    const portrait: Rect = { x: box.x + 4, y: box.y + 4, w: 52, h: 52 };
-    const slot = Math.min(26, (box.w - 70 - 8) / 3);
-    const items: Rect[] = [0, 1, 2].map((k) => ({ x: box.x + 6 + k * (slot + 4), y: box.y + box.h - slot - 5, w: slot, h: slot }));
-    const ult: Rect = { x: box.x + box.w - 62, y: box.y + box.h - 31, w: 58, h: 27 };
+    const box: Rect = { x: cx + 8 + i * (panelW + gapP), y: panelY, w: panelW, h: PANEL_H - 6 };
+    const portrait: Rect = { x: box.x + 3, y: box.y + 3, w: 38, h: 38 };
+    const slot = Math.min(24, (box.w - 10 - 8) / 3);
+    const items: Rect[] = [0, 1, 2].map((k) => ({ x: box.x + 5 + k * (slot + 4), y: box.y + 62, w: slot, h: slot }));
+    const ult: Rect = { x: box.x + 5, y: box.y + box.h - 25, w: box.w - 10, h: 21 };
     return { box, portrait, ult, items };
   };
-  const heroes: [HeroPanel, HeroPanel] = [panel(0), panel(1)];
+  const heroes: HeroPanel[] = [panel(0), panel(1), panel(2)];
 
   const bottomY = panelY + PANEL_H;
   const shop: Rect = { x: cx + cw - 8 - 104, y: bottomY + 2, w: 104, h: BOTTOM_H - 8 };

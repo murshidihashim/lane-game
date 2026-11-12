@@ -159,20 +159,38 @@ export interface FoeQuery {
 }
 
 const NO_ORDER: Order = { type: 'push', lane: 0, camp: 0, spot: 0, x: 0, y: 0 };
-export const DEFAULT_PICKS: HeroKind[] = ['rimba', 'benteng'];
+export const DEFAULT_PICKS: HeroKind[] = ['rimba', 'benteng', 'kail'];
+
+/** Draft turn order (DEC-015): player 0, then the bot twice, player 0 twice, the bot (a snake). */
+export const DRAFT_ORDER: readonly Player[] = [0, 1, 1, 0, 0, 1];
 
 /** A species picked at random from a seed (used for the bot and for tests). */
 export function randomSpecies(seed: number): SpeciesId {
   return SPECIES_IDS[new Rng((seed ^ 0x6b43a9b5) >>> 0).int(SPECIES_IDS.length)];
 }
 
-/** Two different heroes picked at random from a seed (used for the bot and for tests). */
-export function randomPicks(seed: number): HeroKind[] {
+/** Different heroes picked at random from a seed, avoiding `exclude` (used for the bot and tests). */
+export function randomPicks(seed: number, exclude: readonly HeroKind[] = [], n: number = HERO_RULES.heroesPerPlayer): HeroKind[] {
   const rng = new Rng((seed ^ 0x2545f491) >>> 0);
-  const a = HERO_IDS[rng.int(HERO_IDS.length)];
-  let b = HERO_IDS[rng.int(HERO_IDS.length)];
-  while (b === a) b = HERO_IDS[rng.int(HERO_IDS.length)];
-  return [a, b];
+  const out: HeroKind[] = [];
+  while (out.length < n) {
+    const free = HERO_IDS.filter((k) => !out.includes(k) && !exclude.includes(k));
+    if (!free.length) break;
+    out.push(free[rng.int(free.length)]);
+  }
+  return out;
+}
+
+/**
+ * The bot's next draft pick (DEC-015): seeded, never a taken hero, and it prefers a best order its
+ * line-up doesn't have yet, so its three heroes do different jobs. Same inputs => same pick.
+ */
+export function botDraftPick(seed: number, taken: readonly HeroKind[], own: readonly HeroKind[]): HeroKind {
+  const rng = new Rng((seed ^ 0x51ed270b ^ (taken.length * 0x9e3779b9)) >>> 0);
+  const free = HERO_IDS.filter((k) => !taken.includes(k));
+  const fresh = free.filter((k) => !own.some((o) => HEROES[o].best === HEROES[k].best));
+  const pool = fresh.length ? fresh : free;
+  return pool[rng.int(pool.length)];
 }
 
 export class Sim {
@@ -201,7 +219,13 @@ export class Sim {
     this.rng = new Rng(this.seed);
     const picks = opts.picks ?? [DEFAULT_PICKS, DEFAULT_PICKS];
     const species = opts.species ?? ['kampung', 'kampung'];
-    this.players = [this.newPlayer(validPicks(picks[0]), species[0]), this.newPlayer(validPicks(picks[1]), species[1])];
+    // No hero on both sides (DEC-014): a repeat on the second side becomes the first free hero.
+    const mine = validPicks(picks[0]);
+    const theirs = validPicks(picks[1]).map((k) => k);
+    theirs.forEach((k, i) => {
+      if (mine.includes(k)) theirs[i] = HERO_IDS.find((f) => !mine.includes(f) && !theirs.includes(f)) as HeroKind;
+    });
+    this.players = [this.newPlayer(mine, species[0]), this.newPlayer(theirs, species[1])];
     for (const p of [0, 1] as const) {
       for (const id of this.lanes) {
         const lane = LANES[id];
@@ -226,11 +250,12 @@ export class Sim {
     boss.alive = false;
     boss.respawn = NEUTRALS.boss.first;
     boss.respawnTotal = NEUTRALS.boss.first;
-    // Both heroes start at the Pusaka (DEC-011): first one to the left lane, second to the right.
+    // The heroes start at the Pusaka (DEC-011, DEC-014): one heading for each lane, in order
+    // (left, middle, right; in 2-lane mode the third joins the left lane).
     for (const p of [0, 1] as const) {
       this.players[p].picks.forEach((kind, i) => {
-        const lane = i === 0 ? this.lanes[0] : this.lanes[this.lanes.length - 1];
-        const [x, y] = [CORES[p][0] + (i === 0 ? -200 : 200), CORES[p][1] + (p === 0 ? -420 : 420)];
+        const lane = this.lanes[i % this.lanes.length];
+        const [x, y] = [CORES[p][0] + (i - 1) * 220, CORES[p][1] + (p === 0 ? -420 : 420)];
         const h = this.spawnHero(p, kind, x, y, lane);
         h.deploy = HERO_RULES.startDelay;
         if (HEROES[kind].best === 'defend') h.order = { ...NO_ORDER, type: 'defend', lane };
@@ -1371,9 +1396,12 @@ export class Sim {
   private updateStructure(e: Ent): void {
     if (!e.alive || e.hp <= 0) return;
     if (e.atkCd > 0) e.atkCd--;
-    let t = this.currentTarget(e, e.range);
+    // A tower's reach counts from its edge, like everyone else's attack (see inRange); without its
+    // own radius here, long-range attackers could stand just outside and never be shot back.
+    const reach = e.range + e.r;
+    let t = this.currentTarget(e, reach);
     if (!t || (this.tick + e.id) % 4 === 0) {
-      const n = this.acquire(e, e.range);
+      const n = this.acquire(e, reach);
       if (n && (!t || n.id !== t.id)) { t = n; e.targetId = n.id; }
     }
     if (t) this.engage(e, t, 0);
@@ -1418,6 +1446,7 @@ export class Sim {
     }
     let dmg = amount;
     if (t.kind === 'tower' && this.tick < MATCH.towerShieldUntil) dmg = pct(dmg, MATCH.towerShieldPercent);
+    if ((t.kind === 'tower' || t.kind === 'core') && this.tick >= MATCH.regulation) dmg = pct(dmg, MATCH.suddenTowerDamagePercent);
     if (t.kind === 'unit' && t.unit) {
       const st = UNITS[t.unit];
       if (st.armor) dmg = pct(dmg, st.armor);

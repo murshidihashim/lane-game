@@ -11,6 +11,7 @@ export const MATCH = {
   doubleManaFrom: sec(240), // last minute of regulation (and all of sudden death)
   towerShieldUntil: sec(60), // towers take half damage for the first minute
   towerShieldPercent: 50,
+  suddenTowerDamagePercent: 300, // in sudden death towers and the Pusaka take triple damage, so a hurt tower falls
 } as const;
 
 /** One Semangat in points. +1 point per tick = 1 Semangat every 8 s. */
@@ -30,7 +31,7 @@ export const WAVES = {
   first: sec(5),
   every: sec(20),
   spawnU: 300, // distance from own Core end along the lane
-  growPctPerMinute: 8, // waves are the only troops (DEC-011): +8% health and damage each minute
+  growPctPerMinute: 15, // waves are the only troops (DEC-011): +15% health and damage each minute
   waveXp: 24, // XP a whole wave is worth to nearby enemy heroes
 } as const;
 
@@ -58,7 +59,7 @@ export const HERO_RULES = {
   bestOrderPercent: 15, // +15% damage while following the hero's best order (DEC-007)
   gankBonusTicks: sec(6), // a ganker keeps the bonus for 6 s after arriving
   ultLevel: 4,
-  heroesPerPlayer: 2,
+  heroesPerPlayer: 3, // DEC-014
   startDelay: sec(1), // heroes appear at the Pusaka, then set off
   moveLeash: 600, // a hero sent somewhere fights what comes this close to the spot
 } as const;
@@ -157,28 +158,28 @@ const u = (name: string, hp: number, damage: number, attack: number, range: numb
 });
 
 export const UNITS: Record<UnitKind, UnitStats> = {
-  spearman: u('Silat Guard', 340, 55, 1.1, 160, 9, 60, { ability: 'Sturdy melee fighters' }),
-  archer: u('Pemanah', 200, 45, 1.2, 550, 9, 55, { ability: 'Ranged; can hit fliers' }),
-  shieldbearer: u('Perisai', 1100, 75, 1.3, 170, 8, 80, { armorRanged: 70, ability: 'Tank; takes 30% less from ranged hits' }),
-  ram: u('Kerbau', 1500, 220, 1.5, 160, 6, 100, { targets: 'buildings', ability: 'Only hits towers and the Pusaka' }),
+  spearman: u('Silat Guard', 400, 64, 1.1, 160, 9, 60, { ability: 'Sturdy melee fighters' }),
+  archer: u('Pemanah', 230, 52, 1.2, 550, 9, 55, { ability: 'Ranged; can hit fliers' }),
+  shieldbearer: u('Perisai', 1400, 75, 1.3, 170, 8, 80, { armorRanged: 60, ability: 'Tank; takes 40% less from ranged hits' }),
+  ram: u('Kerbau', 1700, 250, 1.5, 160, 6, 100, { targets: 'buildings', ability: 'Only hits towers and the Pusaka' }),
 
-  kera: u('Kera', 110, 30, 0.7, 130, 15, 40, { ability: 'Very fast monkey swarm' }),
-  harimau: u('Harimau Bintang', 600, 110, 1.0, 150, 14, 65, { leap: 450, ability: 'Leopard; leaps onto its first target' }),
+  kera: u('Kera', 125, 30, 0.7, 130, 15, 40, { ability: 'Very fast monkey swarm' }),
+  harimau: u('Harimau Bintang', 680, 110, 1.0, 150, 14, 65, { leap: 450, ability: 'Leopard; leaps onto its first target' }),
   enggang: u('Enggang', 260, 50, 1.1, 420, 11, 60, { flying: true, ability: 'Flying hornbills; ranged' }),
   seladang: u('Seladang', 1600, 90, 1.4, 170, 8, 100, { charge: true, ability: 'Gaur tank; first hit knocks back and stuns' }),
 
-  ketam: u('Ketam', 1300, 60, 1.2, 160, 7, 85, { armorRanged: 50, ability: 'Crab tank; takes half damage from ranged hits' }),
-  sumpit: u('Ikan Sumpit', 220, 45, 1.1, 520, 9, 55, { slowOnHit: 75, ability: 'Archerfish; ranged, hits slow' }),
-  belut: u('Belut', 380, 50, 1.0, 200, 11, 55, { chain: 60, ability: 'Electric eels; hits jump to a second enemy' }),
+  ketam: u('Ketam', 1400, 70, 1.2, 160, 7, 85, { armorRanged: 50, ability: 'Crab tank; takes half damage from ranged hits' }),
+  sumpit: u('Ikan Sumpit', 220, 55, 1.1, 520, 9, 55, { slowOnHit: 75, ability: 'Archerfish; ranged, hits slow' }),
+  belut: u('Belut', 420, 50, 1.0, 200, 11, 55, { chain: 60, ability: 'Electric eels; hits jump to a second enemy' }),
 
-  kerengga: u('Kerengga', 70, 22, 0.6, 120, 13, 32, { xp: 4, ability: 'Weaver-ant swarm' }),
-  tebuan: u('Tebuan', 120, 28, 0.8, 140, 14, 38, { flying: true, poisonOnHit: 3, ability: 'Flying hornets; hits poison' }),
+  kerengga: u('Kerengga', 78, 22, 0.6, 120, 13, 32, { xp: 4, ability: 'Weaver-ant swarm' }),
+  tebuan: u('Tebuan', 135, 28, 0.8, 140, 14, 38, { flying: true, poisonOnHit: 3, ability: 'Flying hornets; hits poison' }),
   kumbang: u('Kumbang', 1400, 70, 1.3, 170, 7, 90, { armor: 80, ability: 'Rhino beetle; takes 20% less damage' }),
-  ratu: u('Ratu Sarang', 900, 30, 1.2, 400, 5, 90, { spawn: { kind: 'kerengga', count: 2, every: sec(5), life: sec(12) }, ability: 'Hive queen; hatches ants every 5 s' }),
+  ratu: u('Ratu Sarang', 800, 30, 1.2, 400, 5, 90, { spawn: { kind: 'kerengga', count: 2, every: sec(6), life: sec(12) }, ability: 'Hive queen; hatches ants every 6 s' }),
 
-  kerikil: u('Kerikil', 160, 0, 1, 120, 13, 45, { targets: 'buildings', bomb: 260, ability: 'Rolling pebbles; burst on a building' }),
-  golem: u('Batu Besar', 2200, 100, 1.6, 170, 5, 115, { armor: 75, ability: 'Boulder golem; takes 25% less damage' }),
-  lontar: u('Lontar', 450, 120, 2.2, 650, 5, 75, { splash: 150, ability: 'Stone sling; long range, splash' }),
+  kerikil: u('Kerikil', 160, 0, 1, 120, 13, 45, { targets: 'buildings', bomb: 200, ability: 'Rolling pebbles; burst on a building' }),
+  golem: u('Batu Besar', 1900, 100, 1.6, 170, 5, 115, { armor: 80, ability: 'Boulder golem; takes 20% less damage' }),
+  lontar: u('Lontar', 420, 105, 2.2, 650, 5, 75, { splash: 150, ability: 'Stone sling; long range, splash' }),
 
   puppet: u('Shadow puppet', 220, 38, 1.0, 150, 9, 50, { xp: 4 }),
   decoy: { ...u('Decoy', 250, 0, 1.0, 0, 14, 60), sight: 0, xp: 0 },
@@ -211,7 +212,7 @@ export const SPECIES: Record<SpeciesId, SpeciesDef> = {
 export const SPECIES_IDS = Object.keys(SPECIES) as SpeciesId[];
 
 export const STRUCTURES = {
-  tower: { hp: 2200, damage: 55, attackTicks: sec(0.8), range: 750, radius: 150 },
+  tower: { hp: 1900, damage: 55, attackTicks: sec(0.8), range: 750, radius: 150 },
   core: { hp: 3200, damage: 80, attackTicks: sec(0.8), range: 800, radius: 270 },
 } as const;
 
@@ -266,9 +267,9 @@ function hero(h: HeroInput): HeroDef {
 export const HEROES: Record<HeroKind, HeroDef> = {
   rimba: hero({
     id: 'rimba', code: 'Ri', name: 'Rimba', title: 'the Unseen Hunter', role: 'Ganker', best: 'gank',
-    hp: 850, damage: 80, attack: 0.9, range: 520, speed: 12, radius: 70, power_s: 10,
+    hp: 850, damage: 70, attack: 0.9, range: 520, speed: 12, radius: 70, power_s: 10,
     trait: { name: 'Forest Step', text: '30% faster in the jungle. When an enemy spots her, she stays hidden 2 s longer.' },
-    power: { name: 'Volley', when: 'every 10 s, when enemies are in range', text: 'Arrows hit the 3 nearest enemies for 120. Lv 2: 4 enemies. Lv 3: also slows them 30% for 2 s.' },
+    power: { name: 'Volley', when: 'every 10 s, when enemies are in range', text: 'Arrows hit the 3 nearest enemies for 105. Lv 2: 4 enemies. Lv 3: also slows them 30% for 2 s.' },
     ult: { name: 'Hunter’s Mark', when: 'call it, then her next Ambush hit', text: 'The target takes +50% damage from all your units for 6 s.' },
     strong: 'lone heroes, Pemanah, supports', weak: 'Seri (reveal), Benteng (Stomp)',
     inspired: 'Dota’s invisible gankers with a first-strike bonus; Clash Royale’s ranged support troops',
@@ -284,7 +285,7 @@ export const HEROES: Record<HeroKind, HeroDef> = {
   }),
   kail: hero({
     id: 'kail', code: 'Ka', name: 'Kail', title: 'the Riverhook', role: 'Initiator', best: 'defend',
-    hp: 1150, damage: 65, attack: 1.2, range: 300, speed: 10, radius: 80, power_s: 12,
+    hp: 1250, damage: 72, attack: 1.2, range: 300, speed: 10, radius: 80, power_s: 12,
     trait: { name: 'Net', text: 'His hits slow by 20% for 1 s.' },
     power: { name: 'Hook', when: 'every 12 s', text: 'Pulls the most dangerous visible enemy within 700 to his feet: heroes first, then the biggest troop. Lv 2: reach 850. Lv 3: the target is stunned 1 s.' },
     ult: { name: 'Riptide', when: 'when 4 or more enemies are within 600', text: 'A wave pushes every enemy near him in his lane back 400 and slows them 40% for 3 s.' },
@@ -302,7 +303,7 @@ export const HEROES: Record<HeroKind, HeroDef> = {
   }),
   belang: hero({
     id: 'belang', code: 'Bl', name: 'Belang', title: 'the Tiger Within', role: 'Jungler', best: 'farm',
-    hp: 1150, damage: 55, attack: 0.9, range: 170, speed: 12, radius: 85, power_s: 10,
+    hp: 1150, damage: 60, attack: 0.9, range: 170, speed: 12, radius: 85, power_s: 10,
     trait: { name: 'Hunter’s Hunger', text: 'Double XP from camps. Heals 25% and gives 1 extra Semangat for each camp it clears.' },
     power: { name: 'Pounce', when: 'every 10 s', text: 'Leaps onto an enemy within 500 for 90 and stuns it 0.5 s. Lv 2: +40% damage. Lv 3: stun 1 s.' },
     ult: { name: 'Shape of the Beast', when: 'always on from level 4', text: 'Transforms for good: +40% health, +30% attack speed, and its hits cleave nearby enemies.' },
@@ -311,7 +312,7 @@ export const HEROES: Record<HeroKind, HeroDef> = {
   }),
   gergasi: hero({
     id: 'gergasi', code: 'Ge', name: 'Gergasi', title: 'the Wall-Breaker', role: 'Siege', best: 'push',
-    hp: 1800, damage: 90, attack: 1.6, range: 180, speed: 6, radius: 110, power_s: 12, targets: 'buildings',
+    hp: 2000, damage: 90, attack: 1.6, range: 180, speed: 6, radius: 110, power_s: 12, targets: 'buildings',
     trait: { name: 'Wall-Breaker', text: 'Only attacks towers and the Pusaka, for triple damage; he can’t hit troops or heroes. On Defend he blocks the lane: enemy troops near him move 50% slower.' },
     power: { name: 'Boulder', when: 'every 12 s, when an enemy tower is within 1,300', text: 'Throws a boulder at it for 150. Lv 2: 225. Lv 3: also knocks back troops around that tower.' },
     ult: { name: 'Rampage', when: 'when he reaches an enemy tower', text: 'For 8 s he moves 50% faster and his hits splash.' },
@@ -320,16 +321,16 @@ export const HEROES: Record<HeroKind, HeroDef> = {
   }),
   dalang: hero({
     id: 'dalang', code: 'Da', name: 'Dalang', title: 'the Shadow Puppeteer', role: 'Summoner', best: 'push',
-    hp: 850, damage: 35, attack: 1.2, range: 550, speed: 8, radius: 70, power_s: 8,
+    hp: 850, damage: 35, attack: 1.2, range: 550, speed: 8, radius: 70, power_s: 14,
     trait: { name: 'Behind the Screen', text: 'Keeps behind your front troops in his lane, and waits at the river when there are none.' },
-    power: { name: 'Shadow Play', when: 'every 8 s', text: 'Summons 2 shadow puppets for 20 s. Lv 2: 3 puppets. Lv 3: the puppets copy the troop class of the lane he is in, at half health.' },
+    power: { name: 'Shadow Play', when: 'every 14 s', text: 'Summons 2 shadow puppets for 14 s. Lv 2: 3 puppets. Lv 3: the puppets copy the troop class of the lane he is in, at a third of its health and half its damage.' },
     ult: { name: 'Grand Performance', when: 'when a big enemy troop is within 600', text: 'Takes control of it for 10 s.' },
     strong: 'Gergasi, Kerbau, single-target heroes', weak: 'Senja, Benteng, Petir (splash)',
     inspired: 'Dota’s summoners and mind control; Clash Royale’s spawners and copy cards; wayang kulit shadow puppetry',
   }),
   senja: hero({
     id: 'senja', code: 'Sj', name: 'Senja', title: 'the Dusk Serpent', role: 'Mage', best: 'push',
-    hp: 1150, damage: 65, attack: 1.2, range: 550, speed: 10, radius: 80, power_s: 9,
+    hp: 1150, damage: 72, attack: 1.2, range: 550, speed: 10, radius: 80, power_s: 9,
     trait: { name: 'Tide Scales', text: 'Takes 50% less damage from spells and hero powers.' },
     power: { name: 'Waterspout', when: 'every 9 s, when 3 or more enemies are grouped', text: 'Hits the group for 140. Lv 2: bigger area. Lv 3: also stuns them 0.5 s.' },
     ult: { name: 'Swallow the Moon', when: 'when 2 or more enemy heroes are visible', text: 'Silences all enemy heroes for 5 s and halves the opponent’s Semangat refill for 10 s.' },
@@ -365,7 +366,7 @@ export const HEROES: Record<HeroKind, HeroDef> = {
   }),
   pelanduk: hero({
     id: 'pelanduk', code: 'Pl', name: 'Pelanduk', title: 'the Clever Mousedeer', role: 'Trickster', best: 'push',
-    hp: 600, damage: 50, attack: 0.9, range: 170, speed: 14, radius: 60, power_s: 10,
+    hp: 680, damage: 55, attack: 0.9, range: 170, speed: 14, radius: 60, power_s: 10,
     trait: { name: 'Unnoticed', text: 'Enemies hit other targets first if any are in reach.' },
     power: { name: 'Decoys', when: 'every 10 s', text: 'Makes 2 copies that deal no damage but draw fire for 4 s. Lv 2: 3 copies. Lv 3: copies last 6 s.' },
     ult: { name: 'Clever Escape', when: 'call it in advance: when it would die', text: 'Vanishes instead and reappears at your Pusaka with 30% health.' },
@@ -374,9 +375,9 @@ export const HEROES: Record<HeroKind, HeroDef> = {
   }),
   saudagar: hero({
     id: 'saudagar', code: 'Sa', name: 'Saudagar', title: 'the Spice Trader', role: 'Economist', best: 'farm',
-    hp: 850, damage: 50, attack: 1.1, range: 450, speed: 10, radius: 75, power_s: 15,
+    hp: 950, damage: 58, attack: 1.1, range: 450, speed: 10, radius: 75, power_s: 12,
     trait: { name: 'Trade Route', text: 'While he lives, your Semangat refills 10% faster.' },
-    power: { name: 'Trade Winds', when: 'every 15 s', text: 'Gives you 1 Semangat. Lv 2: 1.5. Lv 3: 2.' },
+    power: { name: 'Trade Winds', when: 'every 12 s', text: 'Gives you 1 Semangat. Lv 2: 1.5. Lv 3: 2.' },
     ult: { name: 'Golden Monsoon', when: 'any time', text: 'Gives you 3 Semangat, and your next item costs half.' },
     strong: 'long matches, item-heavy heroes', weak: 'early rushes, Tedung, Layang',
     inspired: 'Clash Royale’s Semangat collectors; Dota’s gold-greedy heroes; the spice traders of the old ports',
@@ -392,7 +393,7 @@ export const HEROES: Record<HeroKind, HeroDef> = {
   }),
   tedung: hero({
     id: 'tedung', code: 'Te', name: 'Tedung', title: 'the King Cobra', role: 'Assassin', best: 'gank',
-    hp: 850, damage: 65, attack: 1, range: 300, speed: 12, radius: 70, power_s: 8,
+    hp: 920, damage: 70, attack: 1, range: 300, speed: 12, radius: 70, power_s: 8,
     trait: { name: 'Venom', text: 'Her hits poison: 2% of the target’s health a second for 3 s.' },
     power: { name: 'Spit', when: 'every 8 s, when enemies are within 500', text: 'Spits at the 2 nearest enemies: poison (4% a second for 3 s) and a 30% slow for 2 s. Lv 2: 3 enemies. Lv 3: poison doubled.' },
     ult: { name: 'Coil', when: 'when an enemy hero within 400 is below 50%', text: 'Stuns it 2 s and poisons it for 6% a second for 3 s.' },
@@ -410,7 +411,7 @@ export const HEROES: Record<HeroKind, HeroDef> = {
   }),
   helang: hero({
     id: 'helang', code: 'He', name: 'Helang', title: 'the Sea Eagle', role: 'Marksman', best: 'push',
-    hp: 600, damage: 100, attack: 1.3, range: 700, speed: 10, radius: 65, power_s: 9,
+    hp: 600, damage: 94, attack: 1.3, range: 650, speed: 10, radius: 65, power_s: 9,
     trait: { name: 'Eagle Eye', text: 'The longest reach of any hero, and +25% damage to heroes.' },
     power: { name: 'Piercing Shot', when: 'every 9 s, when an enemy is within 900', text: 'An arrow that hits every enemy in a line for 130. Lv 2: 180. Lv 3: also slows them 40% for 2 s.' },
     ult: { name: 'Storm of Feathers', when: 'when 3 or more enemies are in reach', text: 'Attacks twice as fast for 6 s.' },
@@ -437,7 +438,7 @@ export const HEROES: Record<HeroKind, HeroDef> = {
   }),
   buaya: hero({
     id: 'buaya', code: 'Bu', name: 'Buaya', title: 'the River Jaws', role: 'Bruiser', best: 'farm',
-    hp: 1450, damage: 70, attack: 1.1, range: 180, speed: 10, radius: 95, power_s: 12,
+    hp: 1550, damage: 75, attack: 1.1, range: 180, speed: 10, radius: 95, power_s: 12,
     trait: { name: 'Death Roll', text: 'Heals 20% of the damage it deals.' },
     power: { name: 'Drag Under', when: 'every 12 s, when an enemy is within reach', text: 'Grabs the nearest enemy: stuns it 1.5 s and deals 180 over that time. Lv 2: 240. Lv 3: 300.' },
     ult: { name: 'Swamp King', when: 'when it is below 40% health', text: 'For 8 s it heals 5% a second and can’t be slowed, stunned or silenced.' },
@@ -485,7 +486,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
   tebuan: cls('tebuan', 'tebuan', 3),
   kumbang: cls('kumbang', 'kumbang', 1),
   ratu: cls('ratu', 'ratu', 1),
-  kerikil: cls('kerikil', 'kerikil', 3),
+  kerikil: cls('kerikil', 'kerikil', 2),
   golem: cls('golem', 'golem', 1),
   lontar: cls('lontar', 'lontar', 1),
 };

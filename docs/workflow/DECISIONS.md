@@ -25,6 +25,8 @@ None.
 | DEC-011 | No hand-played cards: play through heroes and lane troops | Approved (owner, 2026-11-12) | Implemented |
 | DEC-012 | Fog of war | Approved (owner, 2026-11-12) | Implemented |
 | DEC-013 | Character figures, visible ultimates and tower health | Approved (owner, 2026-11-12) | Implemented |
+| DEC-014 | Three heroes per player | Approved (owner, 2026-11-12) | Implemented |
+| DEC-015 | Draft-style hero select and versus screen | Approved (owner, 2026-11-12) | Implemented |
 
 ## Work packages
 
@@ -34,6 +36,7 @@ None.
 | PLAN-002 | 20 heroes with powers | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
 | PLAN-003 | Creep species, wards, map rewards and art style | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
 | PLAN-004 | Hero command: no hand cards, items, called ultimates, fog of war, characters | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
+| PLAN-005 | Balance pass, three heroes each, draft-style hero select | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
 
 ## Decision details
 
@@ -219,6 +222,34 @@ None.
 - **Delivery:** Implemented
 - **Review trigger:** Readability problems on a small phone, or a decision to commission real art.
 
+### DEC-014 · Three heroes per player
+
+- **Question:** How many heroes does each player command?
+- **Options:** 3 heroes each (built) · 2 heroes each (as before)
+- **Choice:** Each player picks 3 heroes before the match. All three start at the Pusaka, one heading for each lane (in 2-lane mode the third joins the left lane). Each has its own panel with health, items and an ULT button. No hero can be on both sides.
+- **Rationale:** The owner asked for 3 heroes each; with no hand cards, a third hero gives the player more to command.
+- **User impact:** Three hero panels; three picks in the draft.
+- **Technical impact:** Hero count per player 3; HUD for 3 panels; bot and economy handle 3 heroes.
+- **Data and privacy:** None.
+- **Cost:** none
+- **Approval:** Approved: “do all the balance tunes first, each character should select 3 heroes, the loading screen where you select heroes should be like dota/tekken” (2026-11-12)
+- **Delivery:** Implemented
+- **Review trigger:** Playtests show 3 heroes are too many to manage on a phone.
+
+### DEC-015 · Draft-style hero select and versus screen
+
+- **Question:** How does the hero selection screen look and work?
+- **Options:** Draft screen with turns, big hero preview, roster grid and a versus screen (built) · Simple picker (as before)
+- **Choice:** After choosing a species, a draft: you and the bot take turns picking (you 1, bot 1, you 2, bot 1... a snake order), shown as two rows of 3 slots facing each other. The highlighted hero stands large on a lit stage with its name, role and powers; a roster grid of 20 portraits below; picked heroes are taken. Then a versus screen shows both line-ups and species, with a short loading bar, before the match. Original Hikayat look (night, songket gold), no borrowed art.
+- **Rationale:** The owner wants the selection to feel like a fighting-game or MOBA draft: a moment of build-up and counter-picking.
+- **User impact:** A dramatic pick screen and a versus screen before each match.
+- **Technical impact:** New draft screen module; deterministic bot draft picks so matches still replay.
+- **Data and privacy:** None.
+- **Cost:** none
+- **Approval:** Approved: “do all the balance tunes first, each character should select 3 heroes, the loading screen where you select heroes should be like dota/tekken” (2026-11-12)
+- **Delivery:** Implemented
+- **Review trigger:** The draft feels slow on repeat matches (a quick rematch skips it).
+
 ## History (oldest first)
 
 - 2026-11-12 08:49 · Project records started for Lane Game.
@@ -308,3 +339,21 @@ None.
 - 2026-11-12 14:19 · DEC-013 delivery: implemented.
 - 2026-11-12 14:19 · REP-006 written: PLAN-004: hero command, items, called ultimates, fog of war, characters.
 - 2026-11-12 14:20 · PLAN-004 implemented: T1-T5 PASS (82 tests, soak 120 matches, phone check OK); T6/T7 wait for the owner. REP-006 written.
+- 2026-11-12 16:46 · DEC-014 proposed: Three heroes per player.
+- 2026-11-12 16:46 · DEC-015 proposed: Draft-style hero select and versus screen.
+- 2026-11-12 16:46 · PLAN-005 proposed: Balance pass, three heroes each, draft-style hero select.
+- 2026-11-12 16:46 · Owner approved DEC-014: "do all the balance tunes first, each character should select 3 heroes, the loading screen where you select heroes should be like dota/tekken".
+- 2026-11-12 16:46 · Owner approved DEC-015: "do all the balance tunes first, each character should select 3 heroes, the loading screen where you select heroes should be like dota/tekken".
+- 2026-11-12 16:46 · Owner approved PLAN-005: "do all the balance tunes first, each character should select 3 heroes, the loading screen where you select heroes should be like dota/tekken".
+- 2026-11-12 16:46 · PLAN-005 delivery: in progress.
+- 2026-11-12 17:18 · PLAN-005 T1: PASS (npm run balance (1,200 bot matches, 3 heroes a side): species 47-58% (Kampung 49, Hutan 50, Sungai 47, Serangga 47, Batu 58); heroes 42-62%; draws 8%; decided before 2:30 under 1%; average 5:00. Before tuning (400 matches): Dalang 85%, Batu 71%, Kampung 29%, early finishes 8%. Ran on 1,200 matches instead of 400 because 400 swung up to 10 points between runs.).
+- 2026-11-12 17:18 · PLAN-005 T2: PASS (orders.test.ts: three heroes start one per lane (2-lane mode: third joins the left lane); picks always 3 with no hero on both sides; draft helper test. All hero, map, fog, species and rules tests moved to 3-hero line-ups (84/84).).
+- 2026-11-12 17:18 · PLAN-005 T3: PASS (orders.test.ts: bot draft picks never take a taken hero, repeat exactly for the same inputs, and give the bot three different jobs. phone-check: species -> draft (turns you 1, bot 2, you 2, bot 1) -> versus screen -> match starts with exactly the drafted line-ups, no overlap.).
+- 2026-11-12 17:18 · PLAN-005 T4: PASS (tests/determinism.test.ts 4/4 with 3 random heroes a side; npm run soak 100 + 20 matches, no errors; every hero and species played.).
+- 2026-11-12 17:18 · PLAN-005 T5: PASS (node scripts/phone-check.cjs (iPhone 13 size): species, draft, versus, 3 hero panels, wave chip, Farm/Ward/Move, shop, ULT call and fire, full match, 2 lanes; PHONE CHECK OK, no page errors; screenshots checked.).
+- 2026-11-12 17:18 · PLAN-005 T6: NOT RUN (Not yet tried on the owner's phone.).
+- 2026-11-12 17:18 · PLAN-005 delivery: implemented.
+- 2026-11-12 17:18 · DEC-014 delivery: implemented.
+- 2026-11-12 17:18 · DEC-015 delivery: implemented.
+- 2026-11-12 17:18 · REP-007 written: PLAN-005: balance pass, three heroes, draft hero select.
+- 2026-11-12 17:19 · PLAN-005 implemented: T1-T5 PASS (balance 1,200 matches in targets, 84 tests, soak, phone check OK); T6/T7 wait for the owner. REP-007 written.

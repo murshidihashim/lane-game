@@ -159,12 +159,22 @@ export class Bot {
       const tank = this.ranked(sim)[0] as ClassId | undefined;
       if (tank && pl.laneClass[worst.lane] !== tank) return { t: 'wave', player: this.player, lane: worst.lane, card: tank };
     }
-    // Otherwise, now and then, try a different class in a random lane.
+    // Otherwise, now and then, try a different class in a random lane. Building-breakers (which
+    // ignore enemy troops) only go to a lane we are winning, while its enemy tower still stands.
     if (this.level === 'normal' && this.rng.chance(40)) {
-      const lane = sim.lanes[this.rng.int(sim.lanes.length)];
-      const classes = this.myClasses(sim);
+      const v = views[this.rng.int(views.length)];
+      const winning = v.push > v.threat && v.enemyTowerHp > 0;
+      const classes = this.myClasses(sim).filter((c) => winning || UNITS[CLASSES[c].unit].targets === 'any');
       const card = classes[this.rng.int(classes.length)];
-      if (pl.laneClass[lane] !== card) return { t: 'wave', player: this.player, lane, card };
+      if (card && pl.laneClass[v.lane] !== card) return { t: 'wave', player: this.player, lane: v.lane, card };
+    }
+    // A lane left with building-breakers while losing gets a fighting class back.
+    for (const v of views) {
+      const cls = pl.laneClass[v.lane];
+      if (UNITS[CLASSES[cls].unit].targets === 'buildings' && v.threat > v.push) {
+        const fighter = this.ranked(sim)[0];
+        if (fighter) return { t: 'wave', player: this.player, lane: v.lane, card: fighter };
+      }
     }
     return null;
   }
@@ -172,9 +182,16 @@ export class Bot {
   private attackLane(sim: Sim, views: LaneView[]): LaneId {
     if (this.level === 'easy') return sim.lanes[this.rng.int(sim.lanes.length)];
     // Prefer a lane where we already push, then the weakest enemy tower, with a little randomness.
+    // In sudden death the next tower wins, so the weakest standing tower is all that matters.
     let best = views[0];
     let bestScore = -Infinity;
+    const sudden = sim.phase() === 'sudden';
     for (const v of views) {
+      if (sudden) {
+        const score = v.enemyTowerHp > 0 ? 10_000 - v.enemyTowerHp : -1;
+        if (score > bestScore) { best = v; bestScore = score; }
+        continue;
+      }
       const towerScore = v.enemyTowerHp === 0 ? 1500 : 2600 - v.enemyTowerHp;
       const score = v.push * 4 + towerScore + this.rng.int(600) - v.threat * 2;
       if (score > bestScore) { best = v; bestScore = score; }
@@ -240,6 +257,12 @@ export class Bot {
     const current = sim.heroLane(h);
     const best = HEROES[kind].best;
     const goPush = (lane: LaneId) => order({ t: 'order', player: me, hero: kind, order: current === lane ? 'push' : 'gank', lane });
+
+    // Sudden death: the next tower wins, so everyone goes for the weakest enemy tower.
+    if (sim.phase() === 'sudden') {
+      if (h.order.type === 'gank') return null;
+      return goPush(this.attackLane(sim, views));
+    }
 
     if (best === 'defend' && danger && danger.threat > 30) {
       const tower = sim.towerOf(me, danger.lane);

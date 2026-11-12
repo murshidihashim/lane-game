@@ -105,7 +105,7 @@ describe('class abilities', () => {
     sling.speed = 0;
     const group = [-60, 0, 60].map((dx) => { const e = put(sim, 1, 'spearman', X + dx, Y - 500); e.speed = 0; return e; });
     stepN(sim, 60);
-    expect(group.filter((e) => e.hp < 340).length).toBe(3);
+    expect(group.filter((e) => e.hp < UNITS.spearman.hp).length).toBe(3);
   });
 
   test('armour: Ketam halves ranged hits, Kumbang takes 20% less', () => {
@@ -116,7 +116,7 @@ describe('class abilities', () => {
     archer.speed = 0;
     archer.atkCd = 0;
     sim.step();
-    expect(UNITS.ketam.hp - crab.hp).toBe(Math.trunc(45 / 2));
+    expect(UNITS.ketam.hp - crab.hp).toBe(Math.trunc((UNITS.archer.damage * (UNITS.ketam.armorRanged ?? 100)) / 100));
     const s2 = quiet('serangga');
     const beetle = put(s2, 0, 'kumbang', X, Y);
     beetle.speed = 0;
@@ -124,7 +124,7 @@ describe('class abilities', () => {
     sp.speed = 0;
     sp.atkCd = 0;
     s2.step();
-    expect(UNITS.kumbang.hp - beetle.hp).toBe(Math.trunc(55 * 0.8));
+    expect(UNITS.kumbang.hp - beetle.hp).toBe(Math.trunc((UNITS.spearman.damage * (UNITS.kumbang.armor ?? 100)) / 100));
   });
 
   test('on-hit effects: Ikan Sumpit slows, Tebuan poisons, Belut chains', () => {
@@ -154,7 +154,7 @@ describe('class abilities', () => {
     a.speed = 0; b.speed = 0;
     eel.atkCd = 0;
     s3.step();
-    expect(a.hp < 1100 && b.hp < 1100).toBe(true);
+    expect(a.hp < UNITS.shieldbearer.hp && b.hp < UNITS.shieldbearer.hp).toBe(true);
   });
 
   test('Seladang’s first hit knocks back and stuns; Harimau Bintang leaps', () => {
@@ -183,7 +183,7 @@ describe('class abilities', () => {
     const pebble = put(sim, 0, 'kerikil', tower.x, tower.y + 300);
     stepN(sim, 40);
     expect(pebble.alive).toBe(false);
-    expect(tower.hp).toBe(tower.maxHp - 130); // 260, halved by the first-minute tower shield
+    expect(tower.hp).toBe(tower.maxHp - (UNITS.kerikil.bomb ?? 0) / 2); // halved by the first-minute tower shield
 
     const s2 = quiet('serangga');
     const queen = put(s2, 0, 'ratu', X, Y);

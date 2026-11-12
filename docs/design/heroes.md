@@ -10,38 +10,38 @@ Decisions: DEC-006 (folk-tale world and names), DEC-007 (power system), DEC-011 
 - **Power**: fires by itself when its trigger happens, then waits its cooldown. Ranks 1–3 follow the hero's level.
 - **Ultimate**: unlocks at level 4, once per life (ready again after respawn). The ULT button glows at a good moment (the "best moment" below); tap it and the hero fires at the next good moment. Belang's is always on.
 - **Best order**: +15% damage while following it (gankers keep it for a few seconds after arriving).
-- **Heroes on the map**: you pick 2 heroes before the match; both start at your Pusaka. You command them and buy them items with Semangat. Species, lane troops, items and map rewards: see `species.md`.
+- **Heroes on the map**: you pick 3 heroes before the match; both start at your Pusaka. You command them and buy them items with Semangat. Species, lane troops, items and map rewards: see `species.md`.
 
 ## Roster
 
 | Hero | Role | Best order | Health | Damage | Reach | Speed |
 |---|---|---|---|---|---|---|
-| Rimba, the Unseen Hunter | Ganker | Gank | 850 | 80 every 0.9 s | 520 | 12 |
+| Rimba, the Unseen Hunter | Ganker | Gank | 850 | 70 every 0.9 s | 520 | 12 |
 | Benteng, the Living Fort | Defender | Defend | 1800 | 55 every 1.1 s | 180 | 8 |
-| Kail, the Riverhook | Initiator | Defend | 1150 | 65 every 1.2 s | 300 | 10 |
+| Kail, the Riverhook | Initiator | Defend | 1250 | 72 every 1.2 s | 300 | 10 |
 | Seri, of the Hidden Folk | Support | Farm | 850 | 50 every 1.0 s | 450 | 10 |
-| Belang, the Tiger Within | Jungler | Farm | 1150 | 55 every 0.9 s | 170 | 12 |
-| Gergasi, the Wall-Breaker | Siege | Push | 1800 | 90 every 1.6 s | 180 | 6 |
+| Belang, the Tiger Within | Jungler | Farm | 1150 | 60 every 0.9 s | 170 | 12 |
+| Gergasi, the Wall-Breaker | Siege | Push | 2000 | 90 every 1.6 s | 180 | 6 |
 | Dalang, the Shadow Puppeteer | Summoner | Push | 850 | 35 every 1.2 s | 550 | 8 |
-| Senja, the Dusk Serpent | Mage | Push | 1150 | 65 every 1.2 s | 550 | 10 |
+| Senja, the Dusk Serpent | Mage | Push | 1150 | 72 every 1.2 s | 550 | 10 |
 | Hujan, the Rain Caller | Healer | Defend | 850 | 35 every 1.1 s | 450 | 10 |
 | Layang, the Kite Rider | Diver | Gank | 850 | 80 every 1.0 s | 170 (flies) | 14 |
 | Pendekar, the Silat Master | Duelist | Gank | 1450 | 80 every 1.0 s | 180 | 12 |
-| Pelanduk, the Clever Mousedeer | Trickster | Push | 600 | 50 every 0.9 s | 170 | 14 |
-| Saudagar, the Spice Trader | Economist | Farm | 850 | 50 every 1.1 s | 450 | 10 |
+| Pelanduk, the Clever Mousedeer | Trickster | Push | 680 | 55 every 0.9 s | 170 | 14 |
+| Saudagar, the Spice Trader | Economist | Farm | 950 | 58 every 1.1 s | 450 | 10 |
 | Badak, the Charging Rhino | Charger | Push | 1800 | 70 every 1.2 s | 180 | 10 |
-| Tedung, the King Cobra | Assassin | Gank | 850 | 65 every 1.0 s | 300 | 12 |
+| Tedung, the King Cobra | Assassin | Gank | 920 | 70 every 1.0 s | 300 | 12 |
 | Tukang, the Bamboo Builder | Builder | Defend | 1150 | 50 every 1.1 s | 450 | 8 |
-| Helang, the Sea Eagle | Marksman | Push | 600 | 100 every 1.3 s | 700 | 10 |
+| Helang, the Sea Eagle | Marksman | Push | 600 | 94 every 1.3 s | 650 | 10 |
 | Embun, the Mist Weaver | Controller | Defend | 850 | 50 every 1.1 s | 550 | 10 |
 | Ombak, the Tide Rider | Pusher | Push | 1150 | 65 every 1.1 s | 300 | 10 |
-| Buaya, the River Jaws | Bruiser | Farm | 1450 | 70 every 1.1 s | 180 | 10 |
+| Buaya, the River Jaws | Bruiser | Farm | 1550 | 75 every 1.1 s | 180 | 10 |
 
 ### Rimba · the Unseen Hunter
 Ganker · best order **Gank** · ranged
 
 - **Trait: Forest Step.** 30% faster in the jungle. When an enemy spots her, she stays hidden 2 s longer.
-- **Power: Volley** (every 10 s, when enemies are in range). Arrows hit the 3 nearest enemies for 120. Lv 2: 4 enemies. Lv 3: also slows them 30% for 2 s.
+- **Power: Volley** (every 10 s, when enemies are in range). Arrows hit the 3 nearest enemies for 105. Lv 2: 4 enemies. Lv 3: also slows them 30% for 2 s.
 - **Ultimate: Hunter’s Mark** (best moment: call it, then her next Ambush hit). The target takes +50% damage from all your units for 6 s.
 - Strong vs lone heroes, Pemanah, supports. Weak vs Seri (reveal), Benteng (Stomp).
 - Inspired by: Dota’s invisible gankers with a first-strike bonus; Clash Royale’s ranged support troops.
@@ -95,7 +95,7 @@ Siege · best order **Push** · melee · hits buildings only
 Summoner · best order **Push** · ranged
 
 - **Trait: Behind the Screen.** Keeps behind your front troops in his lane, and waits at the river when there are none.
-- **Power: Shadow Play** (every 8 s). Summons 2 shadow puppets for 20 s. Lv 2: 3 puppets. Lv 3: the puppets copy the troop class of the lane he is in, at half health.
+- **Power: Shadow Play** (every 14 s). Summons 2 shadow puppets for 14 s. Lv 2: 3 puppets. Lv 3: the puppets copy the troop class of the lane he is in, at a third of its health and half its damage.
 - **Ultimate: Grand Performance** (best moment: when a big enemy troop is within 600). Takes control of it for 10 s.
 - Strong vs Gergasi, Kerbau, single-target heroes. Weak vs Senja, Benteng, Petir (splash).
 - Inspired by: Dota’s summoners and mind control; Clash Royale’s spawners and copy cards; wayang kulit shadow puppetry.
@@ -149,7 +149,7 @@ Trickster · best order **Push** · melee
 Economist · best order **Farm** · ranged
 
 - **Trait: Trade Route.** While he lives, your Semangat refills 10% faster.
-- **Power: Trade Winds** (every 15 s). Gives you 1 Semangat. Lv 2: 1.5. Lv 3: 2.
+- **Power: Trade Winds** (every 12 s). Gives you 1 Semangat. Lv 2: 1.5. Lv 3: 2.
 - **Ultimate: Golden Monsoon** (best moment: any time). Gives you 3 Semangat, and your next item costs half.
 - Strong vs long matches, item-heavy heroes. Weak vs early rushes, Tedung, Layang.
 - Inspired by: Clash Royale’s Semangat collectors; Dota’s gold-greedy heroes; the spice traders of the old ports.

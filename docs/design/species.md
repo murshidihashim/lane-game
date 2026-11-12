@@ -7,7 +7,7 @@ Decisions: DEC-008 (species and lane waves), DEC-009 (hero orders and map reward
 ## How species work
 
 - Before the match each player picks one of 5 species (and 2 heroes). The species decides what can march in your lanes.
-- Every 20 s (first at 5 s) each lane sends a **wave** of the class you chose for that lane. Waves are the only troops (no hand cards) and get 8% stronger each minute. Tap a wave chip to change the next waves in that lane.
+- Every 20 s (first at 5 s) each lane sends a **wave** of the class you chose for that lane. Waves are the only troops (no hand cards) and get 15% stronger each minute. Tap a wave chip to change the next waves in that lane.
 
 | Species | Style | Classes |
 |---|---|---|
@@ -23,10 +23,10 @@ Balanced and steady: fighters, archers, a shield tank and a tower-breaking buffa
 
 | Class | A wave sends | Health | Damage | Reach | Speed | Ability |
 |---|---|---|---|---|---|---|
-| Silat Guard | 3 | 340 | 55 every 1.1 s | 160 | 9 | Sturdy melee fighters |
-| Pemanah | 2 | 200 | 45 every 1.2 s | 550 (ranged) | 9 | Ranged; can hit fliers |
-| Perisai | 1 | 1100 | 75 every 1.3 s | 170 | 8 | Tank; takes 30% less from ranged hits |
-| Kerbau | 1 | 1500 | 220 every 1.5 s | 160 | 6 | Only hits towers and the Pusaka |
+| Silat Guard | 3 | 400 | 64 every 1.1 s | 160 | 9 | Sturdy melee fighters |
+| Pemanah | 2 | 230 | 52 every 1.2 s | 550 (ranged) | 9 | Ranged; can hit fliers |
+| Perisai | 1 | 1400 | 75 every 1.3 s | 170 | 8 | Tank; takes 40% less from ranged hits |
+| Kerbau | 1 | 1700 | 250 every 1.5 s | 160 | 6 | Only hits towers and the Pusaka |
 
 ### Hutan · the Jungle Beasts
 
@@ -34,8 +34,8 @@ Fast and fierce: monkey swarms, a leaping leopard, flying hornbills and a chargi
 
 | Class | A wave sends | Health | Damage | Reach | Speed | Ability |
 |---|---|---|---|---|---|---|
-| Kera | 4 | 110 | 30 every 0.7 s | 130 | 15 | Very fast monkey swarm |
-| Harimau Bintang | 1 | 600 | 110 every 1 s | 150 | 14 | Leopard; leaps onto its first target |
+| Kera | 4 | 125 | 30 every 0.7 s | 130 | 15 | Very fast monkey swarm |
+| Harimau Bintang | 1 | 680 | 110 every 1 s | 150 | 14 | Leopard; leaps onto its first target |
 | Enggang | 2 | 260 | 50 every 1.1 s | 420 (ranged), flies | 11 | Flying hornbills; ranged |
 | Seladang | 1 | 1600 | 90 every 1.4 s | 170 | 8 | Gaur tank; first hit knocks back and stuns |
 
@@ -45,9 +45,9 @@ Control and patience: armoured crabs, slowing archerfish and chain-shocking eels
 
 | Class | A wave sends | Health | Damage | Reach | Speed | Ability |
 |---|---|---|---|---|---|---|
-| Ketam | 1 | 1300 | 60 every 1.2 s | 160 | 7 | Crab tank; takes half damage from ranged hits |
-| Ikan Sumpit | 2 | 220 | 45 every 1.1 s | 520 (ranged) | 9 | Archerfish; ranged, hits slow |
-| Belut | 2 | 380 | 50 every 1 s | 200 | 11 | Electric eels; hits jump to a second enemy |
+| Ketam | 1 | 1400 | 70 every 1.2 s | 160 | 7 | Crab tank; takes half damage from ranged hits |
+| Ikan Sumpit | 2 | 220 | 55 every 1.1 s | 520 (ranged) | 9 | Archerfish; ranged, hits slow |
+| Belut | 2 | 420 | 50 every 1 s | 200 | 11 | Electric eels; hits jump to a second enemy |
 
 ### Serangga · the Insect Hive
 
@@ -55,10 +55,10 @@ Numbers: ant swarms, poison hornets, a beetle tank and a queen that keeps hatchi
 
 | Class | A wave sends | Health | Damage | Reach | Speed | Ability |
 |---|---|---|---|---|---|---|
-| Kerengga | 6 | 70 | 22 every 0.6 s | 120 | 13 | Weaver-ant swarm |
-| Tebuan | 3 | 120 | 28 every 0.8 s | 140, flies | 14 | Flying hornets; hits poison |
+| Kerengga | 6 | 78 | 22 every 0.6 s | 120 | 13 | Weaver-ant swarm |
+| Tebuan | 3 | 135 | 28 every 0.8 s | 140, flies | 14 | Flying hornets; hits poison |
 | Kumbang | 1 | 1400 | 70 every 1.3 s | 170 | 7 | Rhino beetle; takes 20% less damage |
-| Ratu Sarang | 1 | 900 | 30 every 1.2 s | 400 (ranged) | 5 | Hive queen; hatches ants every 5 s |
+| Ratu Sarang | 1 | 800 | 30 every 1.2 s | 400 (ranged) | 5 | Hive queen; hatches ants every 6 s |
 
 ### Batu · the Stone Highlanders
 
@@ -66,9 +66,9 @@ Slow and heavy: bursting pebbles, a boulder golem and a long-range stone sling.
 
 | Class | A wave sends | Health | Damage | Reach | Speed | Ability |
 |---|---|---|---|---|---|---|
-| Kerikil | 3 | 160 | bursts for 260 | 120 | 13 | Rolling pebbles; burst on a building |
-| Batu Besar | 1 | 2200 | 100 every 1.6 s | 170 | 5 | Boulder golem; takes 25% less damage |
-| Lontar | 1 | 450 | 120 every 2.2 s | 650 (ranged) | 5 | Stone sling; long range, splash |
+| Kerikil | 2 | 160 | bursts for 200 | 120 | 13 | Rolling pebbles; burst on a building |
+| Batu Besar | 1 | 1900 | 100 every 1.6 s | 170 | 5 | Boulder golem; takes 20% less damage |
+| Lontar | 1 | 420 | 105 every 2.2 s | 650 (ranged) | 5 | Stone sling; long range, splash |
 
 ## Hero orders
 
@@ -88,6 +88,11 @@ Bought with Semangat in the Shop, for one hero, 3 slots each, kept through death
 | Perisai Rotan | 8 | Takes 20% less damage |
 | Gelang Tangkas | 7 | Attacks 25% faster |
 | Pelita | 5 | Sees 30% further; reveals hidden heroes within 600 |
+
+## Winning
+
+Destroy the enemy Pusaka. At 300 s the side that destroyed more towers wins. If level, 60 s of sudden death: towers and the Pusaka take 3× damage and the next tower to fall wins; otherwise a draw. Towers take half damage for the first 60 s.
+
 
 ## Fog of war
 

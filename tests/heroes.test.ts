@@ -2,7 +2,7 @@
 // ultimates fire only once called (DEC-011).
 import { describe, expect, test } from 'vitest';
 import { LANES, pointAt, towerPos } from '../src/game/map';
-import { HERO_IDS, ITEMS, MANA, XP, type HeroKind, type UnitKind } from '../src/game/rules';
+import { HERO_IDS, ITEMS, MANA, UNITS, XP, type HeroKind, type UnitKind } from '../src/game/rules';
 import { type Ent, Sim } from '../src/game/sim';
 import { heroOnLane, parkHeroes, stepN } from './helpers';
 
@@ -12,9 +12,13 @@ const LEFT = LANES[0];
  * A quiet match with your hero at distance 3000 up the left lane (well away from towers); every
  * other hero waits at home. At level 4 the ultimate is already called, as a player would.
  */
-function arena(hero: HeroKind, level = 1, extra?: HeroKind, foes: HeroKind[] = ['rimba', 'benteng']): { sim: Sim; h: Ent } {
-  const other: HeroKind = extra ?? (hero === 'rimba' ? 'benteng' : 'rimba');
-  const sim = new Sim({ seed: 11, waves: false, picks: [[hero, other], foes] });
+function arena(hero: HeroKind, level = 1, extra?: HeroKind, foes: HeroKind[] = ['rimba', 'benteng', 'kail']): { sim: Sim; h: Ent } {
+  // Three heroes a side (DEC-014), never the same hero on both sides.
+  const theirs = foes.filter((k) => k !== hero && k !== extra);
+  const mine: HeroKind[] = [hero, ...(extra ? [extra] : [])];
+  for (const k of HERO_IDS) if (mine.length < 3 && !mine.includes(k) && !theirs.includes(k)) mine.push(k);
+  for (const k of HERO_IDS) if (theirs.length < 3 && !mine.includes(k) && !theirs.includes(k)) theirs.push(k);
+  const sim = new Sim({ seed: 11, waves: false, picks: [mine, theirs] });
   parkHeroes(sim, 0, hero);
   parkHeroes(sim, 1);
   const h = heroOnLane(sim, 0, hero, 0, 3000);
@@ -136,7 +140,7 @@ describe('hero kits', () => {
     const ts = [0, 1, 2, 3].map((i) => foe(sim, h, 'spearman', -150 + i * 100, -350));
     castPower(sim, h);
     expect(said(sim, 'Volley')).toBe(true);
-    expect(ts.filter((t) => t.hp <= 340 - 120).length).toBe(3);
+    expect(ts.filter((t) => t.hp <= UNITS.spearman.hp - 105).length).toBe(3);
 
     const b = arena('rimba', 4);
     const t = foe(b.sim, b.h, 'shieldbearer', 0, -300);
@@ -223,7 +227,7 @@ describe('hero kits', () => {
     const { sim, h } = arena('gergasi');
     const t = foe(sim, h, 'spearman', 0, -150);
     stepN(sim, 30);
-    expect(t.hp).toBe(340);
+    expect(t.hp).toBe(UNITS.spearman.hp);
     const tower = sim.towerOf(1, 0)!;
     sim.place(h, tower.x, tower.y + 1200);
     castPower(sim, h);
@@ -246,7 +250,7 @@ describe('hero kits', () => {
     castPower(c.sim, c.h);
     const copies = c.sim.ents.filter((e) => e.kind === 'unit' && e.owner === 0 && e.unit === 'shieldbearer');
     expect(copies).toHaveLength(3);
-    expect(copies[0].maxHp).toBe(550);
+    expect(copies[0].maxHp).toBe(Math.trunc((UNITS.shieldbearer.hp * 33) / 100));
 
     const b = arena('dalang', 4);
     const big = foe(b.sim, b.h, 'shieldbearer', 0, -400);
@@ -259,7 +263,7 @@ describe('hero kits', () => {
     const { sim, h } = arena('senja');
     const g = [0, 1, 2].map((i) => foe(sim, h, 'spearman', -80 + i * 80, -450));
     castPower(sim, h);
-    for (const t of g) expect(t.hp).toBeLessThanOrEqual(340 - 140);
+    for (const t of g) expect(t.hp).toBeLessThanOrEqual(UNITS.spearman.hp - 140);
     for (const t of g) t.hp = 0;
     sim.step();
     const before = h.hp;
@@ -298,7 +302,7 @@ describe('hero kits', () => {
     const hp = h.hp;
     stepN(sim, 40);
     expect(h.hp).toBe(hp); // melee troops can't hit a flier
-    expect(melee.hp).toBeLessThan(340);
+    expect(melee.hp).toBeLessThan(UNITS.spearman.hp);
     const archer = foe(sim, h, 'archer', 0, -300);
     archer.deploy = 0;
     stepN(sim, 40);
@@ -450,7 +454,7 @@ describe('hero kits', () => {
     const { sim, h } = arena('helang');
     const line = [300, 500, 700].map((d) => foe(sim, h, 'spearman', 0, -d));
     castPower(sim, h);
-    for (const t of line) expect(t.hp).toBeLessThanOrEqual(340 - 130);
+    for (const t of line) expect(t.hp).toBeLessThanOrEqual(UNITS.spearman.hp - 130);
 
     const b = arena('helang', 4);
     for (let i = 0; i < 3; i++) foe(b.sim, b.h, 'spearman', -100 + i * 100, -600);
@@ -474,7 +478,7 @@ describe('hero kits', () => {
     const y = t.y;
     castPower(sim, h);
     expect(y - t.y).toBeGreaterThan(150);
-    expect(t.hp).toBeLessThan(1100);
+    expect(t.hp).toBeLessThan(UNITS.shieldbearer.hp);
 
     const b = arena('ombak', 4);
     for (let i = 0; i < 3; i++) b.sim.summon(0, 'spearman', b.h.x - 100 + i * 100, b.h.y - 200, 0);

@@ -646,6 +646,12 @@ export class Renderer {
     ctx.fillStyle = sudden ? PAL.foeLight : PAL.parchment;
     const timeText = sudden ? `Sudden death ${mm}:${ss}` : `${mm}:${ss}`;
     ctx.fillText(timeText, t.x + 12, midY);
+    if (sudden && !sim.result) {
+      ctx.font = 'bold 10px system-ui';
+      ctx.fillStyle = PAL.foeLight;
+      ctx.fillText(`towers take ×${MATCH.suddenTowerDamagePercent / 100} damage`, t.x + 12, midY + 13);
+      ctx.font = 'bold 16px Georgia, serif';
+    }
     ctx.textAlign = 'center';
     const cx = t.x + t.w / 2;
     ctx.fillStyle = PAL.youLight;
@@ -772,45 +778,46 @@ export class Renderer {
     roundRect(ctx, b.x, b.y, b.w, b.h, 9);
     ctx.fill(); ctx.stroke();
     // portrait with the power ring
+    const pr = p.portrait.w / 2 - 3;
     const pc = { x: p.portrait.x + p.portrait.w / 2, y: p.portrait.y + p.portrait.h / 2 };
     const alive = !!h && h.alive;
     ctx.globalAlpha = alive ? 1 : 0.45;
-    drawPortrait(ctx, kind, pc.x, pc.y, 22, 0, l.dpr);
+    drawPortrait(ctx, kind, pc.x, pc.y, pr, 0, l.dpr);
     ctx.globalAlpha = 1;
     ctx.strokeStyle = ORDER_COLORS[def.best];
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(pc.x, pc.y, 22.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(pc.x, pc.y, pr + 0.5, 0, Math.PI * 2); ctx.stroke();
     if (h && alive) {
       const ready = 1 - Math.min(1, h.powerCd / Math.max(1, def.powerTicks));
       ctx.strokeStyle = ready >= 1 ? PAL.gold : PAL.woodLight;
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(pc.x, pc.y, 25.5, -Math.PI / 2, -Math.PI / 2 + ready * Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(pc.x, pc.y, pr + 3, -Math.PI / 2, -Math.PI / 2 + ready * Math.PI * 2); ctx.stroke();
     } else if (h) {
-      label(ctx, `${Math.ceil(h.respawn / TICKS_PER_SECOND)}s`, pc.x, pc.y, PAL.parchment, 15);
+      label(ctx, `${Math.ceil(h.respawn / TICKS_PER_SECOND)}s`, pc.x, pc.y, PAL.parchment, 13);
     }
-    // name, level, health, order
-    const tx = p.portrait.x + p.portrait.w + 8;
-    const tw = b.x + b.w - tx - 6;
+    // name and level beside the portrait; health and order below
+    const tx = p.portrait.x + p.portrait.w + 4;
+    const tw = b.x + b.w - tx - 4;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = INK;
-    ctx.font = 'bold 13px Georgia, serif';
-    ctx.fillText(fit(ctx, def.name, tw - 30), tx, b.y + 12);
-    ctx.font = 'bold 10px system-ui';
-    ctx.textAlign = 'right';
+    ctx.font = 'bold 12px Georgia, serif';
+    ctx.fillText(fit(ctx, def.name, tw), tx, b.y + 13);
+    ctx.font = 'bold 9.5px system-ui';
     ctx.fillStyle = PAL.maroon;
-    ctx.fillText(h ? `Lv${h.level}` : '', b.x + b.w - 7, b.y + 12);
+    ctx.fillText(h ? `Lv${h.level}${h.fury > 0 ? ' ✹' : ''}` : '', tx, b.y + 28);
     if (h) {
       const f = alive ? h.hp / h.maxHp : 0;
+      const bx = b.x + 5;
+      const bw = b.w - 10;
       ctx.fillStyle = 'rgba(29,20,14,0.25)';
-      ctx.fillRect(tx, b.y + 21, tw, 6);
+      ctx.fillRect(bx, b.y + 44, bw, 5);
       ctx.fillStyle = f > 0.5 ? '#3f9a54' : f > 0.25 ? '#d49b2a' : '#c0392b';
-      ctx.fillRect(tx, b.y + 21, tw * f, 6);
-      ctx.textAlign = 'left';
-      ctx.font = '10.5px system-ui';
+      ctx.fillRect(bx, b.y + 44, bw * f, 5);
+      ctx.font = '9.5px system-ui';
       ctx.fillStyle = '#5a4630';
-      const order = alive ? `${orderLabel(h, sim)}${h.hidden ? ' · hidden' : ''}${h.fury > 0 ? ' · fury' : ''}` : 'Down';
-      ctx.fillText(fit(ctx, order, tw), tx, b.y + 37);
+      const order = alive ? `${orderLabel(h, sim)}${h.hidden ? ' · hidden' : ''}` : 'Down';
+      ctx.fillText(fit(ctx, order, bw), bx, b.y + 56);
     }
     // item slots
     p.items.forEach((r, k) => {
@@ -830,7 +837,7 @@ export class Renderer {
         roundRect(ctx, r.x, r.y, r.w, r.h, 5);
         ctx.stroke();
         ctx.setLineDash([]);
-        label(ctx, '+', r.x + r.w / 2, r.y + r.h / 2, PAL.woodLight, 13);
+        label(ctx, '+', r.x + r.w / 2, r.y + r.h / 2, PAL.woodLight, 12);
       }
       ctx.restore();
     });

@@ -1,13 +1,13 @@
 # Lane Game (working title)
 
-A short, real-time one-on-one strategy battle for phones. You pick one of 5 species and 2 of 20
-folk-tale heroes, then command: choose which troop class marches in each of three lanes, send your
+A short, real-time one-on-one strategy battle for phones. You pick one of 5 species and draft 3 of
+20 folk-tale heroes against the bot, then command: choose which troop class marches in each of three lanes, send your
 heroes to move, push, gank, defend, farm and ward, buy them items, and call their ultimates. There
 are no hand-played cards. A MOBA-style map with a jungle and fog of war rewards exploring. Matches
 last about 5 minutes. Portrait, one thumb. The look is "Hikayat", a painted folk-tale board game.
 
-**Status:** playable prototype (PLAN-004: hero command, items, called ultimates, fog of war,
-character figures), waiting for the owner's playtest.
+**Status:** playable prototype (PLAN-005: balance pass, 3 heroes each, draft and versus screen),
+waiting for the owner's playtest. Check balance with `npm run balance`.
 
 Run it: `npm install`, then `npm run dev` (local) or `npm run build` (one self-contained page in
 `dist/lane-game.html`). Check it: `npm run verify`, `npm run soak`, `node scripts/phone-check.cjs out`.

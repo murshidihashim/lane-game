@@ -75,7 +75,7 @@ export const KITS: Record<HeroKind, Kit> = {
     power(sim, h, rank) {
       const targets = sim.foes(me(h), h.x, h.y, h.range).slice(0, rank === 1 ? 3 : 4);
       for (const t of targets) {
-        sim.hurt(t, sim.scaled(h, 120), h);
+        sim.hurt(t, sim.scaled(h, 105), h);
         if (rank === 3) sim.slowFor(t, 70, sec(2));
         sim.fx({ k: 'hit', x1: h.x, y1: h.y, x2: t.x, y2: t.y, ranged: true, owner: h.owner });
       }
@@ -233,7 +233,7 @@ export const KITS: Record<HeroKind, Kit> = {
       for (let i = 0; i < n; i++) {
         const side = (i - 1) * 80;
         const kind = copy ?? 'puppet';
-        sim.summon(p, kind, x + side, y, lane, { life: sec(20), hpPct: copy ? 50 : undefined });
+        sim.summon(p, kind, x + side, y, lane, { life: sec(14), hpPct: copy ? 33 : undefined, dmgPct: copy ? 50 : undefined });
       }
       return true;
     },

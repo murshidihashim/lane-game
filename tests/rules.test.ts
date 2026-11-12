@@ -31,9 +31,17 @@ describe('map', () => {
   });
 });
 
+/** A match where nothing fights: no waves, every hero waiting at home (no bounties either). */
+const still = () => {
+  const sim = new Sim({ seed: 1, waves: false });
+  parkHeroes(sim, 0);
+  parkHeroes(sim, 1);
+  return sim;
+};
+
 describe('Semangat', () => {
   test('starts at 4, refills 1 every 8 s, caps at 20', () => {
-    const sim = new Sim({ seed: 1, waves: false });
+    const sim = still();
     expect(sim.players[0].mana).toBe(4 * MANA.perMana);
     stepN(sim, sec(8));
     expect(sim.players[0].mana).toBe(5 * MANA.perMana);
@@ -43,7 +51,7 @@ describe('Semangat', () => {
   });
 
   test('refills twice as fast in the last minute', () => {
-    const sim = new Sim({ seed: 1, waves: false });
+    const sim = still();
     stepN(sim, MATCH.doubleManaFrom);
     sim.players[0].mana = 0;
     stepN(sim, sec(4));
@@ -182,7 +190,7 @@ describe('towers and winning', () => {
   });
 
   test('at 5:00 more towers wins', () => {
-    const sim = new Sim({ seed: 1, waves: false });
+    const sim = still();
     stepN(sim, 100);
     sim.towerOf(0, 2)!.hp = 0;
     stepN(sim, MATCH.regulation);
@@ -191,7 +199,7 @@ describe('towers and winning', () => {
   });
 
   test('level at 5:00 goes to sudden death: next tower wins, otherwise a draw', () => {
-    const a = new Sim({ seed: 1, waves: false });
+    const a = still();
     stepN(a, MATCH.regulation);
     expect(a.result).toBeNull();
     expect(a.phase()).toBe('sudden');
@@ -199,7 +207,7 @@ describe('towers and winning', () => {
     a.step();
     expect(a.result).toEqual({ winner: 0, reason: 'sudden' });
 
-    const b = new Sim({ seed: 1, waves: false });
+    const b = still();
     stepN(b, MATCH.regulation + MATCH.suddenDeath);
     expect(b.result).toEqual({ winner: null, reason: 'draw' });
   });

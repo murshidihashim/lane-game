@@ -7,7 +7,8 @@ export type Picks = [HeroKind[], HeroKind[]];
 
 /** Random hero picks for both sides, from the match seed. */
 export function picksFor(seed: number): Picks {
-  return [randomPicks(seed ^ 0x5151), randomPicks(seed ^ 0xa3a3)];
+  const a = randomPicks(seed ^ 0x5151);
+  return [a, randomPicks(seed ^ 0xa3a3, a)];
 }
 
 /** Random species for both sides, from the match seed (DEC-008). */

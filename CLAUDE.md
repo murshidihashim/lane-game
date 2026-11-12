@@ -48,7 +48,8 @@ Short progress notes use STATUS, FINDING, NEXT. Plain English; the owner reads o
   Tuning numbers and hero card text live in `src/game/rules.ts`; hero kits in `src/game/heroes.ts`.
   Every hero needs a kit test in `tests/heroes.test.ts`; every troop class needs a test in
   `tests/species.test.ts`; map rewards are tested in `tests/map.test.ts`, fog of war in `tests/fog.test.ts`,
-  items in `tests/rules.test.ts`.
+  items in `tests/rules.test.ts`, hero AI and the Attack order in `tests/ai.test.ts`; the soak checks
+  that heroes never stall.
 - No hand-played cards (DEC-011): players act only through lane troops, hero orders, items and
   ultimate calls. Fog of war (DEC-012): the bot must use `Sim.sees`, never hidden information.
 - The Hikayat art style (`docs/design/art-style.md`, `src/ui/art.ts`): new pieces follow its rules.

@@ -28,6 +28,7 @@ None.
 | DEC-014 | Three heroes per player | Approved (owner, 2026-11-12) | Implemented |
 | DEC-015 | Draft-style hero select and versus screen | Approved (owner, 2026-11-12) | Implemented |
 | DEC-016 | Slower movement and a zoomable map | Approved (owner, 2026-11-12) | Implemented |
+| DEC-017 | Hero command menu, Attack order and smarter heroes | Approved (owner, 2026-11-12) | Not started |
 
 ## Work packages
 
@@ -39,6 +40,7 @@ None.
 | PLAN-004 | Hero command: no hand cards, items, called ultimates, fog of war, characters | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
 | PLAN-005 | Balance pass, three heroes each, draft-style hero select | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
 | PLAN-006 | Slower pace, zoomable map, re-balance, character polish | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
+| PLAN-007 | Smarter heroes and a tap-to-command menu | Approved (owner, 2026-11-12) | In progress | 0/7 | Unreleased |
 
 ## Decision details
 
@@ -266,6 +268,20 @@ None.
 - **Delivery:** Implemented
 - **Review trigger:** Matches feel slow or zooming gets in the way of giving orders.
 
+### DEC-017 · Hero command menu, Attack order and smarter heroes
+
+- **Question:** How does a player command a hero, and how much do heroes think for themselves?
+- **Options:** Tap hero, pick an order from a menu, tap the target (built; dragging a portrait stays as a shortcut) · Drag the portrait onto a spot only (as before)
+- **Choice:** Tap a hero (its panel or the hero on the map) to open its command menu: Move, Attack, Push, Gank, Defend, Farm, Ward, Retreat. Pick one and the map highlights only the valid targets with a hint ("Tap a lane"), and Cancel; tap a target to give the order (Retreat is instant). New Attack order: pick a visible enemy hero, troop, tower or ward and the hero goes after it, then returns to its job. Heroes are smarter on their own: they pass through their own troops, slide past each other, wait outside an enemy tower until their own troops are there to take the hits, fall back towards their own tower when badly hurt while pushing, and pick targets better (enemy heroes in reach first, then the weakest).
+- **Rationale:** The owner found drag-to-order unintuitive and saw heroes stall after orders; a menu with highlighted targets is the familiar pattern, and the AI changes stop heroes stalling or throwing their lives away.
+- **User impact:** Tap a hero, choose, tap a target; heroes keep moving and look after themselves; a new Attack order.
+- **Technical impact:** Collision fix; hero AI rules (tower dive, fall back, target choice); Attack order in the rules; command menu in the screen layer.
+- **Data and privacy:** None.
+- **Cost:** none
+- **Approval:** Approved: “make it so that heroes are smarter, now currently the heroes would suddenly stop moving after commands are given ... make the instruction for heroes more intuitive, it should be player clicking on the hero's icon, select a few available option, and target where to go/what to aim etc etc” (2026-11-12)
+- **Delivery:** Not started
+- **Review trigger:** Players feel heroes act on their own too much, or the menu is slow.
+
 ## History (oldest first)
 
 - 2026-11-12 08:49 · Project records started for Lane Game.
@@ -388,3 +404,8 @@ None.
 - 2026-11-12 17:55 · DEC-016 delivery: implemented.
 - 2026-11-12 17:55 · REP-008 written: PLAN-006: slower pace, zoomable map, re-balance, character polish.
 - 2026-11-12 17:56 · PLAN-006 implemented: T1-T5 PASS (balance 1,200 matches in targets after the slowdown, 85 tests, soak, phone check with zoom OK); T6/T7 wait for the owner. REP-008 written.
+- 2026-11-12 18:13 · DEC-017 proposed: Hero command menu, Attack order and smarter heroes.
+- 2026-11-12 18:13 · PLAN-007 proposed: Smarter heroes and a tap-to-command menu.
+- 2026-11-12 18:13 · Owner approved DEC-017: "make it so that heroes are smarter, now currently the heroes would suddenly stop moving after commands are given ... make the instruction for heroes more intuitive, it should be player clicking on the hero's icon, select a few available option, and target where to go/what to aim etc etc".
+- 2026-11-12 18:13 · Owner approved PLAN-007: "make it so that heroes are smarter, now currently the heroes would suddenly stop moving after commands are given ... make the instruction for heroes more intuitive, it should be player clicking on the hero's icon, select a few available option, and target where to go/what to aim etc etc".
+- 2026-11-12 18:13 · PLAN-007 delivery: in progress.

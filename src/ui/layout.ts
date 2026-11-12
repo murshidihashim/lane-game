@@ -12,6 +12,15 @@ export interface HeroPanel {
   items: Rect[];
 }
 
+/** The hero command menu (DEC-017): a header, eight order buttons, and a hint strip with Cancel. */
+export interface CommandMenu {
+  box: Rect;
+  close: Rect;
+  buttons: Rect[]; // in COMMAND_ORDERS order
+  hint: Rect;
+  cancel: Rect;
+}
+
 export interface Layout {
   w: number; h: number; dpr: number;
   col: Rect; // the phone-shaped column
@@ -27,6 +36,7 @@ export interface Layout {
   heroes: HeroPanel[]; // one per hero (DEC-014: three)
   mana: Rect;
   shop: Rect;
+  menu: CommandMenu;
 }
 
 export const TOP_H = 58;
@@ -71,10 +81,22 @@ export function computeLayout(w: number, h: number, dpr: number): Layout {
   };
   const heroes: HeroPanel[] = [panel(0), panel(1), panel(2)];
 
+  // The command menu sits over the bottom of the map, just above the wave chips.
+  const menuH = 128;
+  const mBox: Rect = { x: cx + 8, y: hudY - menuH - 4, w: cw - 16, h: menuH };
+  const bw = (mBox.w - 10 - 3 * 6) / 4;
+  const menu: CommandMenu = {
+    box: mBox,
+    close: { x: mBox.x + mBox.w - 34, y: mBox.y + 3, w: 30, h: 26 },
+    buttons: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ x: mBox.x + 5 + (i % 4) * (bw + 6), y: mBox.y + 32 + Math.floor(i / 4) * 48, w: bw, h: 44 })),
+    hint: { x: cx + 8, y: hudY - 46, w: cw - 16, h: 40 },
+    cancel: { x: cx + cw - 8 - 86, y: hudY - 42, w: 82, h: 32 },
+  };
+
   const bottomY = panelY + PANEL_H;
   const shop: Rect = { x: cx + cw - 8 - 104, y: bottomY + 2, w: 104, h: BOTTOM_H - 8 };
   const mana: Rect = { x: cx + 8, y: bottomY + 2, w: cw - 16 - 104 - 10, h: BOTTOM_H - 8 };
-  return { w, h, dpr, col, top, towers, gear, field, scale, baseScale: scale, vx: FIELD.minX, vy: FIELD.minY, zoomBtn, waves, heroes, mana, shop };
+  return { w, h, dpr, col, top, towers, gear, field, scale, baseScale: scale, vx: FIELD.minX, vy: FIELD.minY, zoomBtn, waves, heroes, mana, shop, menu };
 }
 
 /** The camera (DEC-016): zoom 1 shows the whole map; up to MAX_ZOOM, centred on a world point. */

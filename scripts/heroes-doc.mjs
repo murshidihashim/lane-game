@@ -69,7 +69,8 @@ for (const id of SPECIES_IDS) {
   S.push('');
 }
 S.push('## Hero orders', '');
-S.push('Drag a hero portrait onto a glowing spot on the map: **Push** a lane, **Gank** another lane, **Defend** a tower, **Farm** a grove, den or Gajah Mina, collect a **relic**, place a **Ward** on a cairn, or **Retreat** to the Pusaka. Drop it anywhere else to **Move** there and hold the spot (it fights what comes within ' + HERO_RULES.moveLeash + '). Farm and Ward are errands: when done, the hero goes back to its last job.', '');
+S.push('Tap a hero (its panel or the hero on the map) to open its orders, pick one, then tap a lit-up target (DEC-017): **Move** (go and hold a spot; it fights what comes within ' + HERO_RULES.moveLeash + '), **Attack** (go after an enemy you can see, then back to its job), **Push** or **Gank** a lane, **Defend** a tower, **Farm** a grove, den, Gajah Mina or relic, **Ward** a cairn, **Retreat** home to heal. Farm, Ward and Attack are errands: when done, the hero goes back to its last job. Dragging a portrait onto the map is a quick shortcut.', '');
+S.push(`Heroes think for themselves a little: they walk through their own side, wait outside an enemy tower until their own troops are in its reach, head home to heal below ${HERO_RULES.fallbackBelowPct}% health while pushing (and go back at ${HERO_RULES.fallbackUntilPct}%), and go for enemy heroes in reach first, then the weakest enemy.`, '');
 S.push('## Items', '');
 S.push(`Bought with ${MANA.name} in the Shop, for one hero, ${ITEM_SLOTS} slots each, kept through death. No random rewards. ${MANA.name} starts at ${sp(MANA.start)}, refills 1 every ${sec(MANA.perMana / MANA.regenPerTick)} (twice as fast in the last minute) and holds at most ${sp(MANA.max)}.`, '');
 S.push('| Item | Cost | What it does |', '|---|---|---|');

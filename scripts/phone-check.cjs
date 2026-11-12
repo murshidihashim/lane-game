@@ -88,29 +88,71 @@ async function page(browser, query) {
       else console.log(`PASS tapping the left wave chip changes the left lane wave: ${lane0} -> ${after}`);
     }
 
-    // hero orders by dragging the portrait: a camp (Farm), a ward cairn (Ward), an empty spot (Move)
+    // Hero orders through the command menu (DEC-017): tap the hero, pick an order, tap a target.
     const portrait = c(s.L.heroes[ki].portrait);
-    const orderOf = () => p.evaluate(() => window.__game.sim.heroOf(0, 'kail').order.type);
+    const order = () => p.evaluate(() => window.__game.sim.heroOf(0, 'kail').order);
+    const ui = () => p.evaluate(() => window.__game.ui.command);
+    const ORDERS = ['move', 'attack', 'push', 'gank', 'defend', 'farm', 'ward', 'retreat'];
+    const menuBtn = (id) => c(s.L.menu.buttons[ORDERS.indexOf(id)]);
+    const tap = async (pt) => { await p.mouse.click(pt[0], pt[1]); await p.waitForTimeout(140); };
+    await tap(portrait);
+    if (JSON.stringify(await ui()) !== JSON.stringify({ hero: 'kail', action: null })) fail('tapping a hero panel did not open its menu: ' + JSON.stringify(await ui()));
+    else console.log('PASS tapping a hero panel opens its command menu');
+    await p.screenshot({ path: `${out}/3-menu.png` });
+    await tap(c(s.L.menu.close));
+    if (await ui()) fail('the ✕ did not close the menu');
+    const give = async (id, where, expectType, name) => {
+      await tap(portrait);
+      await tap(menuBtn(id));
+      if (id !== 'retreat' && (await ui())?.action !== id) { fail(`menu: ${id} did not start aiming`); return; }
+      if (where) await tap(where);
+      const o = await order();
+      if (o.type !== expectType) fail(`menu ${id}: order is "${o.type}", expected ${expectType}`);
+      else console.log(`PASS menu → ${name} gives a ${expectType} order`);
+      if (await ui()) fail(`menu ${id}: menu still open after the order`);
+    };
+    await give('farm', w2s(1260, 3470), 'farm', 'Farm, tap a fruit grove');
+    await give('ward', w2s(1050, 4200), 'ward', 'Ward, tap a cairn');
+    await give('move', w2s(1500, 4700), 'move', 'Move, tap an open spot');
+    const mv = await order();
+    if (Math.abs(mv.x - 1500) > 150 || Math.abs(mv.y - 4700) > 150) fail('Move went to the wrong spot: ' + JSON.stringify(mv));
+    // Push: the lanes light up; tap anywhere on the right lane
+    await tap(portrait);
+    await tap(menuBtn('push'));
+    await p.screenshot({ path: `${out}/3b-aim-push.png` });
+    await tap(w2s(3330, 3000));
+    const po = await order();
+    if (!(['push', 'gank'].includes(po.type) && po.lane === 2)) fail('Push on the right lane gave ' + JSON.stringify(po));
+    else console.log(`PASS menu → Push, tap the right lane gives ${po.type} lane 2`);
+    // Attack: an enemy in sight gets a red ring; tap it
+    const foeId = await p.evaluate(() => { const sim = window.__game.sim; const h = sim.heroOf(0, 'kail'); const e = sim.summon(1, 'shieldbearer', h.x + 120, h.y - 380, 0); e.speed = 0; return e.id; });
+    await p.waitForTimeout(100);
+    await tap(portrait);
+    await tap(menuBtn('attack'));
+    await p.screenshot({ path: `${out}/3c-aim-attack.png` });
+    const foePt = await p.evaluate((id) => { const g = window.__game; const e = g.sim.get(id); const L = g.layout; return [L.field.x + (e.x - L.vx) * L.scale, L.field.y + (e.y - L.vy) * L.scale - 12]; }, foeId);
+    await tap(foePt);
+    const ao = await order();
+    if (ao.type !== 'attack' || ao.target !== foeId) fail('Attack on the enemy gave ' + JSON.stringify(ao));
+    else console.log('PASS menu → Attack, tap an enemy gives an Attack order on it');
+    await give('retreat', null, 'retreat', 'Retreat (no target needed)');
+    // Cancel, and opening the menu by tapping the hero on the map
+    await tap(portrait);
+    await tap(menuBtn('defend'));
+    await tap(c(s.L.menu.cancel));
+    if (await ui()) fail('Cancel did not close the menu');
+    else console.log('PASS Cancel closes the menu without an order');
+    const kp = await p.evaluate(() => { const g = window.__game; const h = g.sim.heroOf(0, 'kail'); const L = g.layout; return [L.field.x + (h.x - L.vx) * L.scale, L.field.y + (h.y - L.vy) * L.scale - 16]; });
+    await tap(kp);
+    if ((await ui())?.hero !== 'kail') fail('tapping Kail on the map did not open his menu');
+    else console.log('PASS tapping a hero on the map opens its menu');
+    await tap(c(s.L.menu.close));
+    // the quick drag shortcut still works
     const camp = w2s(1260, 3470);
-    await p.mouse.move(...portrait); await p.mouse.down();
-    for (let k = 1; k <= 8; k++) await p.mouse.move(portrait[0] + (camp[0] - portrait[0]) * k / 8, portrait[1] + (camp[1] + 28 - portrait[1]) * k / 8);
-    await p.waitForTimeout(80);
-    await p.screenshot({ path: `${out}/3-order-drag.png` });
-    await p.mouse.up();
-    await p.waitForTimeout(200);
-    if ((await orderOf()) !== 'farm') fail('drag onto a camp did not give Farm');
-    else console.log('PASS drag a hero portrait onto a camp gives a Farm order');
-    const ward = w2s(1050, 4200);
-    await drag(portrait, [ward[0], ward[1] + 28]);
-    await p.waitForTimeout(200);
-    if ((await orderOf()) !== 'ward') fail('drag onto a cairn did not give Ward');
-    else console.log('PASS drag a hero portrait onto a ward cairn gives a Ward order');
-    const spot = w2s(1500, 4700); // open jungle, away from every order spot
-    await drag(portrait, [spot[0], spot[1] + 28]);
-    await p.waitForTimeout(200);
-    const mv = await p.evaluate(() => window.__game.sim.heroOf(0, 'kail').order);
-    if (mv.type !== 'move' || Math.abs(mv.x - 1500) > 150 || Math.abs(mv.y - 4700) > 150) fail('drag onto an empty spot did not give Move there: ' + JSON.stringify(mv));
-    else console.log('PASS drag a hero portrait onto an empty spot gives a Move order to that spot');
+    await drag(portrait, [camp[0], camp[1] + 28]);
+    await p.waitForTimeout(150);
+    if ((await order()).type !== 'farm') fail('dragging a portrait onto a camp no longer gives Farm');
+    else console.log('PASS the drag shortcut still works (portrait onto a camp gives Farm)');
 
     // shop: tap Shop, buy Capal Angin (4 Semangat, what you start with) for Kail
     await p.mouse.click(...c(s.L.shop));
@@ -159,6 +201,8 @@ async function page(browser, query) {
     if (!(v2.vx < v.vx - 10 && v2.vy < v.vy - 10)) fail('dragging the zoomed map did not pan: ' + JSON.stringify([v.vx, v.vy, v2.vx, v2.vy]));
     else console.log('PASS dragging the zoomed map looks around');
     // order while zoomed: drop Kail in the middle of the zoomed view; the order must change
+    await p.evaluate(() => window.__game.sim.submit({ t: 'order', player: 0, hero: 'kail', order: 'retreat' }));
+    await p.waitForTimeout(100);
     const before = await p.evaluate(() => JSON.stringify(window.__game.sim.heroOf(0, 'kail').order));
     await drag(portrait, [mid[0], mid[1] + 28]);
     await p.waitForTimeout(150);

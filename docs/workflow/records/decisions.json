@@ -427,6 +427,32 @@
       "delivery": "implemented",
       "reports": [],
       "reviewTrigger": "Matches feel slow or zooming gets in the way of giving orders."
+    },
+    {
+      "id": "DEC-017",
+      "title": "Hero command menu, Attack order and smarter heroes",
+      "question": "How does a player command a hero, and how much do heroes think for themselves?",
+      "options": [
+        "Tap hero, pick an order from a menu, tap the target (built; dragging a portrait stays as a shortcut)",
+        "Drag the portrait onto a spot only (as before)"
+      ],
+      "choice": "Tap a hero (its panel or the hero on the map) to open its command menu: Move, Attack, Push, Gank, Defend, Farm, Ward, Retreat. Pick one and the map highlights only the valid targets with a hint (\"Tap a lane\"), and Cancel; tap a target to give the order (Retreat is instant). New Attack order: pick a visible enemy hero, troop, tower or ward and the hero goes after it, then returns to its job. Heroes are smarter on their own: they pass through their own troops, slide past each other, wait outside an enemy tower until their own troops are there to take the hits, fall back towards their own tower when badly hurt while pushing, and pick targets better (enemy heroes in reach first, then the weakest).",
+      "rationale": "The owner found drag-to-order unintuitive and saw heroes stall after orders; a menu with highlighted targets is the familiar pattern, and the AI changes stop heroes stalling or throwing their lives away.",
+      "impact": {
+        "user": "Tap a hero, choose, tap a target; heroes keep moving and look after themselves; a new Attack order.",
+        "technical": "Collision fix; hero AI rules (tower dive, fall back, target choice); Attack order in the rules; command menu in the screen layer.",
+        "data": "None."
+      },
+      "cost": "none",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "approved",
+        "evidence": "make it so that heroes are smarter, now currently the heroes would suddenly stop moving after commands are given ... make the instruction for heroes more intuitive, it should be player clicking on the hero's icon, select a few available option, and target where to go/what to aim etc etc",
+        "date": "2026-11-12"
+      },
+      "delivery": "not started",
+      "reports": [],
+      "reviewTrigger": "Players feel heroes act on their own too much, or the menu is slow."
     }
   ],
   "history": [
@@ -909,6 +935,26 @@
     {
       "at": "2026-11-12 17:56",
       "text": "PLAN-006 implemented: T1-T5 PASS (balance 1,200 matches in targets after the slowdown, 85 tests, soak, phone check with zoom OK); T6/T7 wait for the owner. REP-008 written."
+    },
+    {
+      "at": "2026-11-12 18:13",
+      "text": "DEC-017 proposed: Hero command menu, Attack order and smarter heroes."
+    },
+    {
+      "at": "2026-11-12 18:13",
+      "text": "PLAN-007 proposed: Smarter heroes and a tap-to-command menu."
+    },
+    {
+      "at": "2026-11-12 18:13",
+      "text": "Owner approved DEC-017: \"make it so that heroes are smarter, now currently the heroes would suddenly stop moving after commands are given ... make the instruction for heroes more intuitive, it should be player clicking on the hero's icon, select a few available option, and target where to go/what to aim etc etc\"."
+    },
+    {
+      "at": "2026-11-12 18:13",
+      "text": "Owner approved PLAN-007: \"make it so that heroes are smarter, now currently the heroes would suddenly stop moving after commands are given ... make the instruction for heroes more intuitive, it should be player clicking on the hero's icon, select a few available option, and target where to go/what to aim etc etc\"."
+    },
+    {
+      "at": "2026-11-12 18:13",
+      "text": "PLAN-007 delivery: in progress."
     }
   ]
 }

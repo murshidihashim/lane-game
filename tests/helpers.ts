@@ -44,7 +44,7 @@ export function stepN(sim: Sim, n: number): void {
   for (let i = 0; i < n; i++) sim.step();
 }
 
-const order = (type: Order['type'], lane: LaneId = 0): Order => ({ type, lane, camp: 0, spot: 0, x: 0, y: 0 });
+const order = (type: Order['type'], lane: LaneId = 0): Order => ({ type, lane, camp: 0, spot: 0, x: 0, y: 0, target: 0 });
 
 /**
  * Heroes start at the Pusaka (DEC-011). Put one of player p's heroes at distance u up a lane with a

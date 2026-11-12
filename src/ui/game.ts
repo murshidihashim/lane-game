@@ -3,8 +3,8 @@ import { Bot, type BotLevel } from '../game/bot';
 import { LANE_NAMES, type LaneId } from '../game/map';
 import { CLASSES, HEROES, ITEMS, MANA, SPECIES, TICKS_PER_SECOND, type HeroKind, type ItemId, type SpeciesId } from '../game/rules';
 import { type Command, DEFAULT_PICKS, Sim, randomPicks, randomSpecies } from '../game/sim';
-import { type Layout, type View, MAX_ZOOM, applyView, clampView, computeLayout, homeView, inField, inRect, toWorld } from './layout';
-import { moveCommand, orderCommand, orderTargets } from './placement';
+import { type Layout, type View, MAX_ZOOM, applyView, clampView, computeLayout, homeView, inField, inRect, toScreen, toWorld } from './layout';
+import { COMMAND_ORDERS, type CommandAction, commandTargets, moveCommand, orderCommand, orderLabel, orderTargets, resolveCommand } from './placement';
 import { DRAG_LIFT, Renderer, type UiState, nearestTarget } from './render';
 
 export interface Settings {
@@ -42,7 +42,7 @@ export class Game {
   private lastTap: { x: number; y: number; at: number } | null = null;
   private ctx: CanvasRenderingContext2D;
   private renderer = new Renderer();
-  private ui: UiState = { dragHero: null, selectedHero: null, hover: null, toast: null };
+  private ui: UiState = { dragHero: null, command: null, hover: null, toast: null };
   private acc = 0;
   private last = 0;
   private running = false;
@@ -80,7 +80,7 @@ export class Game {
     this.log = [];
     this.renderer.reset();
     if (this.base) this.setView(homeView());
-    this.ui = { dragHero: null, selectedHero: null, hover: null, toast: null };
+    this.ui = { dragHero: null, command: null, hover: null, toast: null };
     this.acc = 0;
     this.resultShown = false;
   }
@@ -170,13 +170,23 @@ export class Game {
   }
 
   /** What a tap on the HUD buttons does (handled on release), or null. */
-  private buttonAt(x: number, y: number): { kind: 'gear' } | { kind: 'zoom' } | { kind: 'wave'; lane: LaneId } | { kind: 'ult'; hero: HeroKind } | { kind: 'shop'; hero: HeroKind | null } | null {
+  private buttonAt(x: number, y: number):
+    | { kind: 'gear' } | { kind: 'zoom' } | { kind: 'wave'; lane: LaneId } | { kind: 'ult'; hero: HeroKind } | { kind: 'shop'; hero: HeroKind | null }
+    | { kind: 'menu-close' } | { kind: 'menu-order'; action: CommandAction } | { kind: 'menu-cancel' } | { kind: 'menu-bg' } | null {
     const l = this.layout;
+    // The command menu (DEC-017) sits on top of the map, so it comes first.
+    const cmd = this.ui.command;
+    if (cmd && cmd.action === null && inRect(l.menu.box, x, y)) {
+      if (inRect(l.menu.close, x, y)) return { kind: 'menu-close' };
+      const i = l.menu.buttons.findIndex((r) => inRect(r, x, y));
+      return i >= 0 ? { kind: 'menu-order', action: COMMAND_ORDERS[i].id } : { kind: 'menu-bg' };
+    }
+    if (cmd && cmd.action !== null && inRect(l.menu.hint, x, y)) return inRect(l.menu.cancel, x, y) ? { kind: 'menu-cancel' } : { kind: 'menu-bg' };
     if (inRect(l.gear, x, y)) return { kind: 'gear' };
     if (inRect(l.zoomBtn, x, y)) return { kind: 'zoom' };
     const w = l.waves.findIndex((r) => inRect(r, x, y));
     if (w >= 0) return { kind: 'wave', lane: w as LaneId };
-    if (inRect(l.shop, x, y)) return { kind: 'shop', hero: this.ui.selectedHero };
+    if (inRect(l.shop, x, y)) return { kind: 'shop', hero: this.ui.command?.hero ?? null };
     const kinds = this.sim.players[0].picks;
     for (let i = 0; i < kinds.length; i++) {
       const p = l.heroes[i];
@@ -271,24 +281,40 @@ export class Game {
       else if (btn.kind === 'zoom') this.toggleZoom(this.layout.field.x + this.layout.field.w / 2, this.layout.field.y + this.layout.field.h * 0.62);
       else if (btn.kind === 'wave') this.cycleWave(btn.lane);
       else if (btn.kind === 'ult') this.callUlt(btn.hero);
-      else document.dispatchEvent(new CustomEvent('open-shop', { detail: btn.hero ?? this.sim.players[0].picks[0] }));
+      else if (btn.kind === 'shop') document.dispatchEvent(new CustomEvent('open-shop', { detail: btn.hero ?? this.sim.players[0].picks[0] }));
+      else if (btn.kind === 'menu-close' || btn.kind === 'menu-cancel') this.ui.command = null;
+      else if (btn.kind === 'menu-order') this.chooseOrder(btn.action);
       return;
     }
+    if (btn?.kind === 'menu-bg') return; // a drag that started on the menu
     const dh = this.ui.dragHero;
     if (dh) {
       this.ui.dragHero = null;
       if (!dh.moved) {
-        this.ui.selectedHero = this.ui.selectedHero === dh.hero ? null : dh.hero;
+        // Tap a hero's panel: open (or close) its command menu.
+        const cur = this.ui.command;
+        this.ui.command = cur && cur.hero === dh.hero && cur.action === null ? null : { hero: dh.hero, action: null };
         return;
       }
-      this.orderHero(dh.hero, p.x, p.y - DRAG_LIFT);
+      this.orderHero(dh.hero, p.x, p.y - DRAG_LIFT); // dragging a portrait onto the map: a quick order
+      this.ui.command = null;
       return;
     }
     if (pan?.moved) { this.ui.hover = null; return; } // that was a look around, not a tap
-    // A tap on the field: with a hero selected it's an order; otherwise a double-tap zooms.
-    if (this.ui.selectedHero && inField(this.layout, p.x, p.y)) {
-      if (this.orderHero(this.ui.selectedHero, p.x, p.y)) this.ui.selectedHero = null;
-    } else if (inField(this.layout, p.x, p.y)) {
+    const cmd = this.ui.command;
+    if (cmd && cmd.action !== null && inField(this.layout, p.x, p.y)) {
+      // Aiming an order: the tap picks the target.
+      const order = resolveCommand(this.layout, this.sim, cmd.hero, cmd.action, p.x, p.y);
+      if (!order) { this.toast(COMMAND_ORDERS.find((o) => o.id === cmd.action)?.hint ?? 'Tap a highlighted target'); return; }
+      this.send(order);
+      this.ui.command = null;
+      this.announce(cmd.hero);
+      return;
+    }
+    const tapped = inField(this.layout, p.x, p.y) ? this.heroOnMapAt(p.x, p.y) : null;
+    if (tapped) { this.ui.command = { hero: tapped, action: null }; this.lastTap = null; return; }
+    if (cmd) { this.ui.command = null; return; } // a tap elsewhere closes the menu
+    if (inField(this.layout, p.x, p.y)) {
       const now = performance.now();
       const t = this.lastTap;
       if (t && now - t.at < DOUBLE_TAP_MS && Math.hypot(p.x - t.x, p.y - t.y) < 30) {
@@ -297,6 +323,44 @@ export class Game {
       } else this.lastTap = { x: p.x, y: p.y, at: now };
     }
     this.ui.hover = null;
+  }
+
+  /** One of your heroes standing under the finger on the map, if any. */
+  private heroOnMapAt(sx: number, sy: number): HeroKind | null {
+    let best: HeroKind | null = null;
+    let bestD = 30 * 30;
+    for (const h of this.sim.heroes(0)) {
+      if (!h.alive) continue;
+      const [x, y] = toScreen(this.layout, h.x, h.y);
+      const d = (x - sx) * (x - sx) + (y - 16 - sy) * (y - 16 - sy); // the body, above the feet
+      if (d < bestD) { bestD = d; best = h.hero; }
+    }
+    return best;
+  }
+
+  /** A menu button: Retreat goes at once; the rest wait for a target on the map. */
+  private chooseOrder(action: CommandAction): void {
+    const cmd = this.ui.command;
+    if (!cmd) return;
+    if (action === 'retreat') {
+      this.send({ t: 'order', player: 0, hero: cmd.hero, order: 'retreat' });
+      this.ui.command = null;
+      this.announce(cmd.hero);
+      return;
+    }
+    if (action !== 'move' && commandTargets(this.sim, cmd.hero, action).length === 0) {
+      this.toast(action === 'attack' ? 'No enemy in sight' : 'Nothing to aim at right now');
+      return;
+    }
+    this.ui.command = { hero: cmd.hero, action };
+  }
+
+  /** Say what the hero is doing now (after the order is applied on the next step). */
+  private announce(kind: HeroKind): void {
+    window.setTimeout(() => {
+      const h = this.sim.heroOf(0, kind);
+      if (h) this.toast(`${HEROES[kind].name}: ${orderLabel(h, this.sim)}`);
+    }, 80);
   }
 
   /** ULT button: call the ultimate (the hero fires it at the next good moment), or cancel the call. */

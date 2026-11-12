@@ -7,7 +7,7 @@ import type { Ent, GameEvent, Sim } from '../game/sim';
 import { MapPainter, PAL, SPECIES_COLORS, glyph, kubu, pusaka, songket, teamColors, type Glyph } from './art';
 import { drawHeroFigure, drawPortrait, drawTroopFigure, heroScale } from './figures';
 import { type HeroPanel, type Layout, type Rect, toScreen } from './layout';
-import { type OrderTarget, orderLabel, orderTargets } from './placement';
+import { COMMAND_ORDERS, type CommandAction, type OrderTarget, commandTargets, orderLabel, orderTargets } from './placement';
 import { ULT_BANNER_MS, ULT_BURST_MS, type UltFx, drawUltAura, drawUltBanner, drawUltBurst } from './ultfx';
 
 /** Ring colour of a hero = its best order. */
@@ -21,7 +21,8 @@ const TROOP_H = 21;
 
 export interface UiState {
   dragHero: { hero: HeroKind; x: number; y: number; moved: boolean } | null;
-  selectedHero: HeroKind | null;
+  /** The hero whose command menu is open, and the order being aimed (null = choosing) (DEC-017). */
+  command: { hero: HeroKind; action: CommandAction | null } | null;
   hover: { x: number; y: number } | null;
   toast: { text: string; until: number } | null;
 }
@@ -86,12 +87,18 @@ export class Renderer {
     this.drawFog(ctx, l);
     this.drawHealthOverFog(ctx, l, sim);
     this.drawUltBanners(ctx, l, now);
+    this.drawCommandTargets(ctx, l, sim, ui, alpha, now);
     ctx.restore();
     this.drawZoomButton(ctx, l);
     this.drawOrderTargets(ctx, l, sim, ui);
+    this.drawCommandMenu(ctx, l, sim, ui);
     this.drawTop(ctx, l, sim);
     this.drawHud(ctx, l, sim, ui);
-    if (ui.toast && ui.toast.until > now) this.drawToast(ctx, l, ui.toast.text);
+    if (ui.toast && ui.toast.until > now) {
+      // above the command menu or its hint strip when one is showing
+      const top = ui.command ? (ui.command.action === null ? l.menu.box.y : l.menu.hint.y) - 40 : l.waves[0].y - 46;
+      this.drawToast(ctx, l, ui.toast.text, top);
+    }
     ctx.restore();
   }
 
@@ -627,8 +634,9 @@ export class Renderer {
   }
 
   private drawOrderTargets(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState): void {
-    const kind = ui.dragHero ? ui.dragHero.hero : ui.selectedHero;
-    if (!kind) return;
+    // Shown while a portrait is being dragged onto the map (the quick-order shortcut).
+    if (!ui.dragHero || !ui.dragHero.moved) return;
+    const kind = ui.dragHero.hero;
     const hero = sim.heroOf(0, kind);
     const targets = orderTargets(sim, hero);
     const dragging = ui.dragHero !== null && ui.dragHero.moved;
@@ -658,6 +666,120 @@ export class Renderer {
     pill(ctx, 'or drop anywhere else: Move', l.field.x + l.field.w / 2, l.field.y + 29, false);
     ctx.restore();
     if (pt && ui.dragHero && ui.dragHero.moved) drawPortrait(ctx, kind, pt.x, pt.y - DRAG_LIFT - 18, 15, 0, l.dpr);
+  }
+
+  // ---------- the command menu (DEC-017) ----------
+
+  /** The selected hero's ring, and while aiming an order, every valid target lit up. */
+  private drawCommandTargets(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState, alpha: number, now: number): void {
+    const cmd = ui.command;
+    if (!cmd) return;
+    const h = sim.heroOf(0, cmd.hero);
+    const pulse = 0.5 + 0.5 * Math.sin(now / 160);
+    if (h && h.alive) {
+      const [x, y] = toScreen(l, ...this.pos(h, alpha));
+      const g = this.grow(l);
+      ctx.save();
+      ctx.strokeStyle = PAL.gold;
+      ctx.lineWidth = 2.5;
+      ctx.globalAlpha = 0.6 + 0.4 * pulse;
+      ctx.beginPath(); ctx.ellipse(x, y + 1, 21 * g, 8 * g, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+    const action = cmd.action;
+    if (!action) return;
+    ctx.save();
+    ctx.fillStyle = 'rgba(20,12,6,0.22)';
+    ctx.fillRect(l.field.x, l.field.y, l.field.w, l.field.h);
+    if (action === 'push' || action === 'gank') {
+      // the lanes themselves light up: tap anywhere on one
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = LANE_HALF * 2 * l.scale;
+      ctx.strokeStyle = action === 'push' ? `rgba(240,147,43,${0.28 + 0.12 * pulse})` : `rgba(229,83,75,${0.28 + 0.12 * pulse})`;
+      for (const id of sim.lanes) { this.lanePath(ctx, l, id); ctx.stroke(); }
+    }
+    for (const t of commandTargets(sim, cmd.hero, action)) {
+      const [x, y] = toScreen(l, t.x, t.y);
+      const e = t.ent;
+      if (action === 'attack' && e && e.kind !== 'camp') {
+        // red rings round every enemy you can go after
+        const r = e.kind === 'tower' || e.kind === 'core' ? Math.max(16, e.r * l.scale * 1.2) : 13 * this.grow(l);
+        const cy = e.kind === 'unit' || e.kind === 'hero' ? y - 10 * this.grow(l) : y;
+        ctx.strokeStyle = `rgba(229,83,75,${0.65 + 0.35 * pulse})`;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(x, cy, r, 0, Math.PI * 2); ctx.stroke();
+        continue;
+      }
+      const icon = COMMAND_ORDERS.find((o) => o.id === action)?.icon ?? '•';
+      ctx.fillStyle = 'rgba(43,29,20,0.9)';
+      ctx.strokeStyle = PAL.gold;
+      ctx.lineWidth = 2 + pulse;
+      ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      label(ctx, e?.kind === 'camp' && action === 'attack' ? '✦' : icon, x, y + 1, PAL.gold, 13);
+    }
+    ctx.restore();
+  }
+
+  /** The menu of orders (choosing), or the hint strip with Cancel (aiming). */
+  private drawCommandMenu(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState): void {
+    const cmd = ui.command;
+    if (!cmd) return;
+    const def = HEROES[cmd.hero];
+    const m = l.menu;
+    ctx.save();
+    if (cmd.action === null) {
+      const b = m.box;
+      ctx.fillStyle = 'rgba(43,29,20,0.95)';
+      ctx.strokeStyle = PAL.gold;
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, b.x, b.y, b.w, b.h, 10);
+      ctx.fill(); ctx.stroke();
+      songket(ctx, b.x + 8, b.y + 1, b.w - 16, 4);
+      drawPortrait(ctx, cmd.hero, b.x + 17, b.y + 17, 11, 0, l.dpr);
+      ctx.fillStyle = PAL.parchment;
+      ctx.font = 'bold 13px Georgia, serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      const h = sim.heroOf(0, cmd.hero);
+      ctx.fillText(fit(ctx, `${def.name} · ${h ? orderLabel(h, sim) : ''}`, b.w - 80), b.x + 34, b.y + 17);
+      label(ctx, '✕', m.close.x + m.close.w / 2, m.close.y + m.close.h / 2, PAL.parchment, 15);
+      COMMAND_ORDERS.forEach((o, i) => {
+        const r = m.buttons[i];
+        const best = def.best === o.id;
+        ctx.fillStyle = PAL.parchment;
+        ctx.strokeStyle = best ? PAL.gold : INK;
+        ctx.lineWidth = best ? 2.5 : 1.2;
+        roundRect(ctx, r.x, r.y, r.w, r.h, 8);
+        ctx.fill(); ctx.stroke();
+        label(ctx, o.icon, r.x + r.w / 2, r.y + 15, o.id === 'attack' ? PAL.foe : PAL.maroon, 16);
+        ctx.font = 'bold 11px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = INK;
+        ctx.fillText(best ? `★ ${o.label}` : o.label, r.x + r.w / 2, r.y + r.h - 10);
+      });
+    } else {
+      const r = m.hint;
+      const o = COMMAND_ORDERS.find((x) => x.id === cmd.action);
+      ctx.fillStyle = 'rgba(43,29,20,0.95)';
+      ctx.strokeStyle = PAL.gold;
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, r.x, r.y, r.w, r.h, 10);
+      ctx.fill(); ctx.stroke();
+      drawPortrait(ctx, cmd.hero, r.x + 19, r.y + r.h / 2, 13, 0, l.dpr);
+      ctx.fillStyle = PAL.parchment;
+      ctx.font = 'bold 13px system-ui';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(fit(ctx, `${o?.label ?? ''}: ${o?.hint ?? ''}`, m.cancel.x - r.x - 44), r.x + 38, r.y + r.h / 2);
+      const c = m.cancel;
+      ctx.fillStyle = PAL.wood;
+      ctx.strokeStyle = INK;
+      roundRect(ctx, c.x, c.y, c.w, c.h, 8);
+      ctx.fill(); ctx.stroke();
+      label(ctx, 'Cancel', c.x + c.w / 2, c.y + c.h / 2 + 0.5, PAL.parchment, 12);
+    }
+    ctx.restore();
   }
 
   /** The zoom button in the field's corner (DEC-016): + to zoom in, − to see the whole map. */
@@ -826,7 +948,7 @@ export class Renderer {
   private drawHeroPanel(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState, kind: HeroKind, p: HeroPanel): void {
     const def = HEROES[kind];
     const h = sim.heroOf(0, kind);
-    const sel = ui.selectedHero === kind || ui.dragHero?.hero === kind;
+    const sel = ui.command?.hero === kind || ui.dragHero?.hero === kind;
     const b = p.box;
     ctx.save();
     ctx.fillStyle = PAL.parchment;
@@ -933,12 +1055,11 @@ export class Renderer {
     ctx.restore();
   }
 
-  private drawToast(ctx: CanvasRenderingContext2D, l: Layout, text: string): void {
+  private drawToast(ctx: CanvasRenderingContext2D, l: Layout, text: string, y: number): void {
     ctx.save();
     ctx.font = 'bold 14px Georgia, serif';
     const w = ctx.measureText(text).width + 28;
     const x = l.col.x + l.col.w / 2 - w / 2;
-    const y = l.waves[0].y - 46;
     ctx.fillStyle = 'rgba(43,29,20,0.92)';
     ctx.strokeStyle = PAL.gold;
     ctx.lineWidth = 1.5;

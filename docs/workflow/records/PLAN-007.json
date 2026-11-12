@@ -1,0 +1,86 @@
+{
+  "id": "PLAN-007",
+  "title": "Smarter heroes and a tap-to-command menu",
+  "problem": "Heroes sometimes stop moving after an order (a bug), the owner wants smarter heroes, and wants commanding to be: tap the hero, pick from a few options, then tap where to go or what to attack.",
+  "scope": [
+    "Fix heroes stalling after orders: heroes pass through their own troops; head-on bumps slide past instead of locking",
+    "Smarter heroes: wait outside an enemy tower until own troops are there; fall back to their own tower when badly hurt while pushing; better target choice (enemy heroes in reach, then the weakest); an on-screen note when a hero is waiting or falling back",
+    "Attack order: chase and hit a chosen visible enemy, then return to the previous job",
+    "Command menu: tap a hero panel or a hero on the map, pick an order, tap a highlighted target; Cancel; drag-to-order kept as a shortcut",
+    "Re-check balance (npm run balance), tests, phone check, help text, docs, records"
+  ],
+  "exclusions": [
+    "Online play",
+    "Sound",
+    "Aiming ultimates by hand (they still fire at the best moment once called)",
+    "Tower targeting rules"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "No stalls: in 60 matches of random player orders, no hero stands still without a reason (detector); collision rules tested",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T2",
+      "text": "Smarter heroes: tower-dive wait, fall back when hurt, target choice (automated tests)",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T3",
+      "text": "Attack order: chases a visible enemy, refuses unseen or invalid targets, returns to its job after (automated)",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T4",
+      "text": "Command menu: select, choose, highlighted targets, tap to order, cancel, for every order (browser check)",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T5",
+      "text": "Balance still in the PLAN-005 targets; determinism; soak",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T6",
+      "text": "On the owner's phone",
+      "result": "NOT RUN",
+      "evidence": ""
+    },
+    {
+      "id": "T7",
+      "text": "Owner's verdict: heroes smart enough? commanding intuitive?",
+      "result": "NOT RUN",
+      "evidence": ""
+    }
+  ],
+  "risks": [
+    "Heroes acting on their own (waiting, falling back) can feel like disobeying; shown on screen",
+    "Smarter bot heroes shift balance: re-checked",
+    "The menu adds a tap compared with dragging; dragging stays as a shortcut"
+  ],
+  "cost": "RM0. Free tools; private preview page. Several build sessions (estimate).",
+  "decisions": [
+    "DEC-017"
+  ],
+  "reports": [],
+  "changes": {
+    "added": [],
+    "changed": [],
+    "fixed": [],
+    "removed": []
+  },
+  "userNotes": [],
+  "approval": {
+    "status": "approved",
+    "evidence": "make it so that heroes are smarter, now currently the heroes would suddenly stop moving after commands are given ... make the instruction for heroes more intuitive, it should be player clicking on the hero's icon, select a few available option, and target where to go/what to aim etc etc",
+    "date": "2026-11-12"
+  },
+  "delivery": "in progress",
+  "release": "unreleased"
+}

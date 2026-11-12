@@ -16,7 +16,7 @@ export type Player = 0 | 1;
 export const NEUTRAL = 2;
 export type Owner = Player | typeof NEUTRAL;
 export type EntKind = 'unit' | 'hero' | 'tower' | 'core' | 'camp' | 'ward' | 'relic';
-export type OrderType = 'push' | 'defend' | 'gank' | 'farm' | 'ward' | 'retreat' | 'move';
+export type OrderType = 'push' | 'defend' | 'gank' | 'farm' | 'ward' | 'retreat' | 'move' | 'attack';
 export type CampKind = 'grove' | 'den' | 'boss';
 
 export interface Order {
@@ -29,6 +29,8 @@ export interface Order {
   spot: number;
   /** Move: the spot to go to and hold. */
   x: number; y: number;
+  /** Attack: the enemy (entity id) to go after (DEC-017). */
+  target: number;
 }
 
 export interface Ent {
@@ -91,6 +93,8 @@ export interface Ent {
   items: ItemId[]; // bought items (DEC-011)
   ultArmed: boolean; // the player has called the ultimate; it fires at the next good moment
   ultUntil: number; // tick when the ultimate's lasting effect ends (for drawing)
+  fallback: boolean; // badly hurt while pushing: heading home to heal (DEC-017)
+  waiting: boolean; // holding outside an enemy tower until own troops arrive (for the screen)
 }
 
 /** Everything a player can do (DEC-011): choose lane troops, order heroes, buy items, call ultimates. */
@@ -158,7 +162,7 @@ export interface FoeQuery {
   hidden?: boolean; // include hidden heroes
 }
 
-const NO_ORDER: Order = { type: 'push', lane: 0, camp: 0, spot: 0, x: 0, y: 0 };
+const NO_ORDER: Order = { type: 'push', lane: 0, camp: 0, spot: 0, x: 0, y: 0, target: 0 };
 export const DEFAULT_PICKS: HeroKind[] = ['rimba', 'benteng', 'kail'];
 
 /** Draft turn order (DEC-015): player 0, then the bot twice, player 0 twice, the bot (a snake). */
@@ -318,6 +322,11 @@ export class Sim {
     return v;
   }
 
+  /** Can this hero be ordered to attack t (DEC-017)? An enemy its side can see and it is able to hit. */
+  canAttack(h: Ent, t: Ent): boolean {
+    return this.targetable(h, t) && this.sees(h.homeOwner as Player, t);
+  }
+
   /** Is now a good moment for this hero's ultimate? Lights the ULT button (DEC-011). */
   ultSuggested(h: Ent): boolean {
     if (!this.canUlt(h)) return false;
@@ -427,7 +436,7 @@ export class Sim {
       v.push(e.id, e.owner, e.alive ? 1 : 0, e.x, e.y, e.hp, e.maxHp, e.atkCd, e.targetId, e.wp, e.deploy, e.slow, e.stun,
         e.silence, e.shield, e.dot, e.charm, e.duel, e.life, e.level, e.heroXp, e.respawn, e.powerCd, e.ultReady ? 1 : 0,
         e.ambushLeft, e.hidden ? 1 : 0, e.order.lane, e.camp, e.bonusPct, e.fury, e.spawnCd, e.streak, e.order.spot,
-        e.order.x, e.order.y, e.ultArmed ? 1 : 0, ...e.items.map((i) => ITEM_IDS.indexOf(i)));
+        e.order.x, e.order.y, e.order.target, e.ultArmed ? 1 : 0, e.fallback ? 1 : 0, ...e.items.map((i) => ITEM_IDS.indexOf(i)));
     }
     return hashInts(v);
   }
@@ -734,10 +743,21 @@ export class Sim {
       case 'retreat':
         order = { ...NO_ORDER, type: 'retreat', lane: h.order.lane };
         break;
+      case 'attack': {
+        // Only an enemy you can see and this hero can hit; a neutral camp means Farm.
+        const t = c.target !== undefined ? this.get(c.target) : undefined;
+        if (!t || !t.alive || t.hp <= 0) return false;
+        if (t.kind === 'camp') { order = { ...NO_ORDER, type: 'farm', lane: h.order.lane, camp: t.id }; break; }
+        if (!this.canAttack(h, t)) return false;
+        order = { ...NO_ORDER, type: 'attack', lane: h.order.lane, target: t.id };
+        break;
+      }
     }
     if (order.type === 'gank' && h.alive && this.heroLane(h) === order.lane) order.type = 'push';
-    // Farm and ward are errands: afterwards the hero goes back to what it was doing.
-    if (order.type === 'farm' || order.type === 'ward') h.prevOrder = h.order.type === 'farm' || h.order.type === 'ward' ? h.prevOrder : h.order;
+    // Farm, ward and attack are errands: afterwards the hero goes back to what it was doing.
+    const errand = (t: OrderType) => t === 'farm' || t === 'ward' || t === 'attack';
+    if (errand(order.type)) h.prevOrder = errand(h.order.type) ? h.prevOrder : h.order;
+    h.fallback = false;
     h.order = order;
     h.targetId = 0;
     if (h.alive && order.type === 'push') this.setPathFrom(h, order.lane, nearestS(LANES[order.lane], h.x, h.y));
@@ -782,7 +802,7 @@ export class Sim {
       level: 1, heroXp: 0, respawn: 0, powerCd: 0, ultReady: false,
       ambushLeft: 0, hidden: false, grace: 0, veil: 0, gankBonus: 0, bonusPct: 0, blockCd: 0, transformed: false,
       order: NO_ORDER, prevOrder: NO_ORDER, goalX: x, goalY: y, camp: 0, campKind: 'grove', respawnTotal: 0, spot: 0, relic: 0,
-      wave: false, spawnCd: 0, usedFirst: false, fury: 0, streak: 0, items: [], ultArmed: false, ultUntil: 0,
+      wave: false, spawnCd: 0, usedFirst: false, fury: 0, streak: 0, items: [], ultArmed: false, ultUntil: 0, fallback: false, waiting: false,
     };
     this.ents.push(e);
     return e;
@@ -1154,6 +1174,61 @@ export class Sim {
     else if (spd > 0) this.followPath(e, spd);
   }
 
+  /**
+   * The enemy tower (or Pusaka) that would shoot this hero at (x, y) with nothing else to shoot, or
+   * undefined. A hero may go in when its own troops are inside the tower's reach to take the shots,
+   * when the tower is nearly down, or (Gergasi, the tower-breaker) while it's healthy (DEC-017).
+   */
+  private towerForbids(h: Ent, x: number, y: number): Ent | undefined {
+    const p = h.homeOwner as Player;
+    for (const s of this.ents) {
+      if ((s.kind !== 'tower' && s.kind !== 'core') || !s.alive || s.owner === p) continue;
+      const reach = s.range + s.r + h.r;
+      if (!within(x, y, s.x, s.y, reach)) continue;
+      if (s.hp * 4 < s.maxHp) continue;
+      if (h.targets === 'buildings' && h.hp * 2 > h.maxHp) continue;
+      let cover = false;
+      for (const u of this.ents) {
+        if (u.kind === 'unit' && u.alive && u.hp > 0 && u.owner === p && within(u.x, u.y, s.x, s.y, s.range + s.r + u.r)) { cover = true; break; }
+      }
+      if (!cover) return s;
+    }
+    return undefined;
+  }
+
+  private moveAway(e: Ent, from: Ent, spd: number): void {
+    const dx = e.x - from.x;
+    const dy = e.y - from.y;
+    const d = Math.max(1, isqrt(dx * dx + dy * dy));
+    this.moveTo(e, e.x + idiv(dx * 200, d), e.y + idiv(dy * 200, d), spd);
+  }
+
+  /**
+   * A pushing hero's pick (DEC-017): an enemy hero it can already reach (the weakest), else the
+   * weakest enemy in reach, else the nearest in sight; never one under a tower it shouldn't enter.
+   */
+  private heroTarget(h: Ent): Ent | null {
+    let best: Ent | null = null;
+    let bestScore = -Infinity;
+    for (const t of this.ents) {
+      if (!this.targetable(h, t)) continue;
+      const reach = h.sight + t.r;
+      const d2 = dist2(h.x, h.y, t.x, t.y);
+      if (d2 > reach * reach || this.towerForbids(h, t.x, t.y)) continue;
+      const inReach = this.inRange(h, t);
+      let score = -isqrt(d2); // nearer is better
+      if (inReach) score += 10_000 - idiv(t.hp * 1000, Math.max(1, t.maxHp)); // weaker is better
+      if (inReach && t.kind === 'hero') score += 20_000;
+      if (t.lowPriority) score -= 40_000;
+      if (score > bestScore || (score === bestScore && best && t.id < best.id)) { best = t; bestScore = score; }
+    }
+    return best;
+  }
+
+  private retreatPoint(p: Player): Pt {
+    return [CORES[p][0], CORES[p][1] + (p === 0 ? -420 : 420)];
+  }
+
   private anchorFor(h: Ent): Pt {
     const p = h.homeOwner as Player;
     const toRiver = p === 0 ? -1 : 1;
@@ -1257,22 +1332,52 @@ export class Sim {
       return;
     }
 
+    if (o.type === 'attack') {
+      // Go after the chosen enemy while it can be seen, then back to the previous job (DEC-017).
+      const t = this.get(o.target);
+      if (!t || !t.alive || t.hp <= 0 || !this.sees(p, t) || !this.targetable(h, t)) { this.endFarm(h); return; }
+      h.targetId = t.id;
+      this.engage(h, t, spd);
+      return;
+    }
+
+    h.waiting = false;
     if (o.type === 'push') {
+      // Badly hurt: head home to heal, then come back (DEC-017).
+      if (h.hp * 100 < h.maxHp * HERO_RULES.fallbackBelowPct) h.fallback = true;
+      else if (h.hp * 100 >= h.maxHp * HERO_RULES.fallbackUntilPct) h.fallback = false;
+    }
+    if (o.type === 'push' && !h.fallback) {
       let t = this.currentTarget(h, h.sight + 200);
+      if (t && this.towerForbids(h, t.x, t.y)) { t = null; h.targetId = 0; }
       if (!t || (this.tick + h.id) % 4 === 0) {
-        const n = this.acquire(h, h.sight);
+        const n = this.heroTarget(h);
         if (n) { t = n; h.targetId = n.id; }
       }
-      if (t) this.engage(h, t, spd);
-      else {
-        const limit = kit.pushLimit?.(this, h);
-        if (limit === undefined || this.uOf(h.lane, p, h.x, h.y) < limit) this.followPath(h, spd);
+      if (t) {
+        this.engage(h, t, spd);
+        return;
+      }
+      // Already standing where an enemy tower would shoot us alone: step back out of its reach.
+      const shooter = this.towerForbids(h, h.x, h.y);
+      if (shooter) {
+        this.moveAway(h, shooter, spd);
+        h.waiting = true;
+        return;
+      }
+      const limit = kit.pushLimit?.(this, h);
+      if (limit === undefined || this.uOf(h.lane, p, h.x, h.y) < limit) {
+        const [ox, oy] = [h.x, h.y];
+        this.followPath(h, spd);
+        // Don't walk into an enemy tower's reach until our own troops are there to take its shots.
+        if (this.towerForbids(h, h.x, h.y)) { h.x = ox; h.y = oy; h.waiting = true; }
       }
       return;
     }
 
-    // defend / retreat / move: hold a point, fight what comes close, don't chase far.
-    const [ax, ay] = this.anchorFor(h);
+    // defend / retreat / move (and falling back): hold a point, fight what comes close, don't chase far.
+    const home = o.type === 'retreat' || h.fallback;
+    const [ax, ay] = h.fallback ? this.retreatPoint(p) : this.anchorFor(h);
     const leash = o.type === 'defend' ? HERO_RULES.defendLeash : o.type === 'move' ? HERO_RULES.moveLeash : 700;
     let t = this.currentTarget(h, h.sight + 200);
     if (t && !within(ax, ay, t.x, t.y, leash)) { t = null; h.targetId = 0; }
@@ -1280,9 +1385,9 @@ export class Sim {
       const n = this.acquire(h, h.sight, h.x, h.y, (c) => within(ax, ay, c.x, c.y, leash));
       if (n) { t = n; h.targetId = n.id; }
     }
-    if (t) this.engage(h, t, spd);
+    if (t && !(h.fallback && !this.inRange(h, t))) this.engage(h, t, spd); // falling back: hit only what's in reach
     else this.moveTo(h, ax, ay, spd);
-    if (o.type === 'retreat' && this.tick % 20 === 0) {
+    if (home && this.tick % 20 === 0) {
       const core = CORES[p];
       if (within(h.x, h.y, core[0], core[1], HERO_RULES.retreatHealRadius)) {
         h.hp = Math.min(h.maxHp, h.hp + pct(h.maxHp, HERO_RULES.retreatHealPerSecondPercent));
@@ -1343,7 +1448,7 @@ export class Sim {
   }
 
   private endFarm(h: Ent): void {
-    const prev = h.prevOrder.type === 'farm' || h.prevOrder.type === 'ward' ? { ...NO_ORDER, lane: h.order.lane } : h.prevOrder;
+    const prev = h.prevOrder.type === 'farm' || h.prevOrder.type === 'ward' || h.prevOrder.type === 'attack' ? { ...NO_ORDER, lane: h.order.lane } : h.prevOrder;
     h.order = prev;
     h.targetId = 0;
     if (prev.type === 'push') this.setPathFrom(h, prev.lane, nearestS(LANES[prev.lane], h.x, h.y));
@@ -1390,7 +1495,8 @@ export class Sim {
     h.ultArmed = false;
     if (h.order.type === 'push') this.setPathFrom(h, h.order.lane, nearestS(LANES[h.order.lane], x, y));
     if (h.order.type === 'gank') this.updateGankGoal(h);
-    if (h.order.type === 'farm' || h.order.type === 'ward') this.endFarm(h);
+    if (h.order.type === 'farm' || h.order.type === 'ward' || h.order.type === 'attack') this.endFarm(h);
+    h.fallback = false;
   }
 
   private updateStructure(e: Ent): void {
@@ -1486,6 +1592,9 @@ export class Sim {
       for (let j = i + 1; j < movers.length; j++) {
         const b = movers[j];
         if (a.flying !== b.flying) continue; // fliers pass over ground units
+        // Heroes walk through their own side (troops and heroes): otherwise a hero sent against the
+        // flow of its own wave, or past a teammate holding a spot, gets shoved back and looks stuck.
+        if (a.owner === b.owner && (a.kind === 'hero' || b.kind === 'hero')) continue;
         const rs = a.r + b.r - 10;
         const dx = b.x - a.x;
         if (dx > rs || dx < -rs) continue;
@@ -1500,8 +1609,12 @@ export class Sim {
         const push = idiv(rs - d, 2) + 1;
         const px = idiv(ux * push, d);
         const py = idiv(uy * push, d);
-        a.x -= px; a.y -= py;
-        b.x += px; b.y += py;
+        // A sideways nudge as well, so two pieces meeting head-on slide past each other
+        // instead of pushing straight back and locking up.
+        const sx = idiv(-uy * push, 2 * d);
+        const sy = idiv(ux * push, 2 * d);
+        a.x -= px - sx; a.y -= py - sy;
+        b.x += px - sx; b.y += py - sy;
       }
     }
     for (const e of movers) {

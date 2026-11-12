@@ -62,6 +62,8 @@ export const HERO_RULES = {
   heroesPerPlayer: 3, // DEC-014
   startDelay: sec(1), // heroes appear at the Pusaka, then set off
   moveLeash: 600, // a hero sent somewhere fights what comes this close to the spot
+  fallbackBelowPct: 25, // a pushing hero this hurt heads home to heal (DEC-017)...
+  fallbackUntilPct: 80, // ...and goes back once healed this far
 } as const;
 
 /** Neutral objectives on the map (DEC-009). */

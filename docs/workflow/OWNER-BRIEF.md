@@ -12,14 +12,17 @@ Everything here should work from a phone.
 1. You'll get a message that a change is ready and the checks are green.
 2. Open the preview on your phone (refresh if it looks old) and follow the checklist.
 
-## 2 · Checklist for PLAN-001 to PLAN-006 (about 30 minutes)
+## 2 · Checklist for PLAN-001 to PLAN-007 (about 30 minutes)
 Write down what you **saw**, not just "it's fine".
 - [ ] It opens in portrait. "How to play", then the species step, make sense.
 - [ ] The draft: you and the bot take turns. Tap heroes to see them on the stage (Trait, Power,
       Ultimate tabs), lock in 3. Did it feel like a real draft? Then the versus screen.
 - [ ] In the match, all three heroes walk out, one per lane. Tap a wave chip to change a lane's troops.
-- [ ] Drag a hero's portrait onto: a lane, a tower, a camp, a ward cairn (◉), a relic (◆), Gajah Mina
-      after 1:30, your Pusaka, and an empty spot (Move). Or tap the portrait, then tap the map.
+- [ ] Tap a hero (its panel at the bottom, or the hero on the map): a menu of orders opens. Try each:
+      Move, Attack (an enemy you can see), Push, Gank, Defend, Farm, Ward, Retreat. Pick one, then tap
+      a lit-up target. Is it easy? Do heroes keep moving after your orders?
+- [ ] Watch a hero push alone: it should wait outside the enemy tower until your troops arrive, and
+      go home to heal when badly hurt. Smart enough, or too independent?
 - [ ] Open the Shop and buy items. At level 4, watch for "ULT NOW" and tap it.
 - [ ] Is the fog clear? Can you read the characters and tower health on your phone?
 - [ ] Try the zoom: tap the magnifier (bottom-right of the map), double-tap or pinch; drag to look

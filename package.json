@@ -1,0 +1,20 @@
+{
+  "name": "lane-game",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Lane Game prototype: real-time card deployment on a three-lane map",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build && node scripts/inline-build.mjs",
+    "test": "vitest run",
+    "soak": "SOAK=1 vitest run",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run typecheck && npm run test && npm run build && node tools/app-kit/appkit.mjs check"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

@@ -22,21 +22,28 @@ Short progress notes use STATUS, FINDING, NEXT. Plain English; the owner reads o
 ## Commands (fill in the real ones; never list a command that does not exist)
 | Command | What it does |
 |---|---|
-| (none yet) | No game code yet. PLAN-001 sets up the verify, full verify and dev commands. |
+| `npm run verify` | Type check, unit tests, build, `appkit check`. Run before every commit. |
+| `npm run soak` | 100 + 20 bot-vs-bot matches (about 1 minute). Part of the full verify. |
+| `node scripts/phone-check.cjs <folder>` | Phone-size browser check with screenshots (after `npm run build`; needs Playwright with Chromium on the machine, not a project dependency). Part of the full verify. |
+| `npm run dev` | Run locally with hot reload (`?lanes=2&speed=2&seed=1&autoplay=1&nohelp=1` test options). |
+| `npm run build` | Build `dist/lane-game.html` (stand-alone page) and `dist/artifact.html` (preview fragment). |
 | `node tools/app-kit/appkit.mjs status` | Active package, pending approvals, last history line. |
 | `node tools/app-kit/appkit.mjs build` | Rebuild DECISIONS.md, CHANGELOG.md and the STATE pending block. |
 | `node tools/app-kit/appkit.mjs check` | Records valid, history append-only, views up to date. |
 
 ## Release path
-- Preview copy: `<preview URL>` updated by CI when checks pass.
-- Live copy: `<live URL>` changes only through a manual, owner-run step: `<how>`.
+- Preview copy: the owner's private preview page "Lane Game", republished by hand from
+  `dist/artifact.html` after `npm run verify`, `npm run soak` and the phone check pass.
+- Live copy: not set up. It will change only through a manual, owner-run step (a later plan).
 - PREPARE RELEASE: bump the version, `appkit release <version> "<note>" ...`, run checks.
   `appkit release-check` must pass before publishing. After the owner publishes:
   `appkit published <version> <commit>` in a new commit.
 
 ## Preserve (change only with an approved plan)
-- Game rules module (set up in PLAN-001): no graphics code inside, whole-number maths only, so the
-  same inputs give the same result on every device (needed for online play and replays later).
+- `src/game/` (the game rules): no graphics code, no timers, no Math.random/sqrt/sin inside.
+  It uses whole-number maths only, so the same seed and moves give the same match on every
+  device (needed for online play and replays later). `tests/determinism.test.ts` guards this.
+  Tuning numbers live in `src/game/rules.ts`.
 - Original names, art, map and screen layout only. Never use "Clash", "Royale", "Legends",
   "Elixir", "Lord" or "Turtle" (see `docs/research/research-report.md`, legal section).
 - No paid random rewards (loot boxes or gacha) without a new, approved decision.

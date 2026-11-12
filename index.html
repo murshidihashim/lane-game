@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#16211a" />
+    <title>Lane Game</title>
+    <style>
+      /* One deliberate dark look for the game (same in light and dark system themes). */
+      :root {
+        color-scheme: dark;
+        --bg: #0f1612;
+        --panel: #16211a;
+        --ink: #f3efe4;
+        --muted: #a9b3a6;
+        --accent: #ffd166;
+        --you: #2e86de;
+        --foe: #e74c3c;
+        --btn: #2c3e33;
+        --btn-on: #ffd166;
+        --btn-on-ink: #1a1a1a;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; -webkit-user-select: none; user-select: none;
+        -webkit-touch-callout: none; overscroll-behavior: none; }
+      #game { position: fixed; left: 0; right: 0; top: env(safe-area-inset-top, 0px); bottom: env(safe-area-inset-bottom, 0px);
+        width: 100%; height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); touch-action: none; display: block; }
+      .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(5, 10, 7, 0.72); padding: 16px; z-index: 10; }
+      .overlay.show { display: flex; }
+      .card { background: var(--panel); border: 1px solid #2f4236; border-radius: 16px; padding: 18px 18px 16px; width: min(380px, 100%); max-height: 100%; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+      .card h1 { font-size: 22px; margin: 0 0 6px; }
+      .card h2 { font-size: 15px; margin: 14px 0 6px; color: var(--accent); }
+      .card p, .card li { font-size: 14.5px; line-height: 1.45; color: var(--ink); }
+      .card ul { padding-left: 18px; margin: 6px 0; }
+      .card .muted { color: var(--muted); font-size: 13px; }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 4px; }
+      button { font: inherit; font-size: 15px; border: 0; border-radius: 10px; padding: 10px 14px; background: var(--btn); color: var(--ink); cursor: pointer; }
+      button.on { background: var(--btn-on); color: var(--btn-on-ink); font-weight: 700; }
+      button.primary { background: var(--accent); color: #1a1a1a; font-weight: 700; width: 100%; padding: 13px; margin-top: 14px; font-size: 16px; }
+      .result-title { font-size: 34px; font-weight: 800; text-align: center; margin: 4px 0 2px; }
+      .result-sub { text-align: center; color: var(--muted); margin: 0 0 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      td { padding: 5px 2px; border-bottom: 1px solid #263429; }
+      td:last-child { text-align: right; }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <div id="help" class="overlay">
+      <div class="card">
+        <h1>Lane Game · prototype</h1>
+        <p class="muted">Test build. Simple shapes, no sound. You are blue (bottom); the bot is red (top).</p>
+        <h2>Goal</h2>
+        <p>Destroy the enemy Core. If time runs out, whoever destroyed more towers wins.</p>
+        <h2>Cards</h2>
+        <ul>
+          <li>Drag a card into a lane (or tap a card, then tap a lane). It snaps onto the lane on your side.</li>
+          <li>Cards cost mana (purple bar). Mana refills by itself, twice as fast in the last minute.</li>
+          <li>Break an enemy tower to drop cards further up that lane.</li>
+        </ul>
+        <h2>Heroes</h2>
+        <ul>
+          <li>Ranger and Warden are hero cards. Once played they stay all match, level up and come back after dying.</li>
+          <li>Drag a hero's portrait (above your cards) onto the map to give an order:
+            <b>Push</b> or <b>Gank</b> (a lane), <b>Defend</b> (your tower), <b>Farm</b> (a ✦ camp), <b>Retreat</b> (your Core).</li>
+          <li>A hero in the jungle is hidden from the enemy. Its first hit after that is an <b>Ambush</b> (double damage).</li>
+          <li>The middle lane is longer and winding. Its tower sits right in front of the Core.</li>
+        </ul>
+        <button class="primary" data-action="start">Start match</button>
+      </div>
+    </div>
+
+    <div id="settings" class="overlay">
+      <div class="card">
+        <h1>Settings</h1>
+        <h2>Lanes</h2>
+        <div class="row" data-group="lanes"><button data-value="3">3 lanes</button><button data-value="2">2 lanes</button></div>
+        <h2>Game speed</h2>
+        <div class="row" data-group="speed"><button data-value="1">1×</button><button data-value="1.5">1.5×</button><button data-value="2">2×</button></div>
+        <h2>Bot</h2>
+        <div class="row" data-group="bot"><button data-value="easy">Easy</button><button data-value="normal">Normal</button></div>
+        <p class="muted">Changing lanes or bot starts a new match.</p>
+        <div class="row"><button data-action="help">How to play</button><button data-action="restart">Restart match</button></div>
+        <button class="primary" data-action="close">Back to match</button>
+      </div>
+    </div>
+
+    <div id="result" class="overlay">
+      <div class="card">
+        <div class="result-title" id="result-title">Victory</div>
+        <p class="result-sub" id="result-sub"></p>
+        <table id="result-table"></table>
+        <p class="muted" id="result-note">Test notes: was it easy to follow every lane? Did you want to play again?</p>
+        <div class="row"><button data-action="settings">Settings</button></div>
+        <button class="primary" data-action="rematch">Rematch</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

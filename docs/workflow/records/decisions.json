@@ -191,6 +191,46 @@
     {
       "at": "2026-11-12 08:50",
       "text": "Research and concept moved in from the template repository's branch ccr-d5847beb-6m9vey."
+    },
+    {
+      "at": "2026-11-12 10:36",
+      "text": "Owner approved PLAN-001: \"ok approve plan a\"."
+    },
+    {
+      "at": "2026-11-12 10:36",
+      "text": "PLAN-001 delivery: in progress."
+    },
+    {
+      "at": "2026-11-12 10:59",
+      "text": "PLAN-001 T1: NOT RUN (Automated part passed: scripts/phone-check.cjs at iPhone 13 size played controls and a full match to the result screen ('PHONE CHECK OK'); also checked at Pixel 7 size inside the preview frame. Waiting for the owner to play on their own phone.)."
+    },
+    {
+      "at": "2026-11-12 10:59",
+      "text": "PLAN-001 T2: PASS (npm run verify: tests/determinism.test.ts 4/4 pass (same seed run twice identical at every step; logged moves replay exactly in 3- and 2-lane modes; human-style moves vs bot replay exactly))."
+    },
+    {
+      "at": "2026-11-12 10:59",
+      "text": "PLAN-001 T3: PASS (npm run verify: tests/orders.test.ts 7/7 pass (push, defend, gank hidden + Ambush, gank same lane = push, farm +2 mana then old order, retreat heals at Core, order kept through respawn); browser check: dragging a portrait onto a camp gave Farm)."
+    },
+    {
+      "at": "2026-11-12 10:59",
+      "text": "PLAN-001 T4: PASS (npm run soak: 'SOAK 100 matches in 42.6 s, results {blue:22, red:22, draw:56, core:14, towers:30, sudden:0}, average match 322 s'; plus 20 two-lane matches; all finished, no errors)."
+    },
+    {
+      "at": "2026-11-12 10:59",
+      "text": "PLAN-001 T5: PASS (tests/lanes.test.ts 4/4 pass (3 lanes = 3 towers a side; 2 lanes = side lanes only, waves only there, full match finishes); phone-check: '?lanes=2 starts a match with only the side lanes')."
+    },
+    {
+      "at": "2026-11-12 10:59",
+      "text": "PLAN-001 delivery: implemented."
+    },
+    {
+      "at": "2026-11-12 10:59",
+      "text": "PLAN-001 prototype published as a private preview page for the owner to play (owner-only access)."
+    },
+    {
+      "at": "2026-11-12 10:59",
+      "text": "REP-002 written: PLAN-001 prototype built."
     }
   ]
 }

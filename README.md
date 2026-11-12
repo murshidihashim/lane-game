@@ -4,8 +4,10 @@ A short, real-time one-on-one strategy battle for phones. You drop units from ca
 lanes, Clash Royale style, and you command hero cards to push, defend and gank on a MOBA-style
 map with a jungle. Matches last about 5 minutes. Portrait, one thumb.
 
-**Status:** concept. Research and design are done; the first prototype (PLAN-001) is waiting for
-the owner's approval. Nothing is built yet.
+**Status:** first playable prototype (PLAN-001), waiting for the owner's playtest.
+
+Run it: `npm install`, then `npm run dev` (local) or `npm run build` (one self-contained page in
+`dist/lane-game.html`). Check it: `npm run verify`, `npm run soak`, `node scripts/phone-check.cjs out`.
 
 | What | Where |
 |---|---|
@@ -14,6 +16,8 @@ the owner's approval. Nothing is built yet.
 | Decisions and plans | `docs/workflow/DECISIONS.md` |
 | Game concept and screen layout | `docs/design/concept-v0.md`, `docs/design/layout-mockup.png` |
 | Research report (market, similar games, tech, legal) | `docs/research/research-report.md` |
+| Game rules (no graphics, whole-number maths) | `src/game/` (tuning numbers in `src/game/rules.ts`) |
+| Phone screen and controls | `src/ui/` |
 | How we work (app-kit) | `tools/app-kit/README.md`, `CLAUDE.md` |
 
 Owner: Murshidi (Kuala Lumpur).

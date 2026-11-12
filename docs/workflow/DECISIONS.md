@@ -6,9 +6,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 
 ## Pending approvals
 
-| ID | What | Status |
-|---|---|---|
-| PLAN-001 | Grey-box prototype vs bot | Proposed |
+None.
 
 ## Decisions
 
@@ -24,7 +22,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 
 | ID | Package | Approval | Delivery | Tests passed | Release |
 |---|---|---|---|---|---|
-| PLAN-001 | Grey-box prototype vs bot | Proposed | Not started | 0/6 | Unreleased |
+| PLAN-001 | Grey-box prototype vs bot | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
 
 ## Decision details
 
@@ -114,3 +112,13 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 - 2026-11-12 08:49 · PLAN-001 proposed: Grey-box prototype vs bot.
 - 2026-11-12 08:50 · REP-001 written: Research, concept and first prototype proposal.
 - 2026-11-12 08:50 · Research and concept moved in from the template repository's branch ccr-d5847beb-6m9vey.
+- 2026-11-12 10:36 · Owner approved PLAN-001: "ok approve plan a".
+- 2026-11-12 10:36 · PLAN-001 delivery: in progress.
+- 2026-11-12 10:59 · PLAN-001 T1: NOT RUN (Automated part passed: scripts/phone-check.cjs at iPhone 13 size played controls and a full match to the result screen ('PHONE CHECK OK'); also checked at Pixel 7 size inside the preview frame. Waiting for the owner to play on their own phone.).
+- 2026-11-12 10:59 · PLAN-001 T2: PASS (npm run verify: tests/determinism.test.ts 4/4 pass (same seed run twice identical at every step; logged moves replay exactly in 3- and 2-lane modes; human-style moves vs bot replay exactly)).
+- 2026-11-12 10:59 · PLAN-001 T3: PASS (npm run verify: tests/orders.test.ts 7/7 pass (push, defend, gank hidden + Ambush, gank same lane = push, farm +2 mana then old order, retreat heals at Core, order kept through respawn); browser check: dragging a portrait onto a camp gave Farm).
+- 2026-11-12 10:59 · PLAN-001 T4: PASS (npm run soak: 'SOAK 100 matches in 42.6 s, results {blue:22, red:22, draw:56, core:14, towers:30, sudden:0}, average match 322 s'; plus 20 two-lane matches; all finished, no errors).
+- 2026-11-12 10:59 · PLAN-001 T5: PASS (tests/lanes.test.ts 4/4 pass (3 lanes = 3 towers a side; 2 lanes = side lanes only, waves only there, full match finishes); phone-check: '?lanes=2 starts a match with only the side lanes').
+- 2026-11-12 10:59 · PLAN-001 delivery: implemented.
+- 2026-11-12 10:59 · PLAN-001 prototype published as a private preview page for the owner to play (owner-only access).
+- 2026-11-12 10:59 · REP-002 written: PLAN-001 prototype built.

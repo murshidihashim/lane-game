@@ -30,31 +30,31 @@
       "id": "T1",
       "text": "A full match can be played from a link on a phone in portrait, from start to result screen",
       "result": "NOT RUN",
-      "evidence": ""
+      "evidence": "Automated part passed: scripts/phone-check.cjs at iPhone 13 size played controls and a full match to the result screen ('PHONE CHECK OK'); also checked at Pixel 7 size inside the preview frame. Waiting for the owner to play on their own phone."
     },
     {
       "id": "T2",
       "text": "Same starting seed and same moves give exactly the same match result (rules are deterministic)",
-      "result": "NOT RUN",
-      "evidence": ""
+      "result": "PASS",
+      "evidence": "npm run verify: tests/determinism.test.ts 4/4 pass (same seed run twice identical at every step; logged moves replay exactly in 3- and 2-lane modes; human-style moves vs bot replay exactly)"
     },
     {
       "id": "T3",
       "text": "Each of the five hero orders (push, defend, gank, farm, retreat) makes the hero do the right thing",
-      "result": "NOT RUN",
-      "evidence": ""
+      "result": "PASS",
+      "evidence": "npm run verify: tests/orders.test.ts 7/7 pass (push, defend, gank hidden + Ambush, gank same lane = push, farm +2 mana then old order, retreat heals at Core, order kept through respawn); browser check: dragging a portrait onto a camp gave Farm"
     },
     {
       "id": "T4",
       "text": "Bot against bot: 100 matches finish with no errors",
-      "result": "NOT RUN",
-      "evidence": ""
+      "result": "PASS",
+      "evidence": "npm run soak: 'SOAK 100 matches in 42.6 s, results {blue:22, red:22, draw:56, core:14, towers:30, sudden:0}, average match 322 s'; plus 20 two-lane matches; all finished, no errors"
     },
     {
       "id": "T5",
       "text": "The 2-lane / 3-lane switch works (2 lanes = the two side lanes)",
-      "result": "NOT RUN",
-      "evidence": ""
+      "result": "PASS",
+      "evidence": "tests/lanes.test.ts 4/4 pass (3 lanes = 3 towers a side; 2 lanes = side lanes only, waves only there, full match finishes); phone-check: '?lanes=2 starts a match with only the side lanes'"
     },
     {
       "id": "T6",
@@ -77,7 +77,8 @@
     "DEC-004"
   ],
   "reports": [
-    "REP-001"
+    "REP-001",
+    "REP-002"
   ],
   "changes": {
     "added": [],
@@ -85,10 +86,16 @@
     "fixed": [],
     "removed": []
   },
-  "userNotes": [],
+  "userNotes": [
+    "First playable prototype: one-on-one against a computer opponent on a three-lane portrait map with a long, winding middle lane.",
+    "Two hero cards (Ranger, Warden) that stay all match, level up and take orders: push, defend, gank, farm, retreat.",
+    "Settings: 2 or 3 lanes, game speed, easy or normal bot."
+  ],
   "approval": {
-    "status": "proposed"
+    "status": "approved",
+    "evidence": "ok approve plan a",
+    "date": "2026-11-12"
   },
-  "delivery": "not started",
+  "delivery": "implemented",
   "release": "unreleased"
 }

@@ -5,28 +5,37 @@ Everything here should work from a phone.
 ## The copies
 | Copy | Address | Who changes it |
 |---|---|---|
-| Preview | <preview URL> | Updated automatically after a change passes all checks |
-| Live (users) | <live URL> | Only you, with the publish step below |
+| Preview | Private preview page "Lane Game" (only you can open it; the link is in the session reply and in your artifacts list) | Updated after a change passes all checks |
+| Live (users) | not published | Only you, with the publish step below |
 
 ## 1 · Try a change
-1. Claude says a change is ready and the checks are green.
+1. You'll get a message that a change is ready and the checks are green.
 2. Open the preview on your phone (refresh if it looks old) and follow the checklist.
 
-## 2 · Checklist (about 10 minutes)
+## 2 · Checklist for PLAN-001 (about 25 minutes)
 Write down what you **saw**, not just "it's fine".
-- [ ] It opens and the first screen makes sense.
-- [ ] You can finish the core task from start to end.
-- [ ] Leave the app and come back: your work is still there.
-- [ ] Turn the phone sideways and back: nothing is cut off.
-- [ ] Anything confusing, slow or ugly: note the screen.
+- [ ] It opens in portrait and the "How to play" screen makes sense.
+- [ ] Drag a card into a lane. Then try tapping a card and tapping a lane.
+- [ ] Play a hero card. Drag its portrait onto a lane, a tower, a ✦ camp and your Core.
+      Did the hero do what you expected each time?
+- [ ] Gank: send a hero to another lane through the jungle. Did you see "Ambush!"?
+- [ ] Play a full match to the result screen (5 to 6 minutes).
+- [ ] Play 5 or more matches. Switch between 3 lanes and 2 lanes in Settings (⚙).
+- [ ] Answer these three questions:
+  1. With 3 lanes, could you keep track of every lane, or did things happen without you noticing?
+  2. Were hero orders fun on top of cards, or a chore?
+  3. Did you want to press Rematch?
+- [ ] Anything confusing, slow or ugly: note the screen. Mention your phone model.
 
-Send bugs with: build or URL, device and browser, steps, expected, actual, how often, screenshot.
+Send bugs with: device and browser, steps, expected, actual, how often, a screenshot, and the
+"Match seed" from the result screen (it lets the match be replayed).
 
 ## 3 · What the checks mean
-Green checks prove the automated tests passed. They do not prove the app is clear, pleasant, or
-works on your real phone. Results are always PASS, FAIL, NOT RUN or NOT APPLICABLE.
+Green checks prove the automated tests passed. They do not prove the game is clear or fun, or
+that it works on your real phone. Results are always PASS, FAIL, NOT RUN or NOT APPLICABLE.
 
 ## 4 · Publish (only when you decide)
-1. Say "PREPARE RELEASE". Claude writes the version and user notes.
-2. Run the publish step: <how>.
-3. Tell Claude "Published <version>" so the records show what users have.
+Nothing is published to players yet. When the time comes:
+1. Say "PREPARE RELEASE". You'll get the version and user notes written up.
+2. Run the publish step (to be set up in a later plan).
+3. Reply "Published <version>" so the records show what players have.

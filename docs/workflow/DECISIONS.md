@@ -6,7 +6,9 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 
 ## Pending approvals
 
-None.
+| ID | What | Status |
+|---|---|---|
+| DEC-018 | Art direction for the full game | Awaiting approval |
 
 ## Decisions
 
@@ -29,6 +31,7 @@ None.
 | DEC-015 | Draft-style hero select and versus screen | Approved (owner, 2026-11-12) | Implemented |
 | DEC-016 | Slower movement and a zoomable map | Approved (owner, 2026-11-12) | Implemented |
 | DEC-017 | Hero command menu, Attack order and smarter heroes | Approved (owner, 2026-11-12) | Implemented |
+| DEC-018 | Art direction for the full game | Awaiting approval | Not started |
 
 ## Work packages
 
@@ -282,6 +285,20 @@ None.
 - **Delivery:** Implemented
 - **Review trigger:** Players feel heroes act on their own too much, or the menu is slow.
 
+### DEC-018 · Art direction for the full game
+
+- **Question:** Which look should the full game grow into, once real art is made?
+- **Options:** 1. Hikayat board game, painted by an artist (the current look, finished by hand) · 2. Toy-box 3D (rounded, glossy, toy-like characters) · 3. Wayang kulit 'living puppets' (coloured, jointed leather puppets on a lamp-lit board) · 4. Batik paper-cut diorama, 2.5D (layered paper and batik, die-cut standees) · 5. Anime cel-shaded 2D (line art, two-tone shading, splash portraits)
+- **Choice:** Not chosen yet. Recommended: keep Hikayat during development; for the full game, option 3 (wayang living puppets) with batik colours and paper layering from option 4 on the board. Runner-up: option 2 if the aim is the widest mass-market reach and an art budget allows it.
+- **Rationale:** Wayang is the one look that is clearly ours and fits the Malay folk-tale world; jointed puppets suit cheaper bone (cut-out) animation and today's flat-figure engine. It is harder to make readable at 34 px, so it needs a look test on the owner's phone first. Evidence and sources: docs/research/art-style-options.md and REP-010.
+- **User impact:** Changes how the whole game looks; play stays the same.
+- **Technical impact:** Options 1, 3, 4 and 5 keep the Canvas 2D engine. Option 2 needs a 3D engine or 3D models rendered to sprites. Bone animation (for example Spine) would be a new dependency and needs its own plan.
+- **Data and privacy:** None.
+- **Cost:** RM0 to decide and to make code-drawn look tests. A full art pass by an artist is a paid service and needs separate approval; rough vendor prices: US$250-1,500 per 2D character, US$1,500-4,000 per rigged 3D character (REP-010).
+- **Approval:** Awaiting approval
+- **Delivery:** Not started
+- **Review trigger:** A look test reads poorly on the owner's phone, a cultural adviser raises concerns, or the art budget changes.
+
 ## History (oldest first)
 
 - 2026-11-12 08:49 · Project records started for Lane Game.
@@ -419,3 +436,5 @@ None.
 - 2026-11-12 18:39 · DEC-017 delivery: implemented.
 - 2026-11-12 18:39 · REP-009 written: PLAN-007: smarter heroes and a tap-to-command menu.
 - 2026-11-12 18:41 · PLAN-007 implemented: T1-T5 PASS (0 stalls in 60 matches, ai tests, menu phone check, balance 1,200 matches in targets); T6/T7 wait for the owner. REP-009 written.
+- 2026-11-12 19:31 · DEC-018 proposed: Art direction for the full game.
+- 2026-11-12 19:31 · REP-010 written: Five art styles for the full game.

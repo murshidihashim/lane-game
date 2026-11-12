@@ -453,6 +453,35 @@
       "delivery": "implemented",
       "reports": [],
       "reviewTrigger": "Players feel heroes act on their own too much, or the menu is slow."
+    },
+    {
+      "id": "DEC-018",
+      "title": "Art direction for the full game",
+      "question": "Which look should the full game grow into, once real art is made?",
+      "options": [
+        "1. Hikayat board game, painted by an artist (the current look, finished by hand)",
+        "2. Toy-box 3D (rounded, glossy, toy-like characters)",
+        "3. Wayang kulit 'living puppets' (coloured, jointed leather puppets on a lamp-lit board)",
+        "4. Batik paper-cut diorama, 2.5D (layered paper and batik, die-cut standees)",
+        "5. Anime cel-shaded 2D (line art, two-tone shading, splash portraits)"
+      ],
+      "choice": "Not chosen yet. Recommended: keep Hikayat during development; for the full game, option 3 (wayang living puppets) with batik colours and paper layering from option 4 on the board. Runner-up: option 2 if the aim is the widest mass-market reach and an art budget allows it.",
+      "rationale": "Wayang is the one look that is clearly ours and fits the Malay folk-tale world; jointed puppets suit cheaper bone (cut-out) animation and today's flat-figure engine. It is harder to make readable at 34 px, so it needs a look test on the owner's phone first. Evidence and sources: docs/research/art-style-options.md and REP-010.",
+      "impact": {
+        "user": "Changes how the whole game looks; play stays the same.",
+        "technical": "Options 1, 3, 4 and 5 keep the Canvas 2D engine. Option 2 needs a 3D engine or 3D models rendered to sprites. Bone animation (for example Spine) would be a new dependency and needs its own plan.",
+        "data": "None."
+      },
+      "cost": "RM0 to decide and to make code-drawn look tests. A full art pass by an artist is a paid service and needs separate approval; rough vendor prices: US$250-1,500 per 2D character, US$1,500-4,000 per rigged 3D character (REP-010).",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "awaiting approval"
+      },
+      "delivery": "not started",
+      "reports": [
+        "REP-010"
+      ],
+      "reviewTrigger": "A look test reads poorly on the owner's phone, a cultural adviser raises concerns, or the art budget changes."
     }
   ],
   "history": [
@@ -995,6 +1024,14 @@
     {
       "at": "2026-11-12 18:41",
       "text": "PLAN-007 implemented: T1-T5 PASS (0 stalls in 60 matches, ai tests, menu phone check, balance 1,200 matches in targets); T6/T7 wait for the owner. REP-009 written."
+    },
+    {
+      "at": "2026-11-12 19:31",
+      "text": "DEC-018 proposed: Art direction for the full game."
+    },
+    {
+      "at": "2026-11-12 19:31",
+      "text": "REP-010 written: Five art styles for the full game."
     }
   ]
 }

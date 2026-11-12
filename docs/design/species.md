@@ -1,100 +1,97 @@
-# Species, troops and map rewards · v1
+# Species, lane troops, items and map rewards · v2
 
 _Generated from `src/game/rules.ts` by `scripts/heroes-doc.mjs`. Do not edit by hand: change the game data and run the script._
 
-Decisions: DEC-008 (species and lane waves), DEC-009 (hero orders and map rewards). Plan: PLAN-003. All numbers are first values to tune in play tests.
+Decisions: DEC-008 (species and lane waves), DEC-009 (hero orders and map rewards), DEC-011 (no hand cards; items), DEC-012 (fog of war). Plans: PLAN-003, PLAN-004. All numbers are first values to tune in play tests.
 
 ## How species work
 
-- Before the match each player picks one of 5 species (and 2 heroes). The species decides your troop cards, your spell and what marches in your lanes.
-- Every 20 s (first at 5 s) each lane sends a **wave** of the class you chose for that lane, at 60% strength. Tap a wave chip to change the next waves in that lane.
-- Your deck: the species' classes as cards (full strength, cost below), its spell, Petir (lightning) and your 2 heroes.
+- Before the match each player picks one of 5 species (and 2 heroes). The species decides what can march in your lanes.
+- Every 20 s (first at 5 s) each lane sends a **wave** of the class you chose for that lane. Waves are the only troops (no hand cards) and get 8% stronger each minute. Tap a wave chip to change the next waves in that lane.
 
-| Species | Style | Classes | Spell |
-|---|---|---|---|
-| Kampung, the Village Guard | Balanced and steady: fighters, archers, a shield tank and a tower-breaking buffalo. | Silat Guard, Pemanah, Perisai, Kerbau | Gotong-royong |
-| Hutan, the Jungle Beasts | Fast and fierce: monkey swarms, a leaping leopard, flying hornbills and a charging gaur. | Kera, Harimau Bintang, Enggang, Seladang | Auman |
-| Sungai, the River Folk | Control and patience: armoured crabs, slowing archerfish and chain-shocking eels. | Ketam, Ikan Sumpit, Belut | Arus |
-| Serangga, the Insect Hive | Numbers: ant swarms, poison hornets, a beetle tank and a queen that keeps hatching. | Kerengga, Tebuan, Kumbang, Ratu Sarang | Sengat |
-| Batu, the Stone Highlanders | Slow and heavy: bursting pebbles, a boulder golem and a long-range stone sling. | Kerikil, Batu Besar, Lontar | Gempa |
+| Species | Style | Classes |
+|---|---|---|
+| Kampung, the Village Guard | Balanced and steady: fighters, archers, a shield tank and a tower-breaking buffalo. | Silat Guard, Pemanah, Perisai, Kerbau |
+| Hutan, the Jungle Beasts | Fast and fierce: monkey swarms, a leaping leopard, flying hornbills and a charging gaur. | Kera, Harimau Bintang, Enggang, Seladang |
+| Sungai, the River Folk | Control and patience: armoured crabs, slowing archerfish and chain-shocking eels. | Ketam, Ikan Sumpit, Belut |
+| Serangga, the Insect Hive | Numbers: ant swarms, poison hornets, a beetle tank and a queen that keeps hatching. | Kerengga, Tebuan, Kumbang, Ratu Sarang |
+| Batu, the Stone Highlanders | Slow and heavy: bursting pebbles, a boulder golem and a long-range stone sling. | Kerikil, Batu Besar, Lontar |
 
 ### Kampung · the Village Guard
 
 Balanced and steady: fighters, archers, a shield tank and a tower-breaking buffalo.
 
-| Class | Card cost | Card gives | Wave sends | Health | Damage | Reach | Speed | Ability |
-|---|---|---|---|---|---|---|---|---|
-| Silat Guard | 3 | 3 | 2 | 340 | 55 every 1.1 s | 160 | 9 | Sturdy melee fighters |
-| Pemanah | 3 | 2 | 2 | 200 | 45 every 1.2 s | 550 (ranged) | 9 | Ranged; can hit fliers |
-| Perisai | 4 | 1 | 1 | 1100 | 75 every 1.3 s | 170 | 8 | Tank; takes 30% less from ranged hits |
-| Kerbau | 5 | 1 | 1 | 1500 | 220 every 1.5 s | 160 | 6 | Only hits towers and the Pusaka |
-
-Spell: **Gotong-royong** (cost 3). Heals 250 and shields your side in an area.
+| Class | A wave sends | Health | Damage | Reach | Speed | Ability |
+|---|---|---|---|---|---|---|
+| Silat Guard | 3 | 340 | 55 every 1.1 s | 160 | 9 | Sturdy melee fighters |
+| Pemanah | 2 | 200 | 45 every 1.2 s | 550 (ranged) | 9 | Ranged; can hit fliers |
+| Perisai | 1 | 1100 | 75 every 1.3 s | 170 | 8 | Tank; takes 30% less from ranged hits |
+| Kerbau | 1 | 1500 | 220 every 1.5 s | 160 | 6 | Only hits towers and the Pusaka |
 
 ### Hutan · the Jungle Beasts
 
 Fast and fierce: monkey swarms, a leaping leopard, flying hornbills and a charging gaur.
 
-| Class | Card cost | Card gives | Wave sends | Health | Damage | Reach | Speed | Ability |
-|---|---|---|---|---|---|---|---|---|
-| Kera | 2 | 4 | 3 | 110 | 30 every 0.7 s | 130 | 15 | Very fast monkey swarm |
-| Harimau Bintang | 4 | 1 | 1 | 600 | 110 every 1 s | 150 | 14 | Leopard; leaps onto its first target |
-| Enggang | 4 | 2 | 2 | 260 | 50 every 1.1 s | 420 (ranged), flies | 11 | Flying hornbills; ranged |
-| Seladang | 5 | 1 | 1 | 1600 | 90 every 1.4 s | 170 | 8 | Gaur tank; first hit knocks back and stuns |
-
-Spell: **Auman** (cost 3). A roar: your side +30% damage and speed, 6 s.
+| Class | A wave sends | Health | Damage | Reach | Speed | Ability |
+|---|---|---|---|---|---|---|
+| Kera | 4 | 110 | 30 every 0.7 s | 130 | 15 | Very fast monkey swarm |
+| Harimau Bintang | 1 | 600 | 110 every 1 s | 150 | 14 | Leopard; leaps onto its first target |
+| Enggang | 2 | 260 | 50 every 1.1 s | 420 (ranged), flies | 11 | Flying hornbills; ranged |
+| Seladang | 1 | 1600 | 90 every 1.4 s | 170 | 8 | Gaur tank; first hit knocks back and stuns |
 
 ### Sungai · the River Folk
 
 Control and patience: armoured crabs, slowing archerfish and chain-shocking eels.
 
-| Class | Card cost | Card gives | Wave sends | Health | Damage | Reach | Speed | Ability |
-|---|---|---|---|---|---|---|---|---|
-| Ketam | 4 | 1 | 1 | 1300 | 60 every 1.2 s | 160 | 7 | Crab tank; takes half damage from ranged hits |
-| Ikan Sumpit | 3 | 2 | 2 | 220 | 45 every 1.1 s | 520 (ranged) | 9 | Archerfish; ranged, hits slow |
-| Belut | 4 | 2 | 2 | 380 | 50 every 1 s | 200 | 11 | Electric eels; hits jump to a second enemy |
-
-Spell: **Arus** (cost 3). A current washes enemies back and slows them.
+| Class | A wave sends | Health | Damage | Reach | Speed | Ability |
+|---|---|---|---|---|---|---|
+| Ketam | 1 | 1300 | 60 every 1.2 s | 160 | 7 | Crab tank; takes half damage from ranged hits |
+| Ikan Sumpit | 2 | 220 | 45 every 1.1 s | 520 (ranged) | 9 | Archerfish; ranged, hits slow |
+| Belut | 2 | 380 | 50 every 1 s | 200 | 11 | Electric eels; hits jump to a second enemy |
 
 ### Serangga · the Insect Hive
 
 Numbers: ant swarms, poison hornets, a beetle tank and a queen that keeps hatching.
 
-| Class | Card cost | Card gives | Wave sends | Health | Damage | Reach | Speed | Ability |
-|---|---|---|---|---|---|---|---|---|
-| Kerengga | 2 | 6 | 4 | 70 | 22 every 0.6 s | 120 | 13 | Weaver-ant swarm |
-| Tebuan | 3 | 3 | 2 | 120 | 28 every 0.8 s | 140, flies | 14 | Flying hornets; hits poison |
-| Kumbang | 4 | 1 | 1 | 1400 | 70 every 1.3 s | 170 | 7 | Rhino beetle; takes 20% less damage |
-| Ratu Sarang | 5 | 1 | 1 | 900 | 30 every 1.2 s | 400 (ranged) | 5 | Hive queen; hatches ants every 5 s |
-
-Spell: **Sengat** (cost 3). A stinging cloud poisons enemies for 4 s.
+| Class | A wave sends | Health | Damage | Reach | Speed | Ability |
+|---|---|---|---|---|---|---|
+| Kerengga | 6 | 70 | 22 every 0.6 s | 120 | 13 | Weaver-ant swarm |
+| Tebuan | 3 | 120 | 28 every 0.8 s | 140, flies | 14 | Flying hornets; hits poison |
+| Kumbang | 1 | 1400 | 70 every 1.3 s | 170 | 7 | Rhino beetle; takes 20% less damage |
+| Ratu Sarang | 1 | 900 | 30 every 1.2 s | 400 (ranged) | 5 | Hive queen; hatches ants every 5 s |
 
 ### Batu · the Stone Highlanders
 
 Slow and heavy: bursting pebbles, a boulder golem and a long-range stone sling.
 
-| Class | Card cost | Card gives | Wave sends | Health | Damage | Reach | Speed | Ability |
-|---|---|---|---|---|---|---|---|---|
-| Kerikil | 3 | 3 | 2 | 160 | bursts for 260 | 120 | 13 | Rolling pebbles; burst on a building |
-| Batu Besar | 6 | 1 | 1 | 2200 | 100 every 1.6 s | 170 | 5 | Boulder golem; takes 25% less damage |
-| Lontar | 4 | 1 | 1 | 450 | 120 every 2.2 s | 650 (ranged) | 5 | Stone sling; long range, splash |
-
-Spell: **Gempa** (cost 4). A quake stuns enemies 1 s and cracks towers.
-
-## Spells
-
-| Spell | Cost | Area | Damage | To towers | What it does |
-|---|---|---|---|---|---|
-| Petir (every deck) | 4 | 250 | 260 | 78 | Lightning strikes an area |
-| Gotong-royong | 3 | 320 | - | - | Heals 250 and shields your side in an area |
-| Auman | 3 | 350 | - | - | A roar: your side +30% damage and speed, 6 s |
-| Arus | 3 | 300 | 80 | - | A current washes enemies back and slows them |
-| Sengat | 3 | 280 | - | - | A stinging cloud poisons enemies for 4 s |
-| Gempa | 4 | 300 | 100 | 200 | A quake stuns enemies 1 s and cracks towers |
+| Class | A wave sends | Health | Damage | Reach | Speed | Ability |
+|---|---|---|---|---|---|---|
+| Kerikil | 3 | 160 | bursts for 260 | 120 | 13 | Rolling pebbles; burst on a building |
+| Batu Besar | 1 | 2200 | 100 every 1.6 s | 170 | 5 | Boulder golem; takes 25% less damage |
+| Lontar | 1 | 450 | 120 every 2.2 s | 650 (ranged) | 5 | Stone sling; long range, splash |
 
 ## Hero orders
 
-Drag a hero portrait onto a glowing spot on the map: **Push** a lane, **Gank** another lane, **Defend** a tower, **Farm** a grove, den or Gajah Mina, collect a **relic**, place a **Ward** on a cairn, or **Retreat** to the Pusaka. Farm and Ward are errands: when done, the hero goes back to its last job.
+Drag a hero portrait onto a glowing spot on the map: **Push** a lane, **Gank** another lane, **Defend** a tower, **Farm** a grove, den or Gajah Mina, collect a **relic**, place a **Ward** on a cairn, or **Retreat** to the Pusaka. Drop it anywhere else to **Move** there and hold the spot (it fights what comes within 600). Farm and Ward are errands: when done, the hero goes back to its last job.
+
+## Items
+
+Bought with Semangat in the Shop, for one hero, 3 slots each, kept through death. No random rewards. Semangat starts at 4, refills 1 every 8 s (twice as fast in the last minute) and holds at most 20.
+
+| Item | Cost | What it does |
+|---|---|---|
+| Keris Lok | 7 | +20% damage |
+| Baju Rantai | 7 | +30% health |
+| Capal Angin | 4 | +20% move speed |
+| Tangkal | 8 | Power comes back 30% sooner |
+| Jamu Akar | 5 | Heals 2% health a second |
+| Perisai Rotan | 8 | Takes 20% less damage |
+| Gelang Tangkas | 7 | Attacks 25% faster |
+| Pelita | 5 | Sees 30% further; reveals hidden heroes within 600 |
+
+## Fog of war
+
+Each side sees only around its own pieces: heroes 1000, troops 650, towers 1000, Pusaka 1100, wards 900, Tukang's watchtower 1000, and Seri's lanterns. Towers, both Pusaka, camps and relics are always shown. Heroes hidden in the jungle stay unseen until revealed.
 
 ## Map rewards
 

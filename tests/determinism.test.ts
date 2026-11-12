@@ -1,7 +1,7 @@
-// PLAN-001 T2: same starting seed + same moves => exactly the same match.
+// PLAN-001 T2, PLAN-004 T4: same starting seed + same moves => exactly the same match.
 import { describe, expect, test } from 'vitest';
 import { Bot } from '../src/game/bot';
-import { Sim } from '../src/game/sim';
+import { type Command, Sim } from '../src/game/sim';
 import { botMatch, replay } from './helpers';
 
 describe('determinism', () => {
@@ -28,9 +28,13 @@ describe('determinism', () => {
     const run = () => {
       const sim = new Sim({ seed: 99 });
       const bot = new Bot(1, 99);
-      const human = [
-        { tick: 30, cmd: { t: 'card', player: 0, card: sim.players[0].hand[0], lane: 0, u: 2000 } as const },
-        { tick: 200, cmd: { t: 'card', player: 0, card: sim.players[0].hand[1], lane: 2, u: 2500 } as const },
+      const [a, b] = sim.players[0].picks;
+      const human: { tick: number; cmd: Command }[] = [
+        { tick: 30, cmd: { t: 'order', player: 0, hero: a, order: 'gank', lane: 2 } },
+        { tick: 120, cmd: { t: 'wave', player: 0, lane: 1, card: 'archers' } },
+        { tick: 200, cmd: { t: 'buy', player: 0, hero: b, item: 'capal' } },
+        { tick: 400, cmd: { t: 'order', player: 0, hero: b, order: 'move', x: 1950, y: 4800 } },
+        { tick: 2600, cmd: { t: 'ult', player: 0, hero: a } },
       ];
       while (!sim.result) {
         for (const h of human) if (h.tick === sim.tick) sim.submit(h.cmd);

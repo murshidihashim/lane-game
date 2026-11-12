@@ -22,6 +22,9 @@ None.
 | DEC-008 | Creep species and lane waves | Approved (owner, 2026-11-12) | Implemented |
 | DEC-009 | Ward order and map rewards | Approved (owner, 2026-11-12) | Implemented |
 | DEC-010 | Art style | Approved (owner, 2026-11-12) | Implemented |
+| DEC-011 | No hand-played cards: play through heroes and lane troops | Approved (owner, 2026-11-12) | Implemented |
+| DEC-012 | Fog of war | Approved (owner, 2026-11-12) | Implemented |
+| DEC-013 | Character figures, visible ultimates and tower health | Approved (owner, 2026-11-12) | Implemented |
 
 ## Work packages
 
@@ -30,6 +33,7 @@ None.
 | PLAN-001 | Grey-box prototype vs bot | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
 | PLAN-002 | 20 heroes with powers | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
 | PLAN-003 | Creep species, wards, map rewards and art style | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
+| PLAN-004 | Hero command: no hand cards, items, called ultimates, fog of war, characters | Approved (owner, 2026-11-12) | Implemented | 5/7 | Unreleased |
 
 ## Decision details
 
@@ -173,6 +177,48 @@ None.
 - **Delivery:** Implemented
 - **Review trigger:** Owner prefers another direction, or the phone gets slow.
 
+### DEC-011 · No hand-played cards: play through heroes and lane troops
+
+- **Question:** How does the player act during a match?
+- **Options:** Heroes and lane troops only (built) · Keep troop cards as well · Keep only spells as cards
+- **Choice:** No cards in hand. Both picked heroes start on the map. During the match the player: gives hero orders (move anywhere, push, gank, defend, farm, ward, collect relic, retreat); buys items for heroes with Semangat; calls each hero's ultimate (the game suggests the best moment, the hero fires it at that moment); and chooses the troop class for each lane's waves. Species keep their troop classes; species spells and Petir are removed. Replaces the hero-as-card part of DEC-002, the automatic ultimate of DEC-004/DEC-007 and the deck part of DEC-008.
+- **Rationale:** The owner wants strategy to come only from commanding heroes and choosing lane troops, closer to a MOBA commander game.
+- **User impact:** No card row. Two hero panels with health, items and an ULT button; a Shop; wave chips stay.
+- **Technical impact:** Card, deck and spell systems removed; item stats, ult arming and a move order added; bot rewritten to match.
+- **Data and privacy:** None.
+- **Cost:** none
+- **Approval:** Approved: “remove troop cards being deployes by hand, players can only strategise by instructing heroes (move, buy items, ulti suggestion, gank) and selecting troops for each lanes ... introduce fog of war concept as well, clearly indicate health of the towers ... characters shouldnt be just dots, it needs to look like a character and ulti needs to visually show its effects on screen so players are aware on whats happening” (2026-11-12)
+- **Delivery:** Implemented
+- **Review trigger:** Playtests show too little to do, or matches stall without cards.
+
+### DEC-012 · Fog of war
+
+- **Question:** What can each player see?
+- **Options:** Vision from your own pieces; enemies outside it are hidden (built) · Jungle hiding only (as before)
+- **Choice:** Each side sees only around its own heroes, troops, towers, Pusaka and wards. Enemy heroes and troops outside that are not shown; the rest of the map is dimmed. Towers, the Pusaka and camps stay visible. The jungle still hides heroes inside vision unless a ward or a close enemy reveals them. The bot plays by the same vision for enemy heroes.
+- **Rationale:** Makes wards, scouting and ganks matter; the owner asked for fog of war.
+- **User impact:** Dark areas on the map; enemies appear when your pieces get close.
+- **Technical impact:** A shared, whole-number vision check in the rules; a fog layer in drawing.
+- **Data and privacy:** None.
+- **Cost:** none
+- **Approval:** Approved: “remove troop cards being deployes by hand, players can only strategise by instructing heroes (move, buy items, ulti suggestion, gank) and selecting troops for each lanes ... introduce fog of war concept as well, clearly indicate health of the towers ... characters shouldnt be just dots, it needs to look like a character and ulti needs to visually show its effects on screen so players are aware on whats happening” (2026-11-12)
+- **Delivery:** Implemented
+- **Review trigger:** Players find the map too dark or lose track of the match.
+
+### DEC-013 · Character figures, visible ultimates and tower health
+
+- **Question:** How do heroes, troops, ultimates and tower health look?
+- **Options:** Code-drawn character figures and ultimate effects (built) · Commissioned art (later, with cost)
+- **Choice:** Heroes and troops are drawn as small characters (each hero with its own look, each troop class its own creature or fighter) on a team-coloured base, animated for walking and attacking, in the Hikayat style. Every ultimate shows a banner (who used what) and its own effect on the map. Towers show a large health bar with numbers, and the top bar shows every tower's health.
+- **Rationale:** The owner asked for characters instead of dots and for ultimates players can see.
+- **User impact:** Readable characters; clear ultimate moments; tower health at a glance.
+- **Technical impact:** Figure and effect drawing modules; ultimate events from the rules.
+- **Data and privacy:** None.
+- **Cost:** none
+- **Approval:** Approved: “remove troop cards being deployes by hand, players can only strategise by instructing heroes (move, buy items, ulti suggestion, gank) and selecting troops for each lanes ... introduce fog of war concept as well, clearly indicate health of the towers ... characters shouldnt be just dots, it needs to look like a character and ulti needs to visually show its effects on screen so players are aware on whats happening” (2026-11-12)
+- **Delivery:** Implemented
+- **Review trigger:** Readability problems on a small phone, or a decision to commission real art.
+
 ## History (oldest first)
 
 - 2026-11-12 08:49 · Project records started for Lane Game.
@@ -241,3 +287,24 @@ None.
 - 2026-11-12 13:41 · DEC-010 delivery: implemented.
 - 2026-11-12 13:41 · REP-005 written: PLAN-003: species, wards, map rewards and art style.
 - 2026-11-12 13:42 · PLAN-003 implemented: T1-T5 PASS (72 tests, soak 120 matches, phone check OK); T6/T7 wait for the owner. REP-005 written.
+- 2026-11-12 13:54 · DEC-011 proposed: No hand-played cards: play through heroes and lane troops.
+- 2026-11-12 13:54 · DEC-012 proposed: Fog of war.
+- 2026-11-12 13:54 · DEC-013 proposed: Character figures, visible ultimates and tower health.
+- 2026-11-12 13:54 · PLAN-004 proposed: Hero command: no hand cards, items, called ultimates, fog of war, characters.
+- 2026-11-12 13:54 · Owner approved DEC-011: "remove troop cards being deployes by hand, players can only strategise by instructing heroes (move, buy items, ulti suggestion, gank) and selecting troops for each lanes ... introduce fog of war concept as well, clearly indicate health of the towers ... characters shouldnt be just dots, it needs to look like a character and ulti needs to visually show its effects on screen so players are aware on whats happening".
+- 2026-11-12 13:54 · Owner approved DEC-012: "remove troop cards being deployes by hand, players can only strategise by instructing heroes (move, buy items, ulti suggestion, gank) and selecting troops for each lanes ... introduce fog of war concept as well, clearly indicate health of the towers ... characters shouldnt be just dots, it needs to look like a character and ulti needs to visually show its effects on screen so players are aware on whats happening".
+- 2026-11-12 13:54 · Owner approved DEC-013: "remove troop cards being deployes by hand, players can only strategise by instructing heroes (move, buy items, ulti suggestion, gank) and selecting troops for each lanes ... introduce fog of war concept as well, clearly indicate health of the towers ... characters shouldnt be just dots, it needs to look like a character and ulti needs to visually show its effects on screen so players are aware on whats happening".
+- 2026-11-12 13:54 · Owner approved PLAN-004: "remove troop cards being deployes by hand, players can only strategise by instructing heroes (move, buy items, ulti suggestion, gank) and selecting troops for each lanes ... introduce fog of war concept as well, clearly indicate health of the towers ... characters shouldnt be just dots, it needs to look like a character and ulti needs to visually show its effects on screen so players are aware on whats happening".
+- 2026-11-12 13:54 · PLAN-004 delivery: in progress.
+- 2026-11-12 14:19 · PLAN-004 T1: PASS (rules.test.ts: a player has no hand or deck; lane waves are the only troops, full strength then +8% a minute. orders.test.ts: both heroes start on the map at the Pusaka with an order. Card, spell and drop-zone code removed from the rules, bot and screen.).
+- 2026-11-12 14:19 · PLAN-004 T2: PASS (orders.test.ts move order (walks to any spot, holds it, fights what comes close; off-map spots clamped). rules.test.ts items 3/3 (cost, slot, effect at once, kept through death; damage, attack speed, armour, power cooldown; 3 slots, no doubles, not without Semangat). heroes.test.ts 26/26 incl. ultimates fire only once called, the game suggests the moment, a call waits for a good moment, moment ultimates need a call, Belang always on.).
+- 2026-11-12 14:19 · PLAN-004 T3: PASS (fog.test.ts 5/5: own pieces, towers, Pusaka, camps and relics always seen; enemies only inside your vision; wards, lanterns and Pelita give vision; jungle-hidden heroes stay unseen until revealed; the bot does not react to an enemy hero it cannot see, and does once it can.).
+- 2026-11-12 14:19 · PLAN-004 T4: PASS (determinism.test.ts 4/4 (random species and heroes; a human command list with orders, a wave change, a purchase, a move and an ultimate call replays exactly). npm run soak: 100 + 20 matches, no errors; results blue 45, red 46, draws 9; every hero and species played; 1,094 items bought, 122 ultimates, 158 wards, 15 Gajah Mina.).
+- 2026-11-12 14:19 · PLAN-004 T5: PASS (node scripts/phone-check.cjs (iPhone 13 size): heroes on the map, no card row, wave chip, Farm/Ward/Move by dragging a portrait, shop buys an item, ULT tap calls the ultimate and it fires with banner and effect, full match to the result screen, 2-lane mode; PHONE CHECK OK, no page errors. Screenshots checked: characters, fog, tower health bars and strip.).
+- 2026-11-12 14:19 · PLAN-004 T6: NOT RUN (Not yet tried on the owner's phone.).
+- 2026-11-12 14:19 · PLAN-004 delivery: implemented.
+- 2026-11-12 14:19 · DEC-011 delivery: implemented.
+- 2026-11-12 14:19 · DEC-012 delivery: implemented.
+- 2026-11-12 14:19 · DEC-013 delivery: implemented.
+- 2026-11-12 14:19 · REP-006 written: PLAN-004: hero command, items, called ultimates, fog of war, characters.
+- 2026-11-12 14:20 · PLAN-004 implemented: T1-T5 PASS (82 tests, soak 120 matches, phone check OK); T6/T7 wait for the owner. REP-006 written.

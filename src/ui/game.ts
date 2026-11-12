@@ -1,10 +1,10 @@
 // Runs a match in the browser: fixed-step simulation, the bot, input, drawing and menus.
 import { Bot, type BotLevel } from '../game/bot';
 import { LANE_NAMES, type LaneId } from '../game/map';
-import { CARDS, CLASS_CARDS, MANA, SPECIES, TICKS_PER_SECOND, type CardId, type HeroKind, type SpeciesId } from '../game/rules';
+import { CLASSES, HEROES, ITEMS, MANA, SPECIES, TICKS_PER_SECOND, type HeroKind, type ItemId, type SpeciesId } from '../game/rules';
 import { type Command, DEFAULT_PICKS, Sim, randomPicks, randomSpecies } from '../game/sim';
 import { type Layout, computeLayout, inField, inRect, toWorld } from './layout';
-import { cardCommand, orderCommand, orderTargets, placeCard } from './placement';
+import { moveCommand, orderCommand, orderTargets } from './placement';
 import { DRAG_LIFT, Renderer, type UiState, nearestTarget } from './render';
 
 export interface Settings {
@@ -30,7 +30,7 @@ export class Game {
   private layout!: Layout;
   private ctx: CanvasRenderingContext2D;
   private renderer = new Renderer();
-  private ui: UiState = { dragCard: null, selectedCard: -1, dragHero: null, selectedHero: null, hover: null, toast: null };
+  private ui: UiState = { dragHero: null, selectedHero: null, hover: null, toast: null };
   private acc = 0;
   private last = 0;
   private running = false;
@@ -66,7 +66,7 @@ export class Game {
     this.autoBot = this.opts.autoplay ? new Bot(0, s ^ 0x5bd1e995, 'normal') : null;
     this.log = [];
     this.renderer.reset();
-    this.ui = { dragCard: null, selectedCard: -1, dragHero: null, selectedHero: null, hover: null, toast: null };
+    this.ui = { dragHero: null, selectedHero: null, hover: null, toast: null };
     this.acc = 0;
     this.resultShown = false;
   }
@@ -131,14 +131,30 @@ export class Game {
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
+  /** The hero whose panel (outside its ULT button and item slots) is at a point. */
   private heroAt(x: number, y: number): HeroKind | null {
     const kinds = this.sim.players[0].picks;
-    for (let i = 0; i < kinds.length; i++) if (inRect(this.layout.heroSlots[i], x, y) && this.sim.heroOf(0, kinds[i])) return kinds[i];
+    for (let i = 0; i < kinds.length; i++) {
+      const p = this.layout.heroes[i];
+      if (inRect(p.box, x, y) && !inRect(p.ult, x, y) && !p.items.some((r) => inRect(r, x, y))) return kinds[i];
+    }
     return null;
   }
 
-  private cardAt(x: number, y: number): number {
-    return this.layout.cards.findIndex((r) => inRect({ ...r, y: r.y - 8, h: r.h + 16 }, x, y));
+  /** What a tap on the HUD buttons does (handled on release), or null. */
+  private buttonAt(x: number, y: number): { kind: 'gear' } | { kind: 'wave'; lane: LaneId } | { kind: 'ult'; hero: HeroKind } | { kind: 'shop'; hero: HeroKind | null } | null {
+    const l = this.layout;
+    if (inRect(l.gear, x, y)) return { kind: 'gear' };
+    const w = l.waves.findIndex((r) => inRect(r, x, y));
+    if (w >= 0) return { kind: 'wave', lane: w as LaneId };
+    if (inRect(l.shop, x, y)) return { kind: 'shop', hero: this.ui.selectedHero };
+    const kinds = this.sim.players[0].picks;
+    for (let i = 0; i < kinds.length; i++) {
+      const p = l.heroes[i];
+      if (inRect(p.ult, x, y)) return { kind: 'ult', hero: kinds[i] };
+      if (p.items.some((r) => inRect(r, x, y))) return { kind: 'shop', hero: kinds[i] };
+    }
+    return null;
   }
 
   private onDown(e: PointerEvent): void {
@@ -146,19 +162,10 @@ export class Game {
     const p = this.point(e);
     this.down = p;
     this.canvas.setPointerCapture(e.pointerId);
-    if (inRect(this.layout.gear, p.x, p.y)) return;
-    if (this.layout.waves.some((r) => inRect(r, p.x, p.y))) return; // handled on release
-    const ci = this.cardAt(p.x, p.y);
-    if (ci >= 0) {
-      const card = this.sim.players[0].hand[ci];
-      this.ui.dragCard = { index: ci, card, x: p.x, y: p.y, moved: false };
-      this.ui.selectedHero = null;
-      return;
-    }
+    if (this.buttonAt(p.x, p.y)) return; // handled on release
     const hero = this.heroAt(p.x, p.y);
     if (hero) {
       this.ui.dragHero = { hero, x: p.x, y: p.y, moved: false };
-      this.ui.selectedCard = -1;
       return;
     }
     this.ui.hover = p;
@@ -167,11 +174,7 @@ export class Game {
   private onMove(e: PointerEvent): void {
     const p = this.point(e);
     const moved = (d: { x: number; y: number }) => this.down !== null && Math.hypot(d.x - this.down.x, d.y - this.down.y) > TAP_SLOP;
-    if (this.ui.dragCard) {
-      this.ui.dragCard.x = p.x;
-      this.ui.dragCard.y = p.y;
-      if (moved(p)) this.ui.dragCard.moved = true;
-    } else if (this.ui.dragHero) {
+    if (this.ui.dragHero) {
       this.ui.dragHero.x = p.x;
       this.ui.dragHero.y = p.y;
       if (moved(p)) this.ui.dragHero.moved = true;
@@ -185,27 +188,14 @@ export class Game {
     const wasDown = this.down;
     this.down = null;
     if (!this.running || this.sim.result) { this.cancelDrag(); return; }
-    const chip = this.layout.waves.findIndex((r) => inRect(r, p.x, p.y));
-    if (wasDown && chip >= 0 && inRect(this.layout.waves[chip], wasDown.x, wasDown.y)) {
+    const btn = wasDown ? this.buttonAt(wasDown.x, wasDown.y) : null;
+    const same = btn && JSON.stringify(btn) === JSON.stringify(this.buttonAt(p.x, p.y));
+    if (btn && same) {
       this.cancelDrag();
-      this.cycleWave(chip as LaneId);
-      return;
-    }
-    if (wasDown && inRect(this.layout.gear, p.x, p.y) && inRect(this.layout.gear, wasDown.x, wasDown.y)) {
-      this.cancelDrag();
-      document.dispatchEvent(new CustomEvent('open-settings'));
-      return;
-    }
-    const dc = this.ui.dragCard;
-    if (dc) {
-      this.ui.dragCard = null;
-      if (!dc.moved) {
-        this.ui.selectedCard = this.ui.selectedCard === dc.index ? -1 : dc.index;
-        if (this.ui.selectedCard >= 0 && !this.sim.canAfford(0, dc.card)) this.toast(`Needs ${CARDS[dc.card].cost} mana`);
-        return;
-      }
-      this.ui.selectedCard = -1;
-      if (inField(this.layout, p.x, p.y - DRAG_LIFT)) this.playCard(dc.card, p.x, p.y - DRAG_LIFT);
+      if (btn.kind === 'gear') document.dispatchEvent(new CustomEvent('open-settings'));
+      else if (btn.kind === 'wave') this.cycleWave(btn.lane);
+      else if (btn.kind === 'ult') this.callUlt(btn.hero);
+      else document.dispatchEvent(new CustomEvent('open-shop', { detail: btn.hero ?? this.sim.players[0].picks[0] }));
       return;
     }
     const dh = this.ui.dragHero;
@@ -213,21 +203,40 @@ export class Game {
       this.ui.dragHero = null;
       if (!dh.moved) {
         this.ui.selectedHero = this.ui.selectedHero === dh.hero ? null : dh.hero;
-        this.ui.selectedCard = -1;
         return;
       }
       this.orderHero(dh.hero, p.x, p.y - DRAG_LIFT);
       return;
     }
-    // A tap on the field with a card or hero selected.
-    if (this.ui.selectedCard >= 0 && inField(this.layout, p.x, p.y)) {
-      const card = this.sim.players[0].hand[this.ui.selectedCard];
-      if (card) this.playCard(card, p.x, p.y);
-      this.ui.selectedCard = -1;
-    } else if (this.ui.selectedHero && inField(this.layout, p.x, p.y)) {
+    // A tap on the field with a hero selected.
+    if (this.ui.selectedHero && inField(this.layout, p.x, p.y)) {
       if (this.orderHero(this.ui.selectedHero, p.x, p.y)) this.ui.selectedHero = null;
     }
     this.ui.hover = null;
+  }
+
+  /** ULT button: call the ultimate (the hero fires it at the next good moment), or cancel the call. */
+  private callUlt(kind: HeroKind): void {
+    const h = this.sim.heroOf(0, kind);
+    const def = HEROES[kind];
+    if (!h) return;
+    if (!h.ultReady) {
+      this.toast(h.level < 4 ? `${def.ult.name}: unlocks at level 4` : h.alive ? `${def.ult.name}: used this life` : `${def.name} is down`);
+      return;
+    }
+    this.send({ t: 'ult', player: 0, hero: kind });
+    this.toast(h.ultArmed ? `${def.ult.name}: call cancelled` : this.sim.ultSuggested(h) ? `${def.ult.name}!` : `${def.ult.name}: fires at the next good moment`);
+  }
+
+  /** Buy an item for a hero (from the shop). Returns a message for the shop to show. */
+  buy(kind: HeroKind, item: ItemId): string {
+    const why = this.sim.cantBuy(0, kind, item);
+    if (why === 'semangat') return `Needs ${this.sim.itemCost(0, item)} ${MANA.name}`;
+    if (why === 'full') return `${HEROES[kind].name} has no free slot`;
+    if (why === 'owned') return `${HEROES[kind].name} already has it`;
+    if (why) return 'Not now';
+    this.send({ t: 'buy', player: 0, hero: kind, item });
+    return `${ITEMS[item].name} for ${HEROES[kind].name}`;
   }
 
   /** Tap a wave chip: the next class of your species will march in that lane. */
@@ -237,30 +246,23 @@ export class Game {
     const classes = SPECIES[pl.species].classes;
     const next = classes[(classes.indexOf(pl.laneClass[lane]) + 1) % classes.length];
     this.send({ t: 'wave', player: 0, lane, card: next });
-    this.toast(`${LANE_NAMES[lane]} lane waves: ${CLASS_CARDS[next].name} ×${CLASS_CARDS[next].wave}`);
+    this.toast(`${LANE_NAMES[lane]} lane waves: ${CLASSES[next].name} ×${CLASSES[next].wave}`);
   }
 
   private cancelDrag(): void {
-    this.ui.dragCard = null;
     this.ui.dragHero = null;
     this.down = null;
   }
 
-  private playCard(card: CardId, sx: number, sy: number): void {
-    if (!this.sim.canAfford(0, card)) {
-      const need = CARDS[card].cost - Math.floor(this.sim.players[0].mana / MANA.perMana);
-      this.toast(`Not enough mana (need ${need} more)`);
-      return;
-    }
-    const [wx, wy] = toWorld(this.layout, sx, sy);
-    this.send(cardCommand(card, placeCard(this.sim, card, wx, wy)));
-  }
-
+  /** Order a hero to the spot under (sx, sy): a glowing target, or else Move there. */
   private orderHero(kind: HeroKind, sx: number, sy: number): boolean {
     const hero = this.sim.heroOf(0, kind);
-    const t = nearestTarget(this.layout, orderTargets(this.sim, hero), sx, sy, 56);
-    if (!t) { this.toast('Drop the hero on a glowing spot'); return false; }
-    this.send(orderCommand(kind, t));
+    const t = nearestTarget(this.layout, orderTargets(this.sim, hero), sx, sy, 40);
+    if (t) { this.send(orderCommand(kind, t)); return true; }
+    if (!inField(this.layout, sx, sy)) return false;
+    const [wx, wy] = toWorld(this.layout, sx, sy);
+    this.send(moveCommand(kind, wx, wy));
+    this.toast(`${HEROES[kind].name}: hold this spot`);
     return true;
   }
 }

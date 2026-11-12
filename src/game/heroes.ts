@@ -2,14 +2,19 @@
 // rules.ts (HEROES); the numbers here must match it. Everything is whole-number maths.
 import { dist2, idiv, isqrt, pct, within } from './math';
 import { LANES, LANE_HALF, type LaneId, inJungle, laneDist2, pointAt, uToS } from './map';
-import { HERO_RULES, MANA, type HeroKind, sec } from './rules';
+import { CLASSES, HERO_RULES, MANA, type HeroKind, sec } from './rules';
 import type { Ent, Player, Sim } from './sim';
 
 export interface Kit {
   /** The Power. Called when its cooldown is ready; returns true if it fired. */
   power(sim: Sim, h: Ent, rank: 1 | 2 | 3): boolean;
-  /** The Ultimate trigger, checked every tick while it is ready; returns true if it fired. */
-  ult?(sim: Sim, h: Ent): boolean;
+  /**
+   * The Ultimate (DEC-011). Returns true if now is a good moment. With go = false it only checks
+   * (that lights the ULT button); with go = true it also fires. Fired only after the player calls it.
+   */
+  ult?(sim: Sim, h: Ent, go: boolean): boolean;
+  /** How long the ultimate's effect lasts on the hero, for drawing (ticks). */
+  ultLasts?: number;
   /** An always-on Ultimate applied once at level 4. */
   passiveUlt?(sim: Sim, h: Ent): void;
   onSpawn?(sim: Sim, h: Ent): void;
@@ -24,7 +29,7 @@ export interface Kit {
   onDealt?(sim: Sim, h: Ent, t: Ent, dmg: number): void;
   /** Change damage this hero takes. */
   incoming?(sim: Sim, h: Ent, dmg: number, src: Ent | null, spell: boolean, pure: boolean): number;
-  /** Ultimate triggers tied to moments rather than checks. Return true if it fired. */
+  /** Ultimate triggers tied to moments rather than checks (only once called). Return true if it fired. */
   onAmbush?(sim: Sim, h: Ent, t: Ent): boolean;
   onTeamGank?(sim: Sim, h: Ent, ganker: Ent): boolean;
   onLethal?(sim: Sim, h: Ent): boolean;
@@ -78,6 +83,7 @@ export const KITS: Record<HeroKind, Kit> = {
     },
     onAmbush(sim, h, t) {
       sim.markFor(t, me(h), sec(6));
+      sim.ultFx(h, t.x, t.y, 150);
       return true;
     },
   },
@@ -97,10 +103,12 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.fx({ k: 'boom', x: h.x, y: h.y, r, owner: h.owner });
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       const t = nearestTower(sim, me(h), h.x, h.y, 1200, true);
       if (!t || t.hp * 10 >= t.maxHp * 3) return false;
+      if (!go) return true;
       sim.shieldFor(t, 1000, sec(8));
+      sim.ultFx(h, t.x, t.y, 350);
       return true;
     },
   },
@@ -119,15 +127,16 @@ export const KITS: Record<HeroKind, Kit> = {
       if (rank === 3) sim.stunFor(t, sec(1));
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       if (sim.foes(me(h), h.x, h.y, 600).length < 4) return false;
+      if (!go) return true;
       const lane = sim.laneOf(h);
       for (const t of sim.foes(me(h), h.x, h.y, 1500)) {
         if (!inLane(lane, t, 200)) continue;
         sim.pushBack(t, 400);
         sim.slowFor(t, 60, sec(3));
       }
-      sim.fx({ k: 'boom', x: h.x, y: h.y, r: 700, owner: h.owner });
+      sim.ultFx(h, h.x, h.y, 700);
       return true;
     },
   },
@@ -140,8 +149,10 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.addZone({ kind: 'lantern', owner: me(h), x: h.x, y: h.y, r: 900, lane: sim.laneOf(h), until: sim.tick + (rank === 1 ? sec(30) : sec(45)), heal: rank === 3 });
       return true;
     },
+    ultLasts: sec(6),
     onTeamGank(sim, h) {
       for (const ally of sim.heroes(me(h))) if (ally.alive) ally.veil = sec(6);
+      sim.ultFx(h, h.x, h.y, 600);
       return true;
     },
   },
@@ -157,8 +168,9 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.stunFor(t, rank === 3 ? sec(1) : sec(0.5));
       return true;
     },
-    passiveUlt(_sim, h) {
+    passiveUlt(sim, h) {
       h.transformed = true;
+      sim.ultFx(h, h.x, h.y, 300);
     },
     onHit(sim, h, t, dealt) {
       if (!h.transformed) return;
@@ -168,6 +180,7 @@ export const KITS: Record<HeroKind, Kit> = {
 
   // ---- Gergasi: buildings-only siege ----
   gergasi: {
+    ultLasts: sec(8),
     attackPct: (_sim, _h, t) => (t.kind === 'tower' || t.kind === 'core' ? 300 : 100),
     tick(sim, h) {
       if (h.order.type !== 'defend') return;
@@ -181,11 +194,13 @@ export const KITS: Record<HeroKind, Kit> = {
       if (rank === 3) for (const o of sim.foes(me(h), t.x, t.y, 300, { unitsOnly: true })) sim.knockback(o, 250, t.x, t.y);
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       const t = nearestTower(sim, foe(h), h.x, h.y, h.range + h.r + 20, true);
       if (!t) return false;
+      if (!go) return true;
       sim.hasteFor(h, 50, sec(8));
       h.splash = sec(8);
+      sim.ultFx(h, h.x, h.y, 300, t.x, t.y);
       return true;
     },
     onHit(sim, h, t, dealt) {
@@ -213,7 +228,7 @@ export const KITS: Record<HeroKind, Kit> = {
       const lane = sim.laneOf(h);
       const s = sim.uOf(lane, p, h.x, h.y) + 200;
       const [x, y] = pointAt(LANES[lane], uToS(LANES[lane], p, s));
-      const copy = rank === 3 ? sim.players[p].lastTroop : null;
+      const copy = rank === 3 ? CLASSES[sim.players[p].laneClass[lane]].unit : null;
       const n = rank === 1 ? 2 : 3;
       for (let i = 0; i < n; i++) {
         const side = (i - 1) * 80;
@@ -222,11 +237,13 @@ export const KITS: Record<HeroKind, Kit> = {
       }
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       const t = sim.foes(me(h), h.x, h.y, 600, { unitsOnly: true }).find((e) => e.maxHp >= 1000 && e.charm === 0);
       if (!t) return false;
+      if (!go) return true;
       sim.charmFor(t, me(h), sec(10));
       sim.say(t.x, t.y - 120, 'Taken!', 'ult');
+      sim.ultFx(h, h.x, h.y, 150, t.x, t.y);
       return true;
     },
   },
@@ -251,10 +268,12 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.fx({ k: 'boom', x, y, r, owner: h.owner });
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       const enemies = sim.heroes(foe(h)).filter((e) => e.alive && !e.hidden);
       if (enemies.length < 2) return false;
+      if (!go) return true;
       for (const e of enemies) sim.silenceFor(e, sec(5));
+      sim.ultFx(h, h.x, h.y, 2000);
       sim.players[foe(h)].manaSlow = sec(10);
       return true;
     },
@@ -274,10 +293,12 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.fx({ k: 'boom', x: h.x, y: h.y, r: 350, owner: h.owner });
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       const lane = sim.laneOf(h);
       const t = sim.towerOf(me(h), lane);
       if (!t || !t.alive || sim.foes(me(h), t.x, t.y, 900).length < 4) return false;
+      if (!go) return true;
+      sim.ultFx(h, t.x, t.y, 900);
       sim.addZone({ kind: 'flood', owner: me(h), x: t.x, y: t.y, r: 0, lane, until: sim.tick + sec(6), heal: false });
       return true;
     },
@@ -300,9 +321,10 @@ export const KITS: Record<HeroKind, Kit> = {
     onTeamGank(sim, h, ganker) {
       if (ganker.id !== h.id) return false;
       sim.updateGankGoal(h);
+      const [ox, oy] = [h.x, h.y];
       sim.place(h, h.goalX, h.goalY);
+      sim.ultFx(h, h.x, h.y, 300, ox, oy);
       for (const t of sim.foes(me(h), h.x, h.y, 300)) sim.stunFor(t, sec(1));
-      sim.fx({ k: 'boom', x: h.x, y: h.y, r: 300, owner: h.owner });
       return true;
     },
   },
@@ -324,10 +346,12 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.silenceFor(t, rank === 1 ? sec(2) : sec(3));
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       const t = sim.foes(me(h), h.x, h.y, 400, { heroesOnly: true }).find((e) => !e.duelWith);
       if (!t || h.duelWith) return false;
+      if (!go) return true;
       sim.startDuel(h, t, sec(4));
+      sim.ultFx(h, h.x, h.y, 400, t.x, t.y);
       return true;
     },
   },
@@ -347,7 +371,9 @@ export const KITS: Record<HeroKind, Kit> = {
     onLethal(sim, h) {
       const p = me(h);
       const core = sim.coreOf(p);
+      const [ox, oy] = [h.x, h.y];
       sim.place(h, core.x, core.y + (p === 0 ? -420 : 420));
+      sim.ultFx(h, h.x, h.y, 200, ox, oy);
       h.hp = pct(h.maxHp, 30);
       h.targetId = 0;
       sim.say(h.x, h.y - 140, 'Escaped!', 'ult');
@@ -364,10 +390,13 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.say(h.x, h.y - 120, `+${rank === 2 ? '1.5' : rank === 1 ? '1' : '2'} ${MANA.name}`, 'mana');
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
+      if (!go) return true; // any time
       const pl = sim.players[me(h)];
-      if (pl.mana >= 3 * MANA.perMana) return false;
-      pl.discount = sec(8);
+      pl.mana = Math.min(MANA.max, pl.mana + 3 * MANA.perMana);
+      pl.halfPrice = true;
+      sim.say(h.x, h.y - 120, `+3 ${MANA.name}`, 'mana');
+      sim.ultFx(h, h.x, h.y, 300);
       return true;
     },
   },
@@ -389,15 +418,17 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.fx({ k: 'boom', x: t.x, y: t.y, r: 250, owner: h.owner });
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       const t = sim.towerOf(foe(h), sim.laneOf(h));
       if (!t || !t.alive || !within(h.x, h.y, t.x, t.y, 2000)) return false;
+      if (!go) return true;
+      const [ox, oy] = [h.x, h.y];
       const [x, y] = sim.beside(h, t, 10);
       sim.fx({ k: 'line', x1: h.x, y1: h.y, x2: x, y2: y, owner: h.owner });
       sim.place(h, x, y);
       sim.hurt(t, sim.scaled(h, 200), h, false);
       for (const o of sim.foes(me(h), t.x, t.y, 400)) sim.stunFor(o, sec(1.5));
-      sim.fx({ k: 'boom', x: t.x, y: t.y, r: 400, owner: h.owner });
+      sim.ultFx(h, t.x, t.y, 400, ox, oy);
       return true;
     },
   },
@@ -414,11 +445,13 @@ export const KITS: Record<HeroKind, Kit> = {
       }
       return targets.length > 0;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       const t = sim.foes(me(h), h.x, h.y, 400, { heroesOnly: true }).find((e) => e.hp * 2 < e.maxHp);
       if (!t) return false;
+      if (!go) return true;
       sim.stunFor(t, sec(2));
       sim.dotFor(t, 6, 0, sec(3), me(h));
+      sim.ultFx(h, t.x, t.y, 200, h.x, h.y);
       return true;
     },
   },
@@ -434,16 +467,19 @@ export const KITS: Record<HeroKind, Kit> = {
       if (rank >= 2) { w.maxHp = 700; w.hp = 700; }
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       const towers = sim.ents.filter((t) => t.kind === 'tower' && t.alive && t.owner === me(h));
       if (!towers.some((t) => t.hp * 2 < t.maxHp)) return false;
+      if (!go) return true;
       for (const t of towers) { sim.shieldFor(t, 600, sec(8)); sim.atkBuffFor(t, 70, sec(8)); }
+      sim.ultFx(h, h.x, h.y, 300);
       return true;
     },
   },
 
   // ---- Helang: marksman ----
   helang: {
+    ultLasts: sec(6),
     attackPct: (_sim, _h, t) => (t.kind === 'hero' ? 125 : 100),
     power(sim, h, rank) {
       const aim = sim.foes(me(h), h.x, h.y, 900)[0];
@@ -465,9 +501,11 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.fx({ k: 'line', x1: h.x, y1: h.y, x2: ex, y2: ey, owner: h.owner });
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       if (sim.foes(me(h), h.x, h.y, h.range).length < 3) return false;
+      if (!go) return true;
       sim.atkBuffFor(h, 50, sec(6));
+      sim.ultFx(h, h.x, h.y, 700);
       return true;
     },
   },
@@ -489,17 +527,19 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.addZone({ kind: 'fog', owner: me(h), x: best.x, y: best.y, r: rank === 3 ? 450 : 350, lane: sim.laneOf(best), until: sim.tick + (rank === 1 ? sec(6) : sec(8)), heal: false });
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       const list = sim.foes(me(h), h.x, h.y, 600);
       if (list.length < 5) return false;
+      if (!go) return true;
       for (const t of list) sim.stunFor(t, sec(1.5));
-      sim.fx({ k: 'boom', x: h.x, y: h.y, r: 600, owner: h.owner });
+      sim.ultFx(h, h.x, h.y, 600);
       return true;
     },
   },
 
   // ---- Ombak: lane pusher ----
   ombak: {
+    ultLasts: sec(10),
     tick(sim, h) {
       const lane = sim.laneOf(h);
       for (const a of sim.allies(me(h), h.x, h.y, 1500, false)) if (a.lane === lane) sim.hasteFor(a, 15, 2);
@@ -519,10 +559,12 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.fx({ k: 'line', x1: h.x, y1: h.y, x2, y2, owner: h.owner });
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       const lane = sim.laneOf(h);
-      const troops = sim.ents.filter((e) => e.kind === 'unit' && e.alive && e.owner === me(h) && e.lane === lane && !e.wave);
+      const troops = sim.ents.filter((e) => e.kind === 'unit' && e.alive && e.owner === me(h) && e.lane === lane && within(h.x, h.y, e.x, e.y, 1500));
       if (troops.length < 3) return false;
+      if (!go) return true;
+      sim.ultFx(h, h.x, h.y, 900);
       sim.addZone({ kind: 'tide', owner: me(h), x: h.x, y: h.y, r: 0, lane, until: sim.tick + sec(10), heal: false });
       return true;
     },
@@ -530,6 +572,7 @@ export const KITS: Record<HeroKind, Kit> = {
 
   // ---- Buaya: life-stealing bruiser ----
   buaya: {
+    ultLasts: sec(8),
     onDealt: (sim, h, _t, dmg) => sim.heal(h, idiv(dmg, 5)),
     power(sim, h, rank) {
       const t = sim.foes(me(h), h.x, h.y, h.range + 100)[0];
@@ -539,13 +582,15 @@ export const KITS: Record<HeroKind, Kit> = {
       h.stun = Math.max(h.stun, sec(1.5)); // it holds on while it drags
       return true;
     },
-    ult(sim, h) {
+    ult(sim, h, go) {
       if (h.hp * 10 >= h.maxHp * 4) return false;
+      if (!go) return true;
       h.immune = sec(8);
       h.stun = 0;
       h.slow = 0;
       h.silence = 0;
       sim.regenFor(h, 5, sec(8));
+      sim.ultFx(h, h.x, h.y, 300);
       return true;
     },
   },

@@ -1,24 +1,27 @@
-// PLAN-002 T1/T2: every hero's power, ultimate and trait do what the card says.
+// PLAN-002 T1/T2, PLAN-004: every hero's power, ultimate and trait do what its text says;
+// ultimates fire only once called (DEC-011).
 import { describe, expect, test } from 'vitest';
 import { LANES, pointAt, towerPos } from '../src/game/map';
-import { HERO_IDS, MANA, XP, type HeroKind, type UnitKind } from '../src/game/rules';
+import { HERO_IDS, ITEMS, MANA, XP, type HeroKind, type UnitKind } from '../src/game/rules';
 import { type Ent, Sim } from '../src/game/sim';
-import { stepN } from './helpers';
+import { heroOnLane, parkHeroes, stepN } from './helpers';
 
 const LEFT = LANES[0];
 
-/** A quiet match with your hero played at distance 3000 up the left lane (well away from towers). */
-function arena(hero: HeroKind, level = 1, extra?: HeroKind): { sim: Sim; h: Ent } {
+/**
+ * A quiet match with your hero at distance 3000 up the left lane (well away from towers); every
+ * other hero waits at home. At level 4 the ultimate is already called, as a player would.
+ */
+function arena(hero: HeroKind, level = 1, extra?: HeroKind, foes: HeroKind[] = ['rimba', 'benteng']): { sim: Sim; h: Ent } {
   const other: HeroKind = extra ?? (hero === 'rimba' ? 'benteng' : 'rimba');
-  const sim = new Sim({ seed: 11, waves: false, picks: [[hero, other], ['rimba', 'benteng']] });
-  sim.players[0].hand = [hero, other, 'spearmen', 'archers'];
-  sim.players[0].mana = MANA.max;
-  sim.submit({ t: 'card', player: 0, card: hero, lane: 0, u: 3000 });
+  const sim = new Sim({ seed: 11, waves: false, picks: [[hero, other], foes] });
+  parkHeroes(sim, 0, hero);
+  parkHeroes(sim, 1);
+  const h = heroOnLane(sim, 0, hero, 0, 3000);
   stepN(sim, 22);
-  const h = sim.heroOf(0, hero);
-  if (!h) throw new Error(`${hero} not played`);
   h.powerCd = 9999; // tests switch the power on when they want it
   if (level > 1) sim.giveXp(h, XP.levels[level - 1]);
+  if (h.ultReady) h.ultArmed = true;
   return { sim, h };
 }
 
@@ -27,14 +30,9 @@ function foe(sim: Sim, h: Ent, kind: UnitKind, dx: number, dy: number): Ent {
   return sim.summon(1, kind, h.x + dx, h.y + dy, 0);
 }
 
-/** An enemy hero next to the hero (played by player 1, then moved). */
+/** An enemy hero (one of player 1's picks) brought next to the hero, pushing the left lane. */
 function foeHero(sim: Sim, h: Ent, kind: HeroKind, dx: number, dy: number): Ent {
-  sim.players[1].hand = [kind, 'spearmen', 'archers', 'gotong'];
-  sim.players[1].mana = MANA.max;
-  sim.submit({ t: 'card', player: 1, card: kind, lane: 0, u: 3000 });
-  sim.step();
-  const e = sim.heroOf(1, kind);
-  if (!e) throw new Error('enemy hero not played');
+  const e = heroOnLane(sim, 1, kind, 0, 3000);
   e.deploy = 0;
   e.powerCd = 9999;
   sim.place(e, h.x + dx, h.y + dy);
@@ -64,16 +62,62 @@ describe('every hero', () => {
     sim.giveXp(h, XP.levels[3]);
     expect(h.level).toBe(4);
     expect(h.ultReady).toBe(true);
+    sim.submit({ t: 'ult', player: 0, hero: 'embun' });
     for (let i = 0; i < 5; i++) foe(sim, h, 'spearman', -200 + i * 100, -250);
     sim.step();
     expect(h.ultReady).toBe(false);
     expect(said(sim, 'Dawn Freeze')).toBe(true);
+    expect(sim.events.some((e) => e.k === 'ult' && e.hero === 'embun')).toBe(true);
     h.hp = 0;
     sim.step();
     expect(h.alive).toBe(false);
     stepN(sim, h.respawn + 2);
     expect(h.alive).toBe(true);
     expect(h.ultReady).toBe(true);
+    expect(h.ultArmed).toBe(false); // a new life needs a new call
+  });
+
+  test('an ultimate waits for the player\u2019s call; the game suggests the moment; a call waits for a good moment', () => {
+    const { sim, h } = arena('embun', 4);
+    h.ultArmed = false;
+    expect(sim.ultSuggested(h)).toBe(false); // nobody near
+    const crowd = [0, 1, 2, 3, 4].map((i) => foe(sim, h, 'spearman', -200 + i * 100, -250));
+    expect(sim.ultSuggested(h)).toBe(true);
+    stepN(sim, 10);
+    expect(h.ultReady).toBe(true); // not called: it does not fire by itself
+    for (const c of crowd) c.hp = 0;
+    stepN(sim, 2);
+    sim.submit({ t: 'ult', player: 0, hero: 'embun' });
+    sim.step();
+    expect(h.ultArmed).toBe(true);
+    expect(h.ultReady).toBe(true); // called, but no good moment yet
+    for (let i = 0; i < 5; i++) foe(sim, h, 'spearman', -200 + i * 100, -250);
+    sim.step();
+    expect(h.ultReady).toBe(false); // fired as soon as the moment came
+    // A second call is refused once it is spent; calling twice cancels.
+    const b = arena('kail', 4);
+    expect(b.h.ultArmed).toBe(true);
+    b.sim.submit({ t: 'ult', player: 0, hero: 'kail' });
+    b.sim.step();
+    expect(b.h.ultArmed).toBe(false);
+  });
+
+  test('moment ultimates (ambush, gank, escape) also need a call', () => {
+    const b = arena('pelanduk', 4);
+    b.h.ultArmed = false;
+    b.h.hp = 5;
+    const t = foe(b.sim, b.h, 'shieldbearer', 0, -150);
+    t.deploy = 0;
+    stepN(b.sim, 40);
+    expect(b.h.alive).toBe(false); // not called: no escape
+  });
+
+  test('Belang\u2019s always-on ultimate needs no call and shows its effect', () => {
+    const { sim, h } = arena('belang', 3);
+    sim.giveXp(h, XP.levels[3]);
+    expect(h.transformed).toBe(true);
+    expect(h.ultReady).toBe(false);
+    expect(sim.events.some((e) => e.k === 'ult' && e.hero === 'belang')).toBe(true);
   });
 
   test('best order gives +15% damage', () => {
@@ -135,14 +179,14 @@ describe('hero kits', () => {
 
   test('Seri: Second Sight reveals a hidden hero; Lantern; Veil hides the team on a gank', () => {
     const at: [number, number] = [1300, 3700];
-    const control = arena('rimba', 1, 'benteng');
+    const control = arena('rimba', 1, 'benteng', ['tedung', 'helang']);
     control.sim.place(control.h, 570, 4003);
     const e1 = foeHero(control.sim, control.h, 'tedung', 0, 0);
     control.sim.place(e1, ...at);
     control.sim.step();
     expect(e1.hidden).toBe(true);
 
-    const { sim, h } = arena('seri', 1, 'rimba');
+    const { sim, h } = arena('seri', 1, 'rimba', ['tedung', 'helang']);
     sim.place(h, 570, 4003);
     const e2 = foeHero(sim, h, 'tedung', 0, 0);
     sim.place(e2, ...at);
@@ -153,9 +197,7 @@ describe('hero kits', () => {
     expect(sim.zones.some((z) => z.kind === 'lantern' && z.owner === 0)).toBe(true);
 
     const v = arena('seri', 4, 'rimba');
-    v.sim.players[0].hand = ['rimba', 'spearmen', 'archers', 'gotong'];
-    v.sim.players[0].mana = MANA.max;
-    v.sim.submit({ t: 'card', player: 0, card: 'rimba', lane: 2, u: 2000 });
+    heroOnLane(v.sim, 0, 'rimba', 2, 2000);
     stepN(v.sim, 22);
     v.sim.submit({ t: 'order', player: 0, hero: 'rimba', order: 'gank', lane: 0 });
     v.sim.step();
@@ -195,12 +237,12 @@ describe('hero kits', () => {
     expect(b.h.splash).toBeGreaterThan(0);
   });
 
-  test('Dalang: Shadow Play summons, copies your last troop at level 3, Grand Performance takes a big troop', () => {
+  test('Dalang: Shadow Play summons, copies his lane\u2019s troop class at level 3, Grand Performance takes a big troop', () => {
     const { sim, h } = arena('dalang');
     castPower(sim, h);
     expect(sim.ents.filter((e) => e.kind === 'unit' && e.owner === 0 && e.unit === 'puppet')).toHaveLength(2);
     const c = arena('dalang', 3);
-    c.sim.players[0].lastTroop = 'shieldbearer';
+    c.sim.players[0].laneClass[0] = 'shieldbearer';
     castPower(c.sim, c.h);
     const copies = c.sim.ents.filter((e) => e.kind === 'unit' && e.owner === 0 && e.unit === 'shieldbearer');
     expect(copies).toHaveLength(3);
@@ -213,18 +255,15 @@ describe('hero kits', () => {
     expect(big.charm).toBeGreaterThan(0);
   });
 
-  test('Senja: Waterspout hits a group; spells hurt her half; Swallow the Moon silences', () => {
+  test('Senja: Waterspout hits a group; powers hurt her half; Swallow the Moon silences', () => {
     const { sim, h } = arena('senja');
     const g = [0, 1, 2].map((i) => foe(sim, h, 'spearman', -80 + i * 80, -450));
     castPower(sim, h);
     for (const t of g) expect(t.hp).toBeLessThanOrEqual(340 - 140);
-    sim.players[1].hand = ['firebolt', 'spearmen', 'archers', 'gotong'];
-    sim.players[1].mana = MANA.max;
     for (const t of g) t.hp = 0;
     sim.step();
     const before = h.hp;
-    sim.submit({ t: 'spell', player: 1, card: 'firebolt', x: h.x, y: h.y });
-    stepN(sim, 14);
+    expect(sim.hurt(h, 260, null)).toBe(130); // a power: half
     expect(before - h.hp).toBe(130);
 
     const b = arena('senja', 4);
@@ -288,12 +327,12 @@ describe('hero kits', () => {
     for (let i = 0; i < 40 && !parried; i++) { sim.step(); parried = said(sim, 'Parry'); }
     expect(parried).toBe(true);
 
-    const k = arena('pendekar');
+    const k = arena('pendekar', 1, undefined, ['senja', 'helang']);
     const e = foeHero(k.sim, k.h, 'senja', 0, -500);
     castPower(k.sim, k.h);
     expect(e.silence).toBeGreaterThan(0);
 
-    const b = arena('pendekar', 4);
+    const b = arena('pendekar', 4, undefined, ['senja', 'helang']);
     const rival = foeHero(b.sim, b.h, 'helang', 0, -300);
     b.sim.step();
     expect(b.h.duelWith).toBe(rival.id);
@@ -333,7 +372,7 @@ describe('hero kits', () => {
     expect(dist(b.h, { x: 1950, y: 6210 })).toBeLessThan(700);
   });
 
-  test('Saudagar: Trade Winds gives Semangat, Trade Route speeds the refill, Golden Monsoon discounts', () => {
+  test('Saudagar: Trade Winds gives Semangat, Trade Route speeds the refill, Golden Monsoon pays and halves an item', () => {
     const { sim, h } = arena('saudagar');
     sim.players[0].mana = 0;
     castPower(sim, h);
@@ -345,10 +384,15 @@ describe('hero kits', () => {
     expect(r.sim.players[0].mana - r.sim.players[1].mana).toBe(10);
 
     const b = arena('saudagar', 4);
-    b.sim.players[0].mana = MANA.perMana;
+    b.sim.players[0].mana = 0;
     b.sim.step();
-    expect(b.sim.players[0].discount).toBeGreaterThan(0);
-    expect(b.sim.costOf(0, 'spearmen')).toBe(2);
+    expect(b.h.ultReady).toBe(false);
+    expect(b.sim.players[0].mana).toBeGreaterThanOrEqual(3 * MANA.perMana);
+    expect(b.sim.itemCost(0, 'keris')).toBe(Math.trunc(ITEMS.keris.cost / 2));
+    b.sim.players[0].mana = MANA.max;
+    b.sim.submit({ t: 'buy', player: 0, hero: 'saudagar', item: 'keris' });
+    b.sim.step();
+    expect(b.sim.itemCost(0, 'keris')).toBe(ITEMS.keris.cost); // only the next item
   });
 
   test('Badak: Charge stuns, Thick Hide vs towers, Stampede to the tower', () => {
@@ -379,7 +423,7 @@ describe('hero kits', () => {
     castPower(s.sim, s.h);
     expect(two.filter((x) => x.dot > 0)).toHaveLength(2);
 
-    const b = arena('tedung', 4);
+    const b = arena('tedung', 4, undefined, ['senja', 'helang']);
     const e = foeHero(b.sim, b.h, 'helang', 0, -300);
     e.hp = Math.trunc(e.maxHp * 0.4);
     b.sim.step();

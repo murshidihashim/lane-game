@@ -1,5 +1,5 @@
-// PLAN-001 T4 / PLAN-002 / PLAN-003 T5: bot against bot, 100 matches finish with no errors.
-// Every hero and every species plays, and the map rewards get used. Run with: npm run soak
+// PLAN-001 T4 / PLAN-002 / PLAN-003 T5 / PLAN-004 T4: bot against bot, 100 matches finish with no
+// errors. Every hero and species plays; map rewards, items and ultimates get used. Run with: npm run soak
 import { expect, test } from 'vitest';
 import { SHRINES } from '../../src/game/map';
 import { HERO_IDS, SPECIES_IDS } from '../../src/game/rules';
@@ -15,6 +15,7 @@ function countMap(sim: Sim, map: Record<string, number>): void {
     if (key) map[key] = (map[key] ?? 0) + 1;
     if (SHRINES.some(([x, y]) => ev.x === x && ev.y === y - 100)) map.relics = (map.relics ?? 0) + 1;
   }
+  for (const ev of sim.events) if (ev.k === 'ult') map.ultimates = (map.ultimates ?? 0) + 1;
 }
 
 test('100 bot-vs-bot matches (3 lanes, random heroes and species) finish with a result and no errors; every hero and species plays', () => {
@@ -47,6 +48,7 @@ test('100 bot-vs-bot matches (3 lanes, random heroes and species) finish with a 
     totalSeconds += sim.tick / 20;
     for (const e of sim.ents) {
       expect(Number.isInteger(e.x) && Number.isInteger(e.y) && Number.isInteger(e.hp)).toBe(true);
+      if (e.kind === 'hero') map.items = (map.items ?? 0) + e.items.length;
     }
   }
   console.log(`SOAK 100 matches in ${((Date.now() - t0) / 1000).toFixed(1)} s · results ${JSON.stringify(tally)} · average match ${(totalSeconds / 100).toFixed(0)} s`);
@@ -56,7 +58,7 @@ test('100 bot-vs-bot matches (3 lanes, random heroes and species) finish with a 
   console.log(`SOAK map use (100 matches) ${JSON.stringify(map)}`);
   for (const id of HERO_IDS) expect(played[id] ?? 0).toBeGreaterThan(0);
   for (const id of SPECIES_IDS) expect(spPlayed[id] ?? 0).toBeGreaterThan(0);
-  for (const k of ['wards', 'fury', 'boss', 'relics', 'firstKill']) expect(map[k] ?? 0, k).toBeGreaterThan(0);
+  for (const k of ['wards', 'fury', 'boss', 'relics', 'firstKill', 'items', 'ultimates']) expect(map[k] ?? 0, k).toBeGreaterThan(0);
 });
 
 test('20 bot-vs-bot matches (2 lanes) finish with a result and no errors', () => {

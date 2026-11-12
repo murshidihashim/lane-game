@@ -1,33 +1,8 @@
-// Where a dragged card would land, and which hero orders the map offers.
+// Which hero orders the map offers (DEC-009, DEC-011). A drop anywhere else is a Move order.
 // The UI may use fractions here; commands sent to the rules are always whole numbers.
-import { CORES, LANES, WARD_SPOTS, type LaneId, laneDist2, nearestS, pointAt, towerPos } from '../game/map';
-import { CARDS, DEPLOY, type CardId, type HeroKind } from '../game/rules';
+import { CORES, LANES, WARD_SPOTS, type LaneId, pointAt, towerPos } from '../game/map';
+import type { HeroKind } from '../game/rules';
 import type { Command, Ent, OrderType, Sim } from '../game/sim';
-
-export type Placement =
-  | { kind: 'unit'; lane: LaneId; u: number; x: number; y: number }
-  | { kind: 'spell'; x: number; y: number };
-
-/** Snap a world point to a drop spot for the human player (player 0). */
-export function placeCard(sim: Sim, card: CardId, wx: number, wy: number): Placement {
-  if (CARDS[card].kind === 'spell') return { kind: 'spell', x: Math.round(wx), y: Math.round(wy) };
-  let lane: LaneId = sim.lanes[0];
-  let best = Infinity;
-  for (const id of sim.lanes) {
-    const d = laneDist2(LANES[id], Math.round(wx), Math.round(wy));
-    if (d < best) { best = d; lane = id; }
-  }
-  const s = nearestS(LANES[lane], Math.round(wx), Math.round(wy));
-  const u = Math.max(DEPLOY.minU, Math.min(sim.maxU(0, lane), s));
-  const [x, y] = pointAt(LANES[lane], u);
-  return { kind: 'unit', lane, u, x, y };
-}
-
-export function cardCommand(card: CardId, p: Placement): Command {
-  return p.kind === 'spell'
-    ? { t: 'spell', player: 0, card, x: p.x, y: p.y }
-    : { t: 'card', player: 0, card, lane: p.lane, u: p.u };
-}
 
 export interface OrderTarget {
   x: number; y: number;
@@ -68,6 +43,11 @@ export function orderCommand(hero: HeroKind, t: OrderTarget): Command {
   return { t: 'order', player: 0, hero, order: t.order, lane: t.lane, camp: t.camp, target: t.target, spot: t.spot };
 }
 
+/** Move order: walk to a spot and hold it. */
+export function moveCommand(hero: HeroKind, wx: number, wy: number): Command {
+  return { t: 'order', player: 0, hero, order: 'move', x: Math.round(wx), y: Math.round(wy) };
+}
+
 export function orderLabel(h: Ent, sim?: Sim): string {
   const lane = (id: LaneId) => LANES[id].name;
   switch (h.order.type) {
@@ -82,5 +62,6 @@ export function orderLabel(h: Ent, sim?: Sim): string {
     }
     case 'ward': return 'Place ward';
     case 'retreat': return 'Retreat to Pusaka';
+    case 'move': return 'Hold a spot';
   }
 }

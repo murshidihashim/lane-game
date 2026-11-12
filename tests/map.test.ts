@@ -1,28 +1,23 @@
 // PLAN-003 T3/T4: ward order, wards revealing and paying, and the map rewards.
 import { describe, expect, test } from 'vitest';
 import { BOSS_PIT, DENS, SHRINES, WARD_SPOTS, inJungle, rotate } from '../src/game/map';
-import { BOUNTY, MANA, NEUTRALS, RELICS, WARDS, type HeroKind } from '../src/game/rules';
+import { BOUNTY, NEUTRALS, RELICS, WARDS, type HeroKind } from '../src/game/rules';
 import { type Ent, Sim } from '../src/game/sim';
-import { stepN } from './helpers';
+import { heroOnLane, parkHeroes, stepN } from './helpers';
 
-function withHero(hero: HeroKind = 'rimba', u = 2600): { sim: Sim; h: Ent } {
-  const sim = new Sim({ seed: 31, waves: false, picks: [[hero, 'benteng'], ['rimba', 'benteng']] });
-  sim.players[0].hand = [hero, 'spearmen', 'archers', 'gotong'];
-  sim.players[0].mana = MANA.max;
-  sim.submit({ t: 'card', player: 0, card: hero, lane: 0, u });
+function withHero(hero: HeroKind = 'rimba', u = 2600, foes: HeroKind[] = ['tedung', 'pendekar']): { sim: Sim; h: Ent } {
+  const sim = new Sim({ seed: 31, waves: false, picks: [[hero, 'benteng'], foes] });
+  parkHeroes(sim, 0, hero);
+  parkHeroes(sim, 1);
+  const h = heroOnLane(sim, 0, hero, 0, u);
   stepN(sim, 22);
-  const h = sim.heroOf(0, hero);
-  if (!h) throw new Error('no hero');
   h.powerCd = 9999;
   return { sim, h };
 }
 
+/** One of player 1's heroes brought to a spot. */
 function enemyHero(sim: Sim, kind: HeroKind, x: number, y: number): Ent {
-  sim.players[1].hand = [kind, 'spearmen', 'archers', 'gotong'];
-  sim.players[1].mana = MANA.max;
-  sim.submit({ t: 'card', player: 1, card: kind, lane: 0, u: 3000 });
-  sim.step();
-  const e = sim.heroOf(1, kind)!;
+  const e = heroOnLane(sim, 1, kind, 0, 3000);
   e.deploy = 0;
   e.powerCd = 9999;
   sim.place(e, x, y);
@@ -131,7 +126,7 @@ describe('map rewards', () => {
   });
 
   test('hero kills pay a bounty (extra for the first one); towers pay too', () => {
-    const { sim, h } = withHero('helang');
+    const { sim, h } = withHero('helang', 2600, ['pelanduk', 'tedung']);
     const e = enemyHero(sim, 'pelanduk', h.x, h.y - 400);
     e.hp = 5;
     e.ultReady = false;

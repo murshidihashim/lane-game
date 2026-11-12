@@ -1,0 +1,106 @@
+{
+  "id": "PLAN-004",
+  "title": "Hero command: no hand cards, items, called ultimates, fog of war, characters",
+  "problem": "The owner wants no hand-played troop cards: players only command heroes (move, buy items, call ultimates, gank and the other orders) and choose the troops for each lane. They also want fog of war, clear tower health, heroes and troops that look like characters, and ultimates that show on screen.",
+  "scope": [
+    "Remove hand-played troop and spell cards (and species spells, Petir); heroes start on the map at match start",
+    "Hero commands: Move (drop a hero anywhere), Push, Gank, Defend, Farm, Ward, Collect relic, Retreat",
+    "Items: 8 items bought with Semangat for a hero (3 slots each), from a Shop; Semangat now pays for items only",
+    "Called ultimates: the ULT button lights up at the best moment; tapping it tells the hero to fire at that moment (Belang stays always on)",
+    "Lane troops: choose each lane's troop class (as before); waves become the only troops, so they are full strength and grow over time",
+    "Fog of war: vision around your own pieces; enemies outside it hidden; the bot uses the same vision for enemy heroes",
+    "Tower health: large health bar with numbers on each tower; tower health strip in the top bar",
+    "Characters: 20 hero figures and 22 troop and summon figures in the Hikayat style, animated walking and attacking",
+    "Ultimate effects: a banner naming who used what, and an effect for each hero's ultimate",
+    "Bot rewritten: orders, lane troops, item buying, ultimate calls",
+    "Docs, help text and tests updated"
+  ],
+  "exclusions": [
+    "Online play",
+    "Sound",
+    "Commissioned art",
+    "Item recipes or upgrades",
+    "Balance beyond first numbers"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "No hand cards: no card commands exist; heroes start on the map; waves are the only troops (automated)",
+      "result": "PASS",
+      "evidence": "rules.test.ts: a player has no hand or deck; lane waves are the only troops, full strength then +8% a minute. orders.test.ts: both heroes start on the map at the Pusaka with an order. Card, spell and drop-zone code removed from the rules, bot and screen."
+    },
+    {
+      "id": "T2",
+      "text": "Commands: move order, item purchase (cost, slots, effect), ultimate suggestion and call (fires only when called, at a valid moment) (automated)",
+      "result": "PASS",
+      "evidence": "orders.test.ts move order (walks to any spot, holds it, fights what comes close; off-map spots clamped). rules.test.ts items 3/3 (cost, slot, effect at once, kept through death; damage, attack speed, armour, power cooldown; 3 slots, no doubles, not without Semangat). heroes.test.ts 26/26 incl. ultimates fire only once called, the game suggests the moment, a call waits for a good moment, moment ultimates need a call, Belang always on."
+    },
+    {
+      "id": "T3",
+      "text": "Fog of war: vision rules correct; hidden enemies not drawn; the bot ignores enemy heroes it cannot see (automated)",
+      "result": "PASS",
+      "evidence": "fog.test.ts 5/5: own pieces, towers, Pusaka, camps and relics always seen; enemies only inside your vision; wards, lanterns and Pelita give vision; jungle-hidden heroes stay unseen until revealed; the bot does not react to an enemy hero it cannot see, and does once it can."
+    },
+    {
+      "id": "T4",
+      "text": "Same seed + same moves = same match; 100 bot matches finish, every hero and species plays, items and ultimates are used",
+      "result": "PASS",
+      "evidence": "determinism.test.ts 4/4 (random species and heroes; a human command list with orders, a wave change, a purchase, a move and an ultimate call replays exactly). npm run soak: 100 + 20 matches, no errors; results blue 45, red 46, draws 9; every hero and species played; 1,094 items bought, 122 ultimates, 158 wards, 15 Gajah Mina."
+    },
+    {
+      "id": "T5",
+      "text": "Phone-size browser check: characters, fog, tower health, shop, ULT button and ultimate effects render with no page errors",
+      "result": "PASS",
+      "evidence": "node scripts/phone-check.cjs (iPhone 13 size): heroes on the map, no card row, wave chip, Farm/Ward/Move by dragging a portrait, shop buys an item, ULT tap calls the ultimate and it fires with banner and effect, full match to the result screen, 2-lane mode; PHONE CHECK OK, no page errors. Screenshots checked: characters, fog, tower health bars and strip."
+    },
+    {
+      "id": "T6",
+      "text": "On the owner's phone",
+      "result": "NOT RUN",
+      "evidence": "Not yet tried on the owner's phone."
+    },
+    {
+      "id": "T7",
+      "text": "Owner's verdict: enough to do without cards? fog, characters and ultimates clear?",
+      "result": "NOT RUN",
+      "evidence": ""
+    }
+  ],
+  "risks": [
+    "Interpretation: \"ulti suggestion\" built as: the game suggests the moment and the player calls it; \"buy items\" built as a small shop of stat items",
+    "Without cards there may be too little to do between orders; to be judged in play",
+    "Code-drawn characters are small on a phone; readability must be checked on a real phone",
+    "Removing cards rewrites many tests and the bot"
+  ],
+  "cost": "RM0. Free tools; private preview page. Several build sessions (estimate).",
+  "decisions": [
+    "DEC-011",
+    "DEC-012",
+    "DEC-013"
+  ],
+  "reports": [
+    "REP-006"
+  ],
+  "changes": {
+    "added": [],
+    "changed": [],
+    "fixed": [],
+    "removed": []
+  },
+  "userNotes": [
+    "No troop cards: you play by commanding your two heroes and choosing each lane's troops. Both heroes start on the map.",
+    "New Move order: drop a hero anywhere to send it there and hold the spot.",
+    "Shop: buy items for your heroes with Semangat (8 items, 3 slots per hero).",
+    "Ultimates are yours to call: the ULT button glows at a good moment; tap it and the hero fires.",
+    "Fog of war: you only see what your heroes, troops, towers and wards can see.",
+    "Heroes and troops are drawn as characters; every ultimate shows a banner and its own effect; towers show their health.",
+    "Saudagar's ultimate now gives 3 Semangat and halves your next item (it used to make cards cheaper)."
+  ],
+  "approval": {
+    "status": "approved",
+    "evidence": "remove troop cards being deployes by hand, players can only strategise by instructing heroes (move, buy items, ulti suggestion, gank) and selecting troops for each lanes ... introduce fog of war concept as well, clearly indicate health of the towers ... characters shouldnt be just dots, it needs to look like a character and ulti needs to visually show its effects on screen so players are aware on whats happening",
+    "date": "2026-11-12"
+  },
+  "delivery": "implemented",
+  "release": "unreleased"
+}

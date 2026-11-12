@@ -6,9 +6,9 @@ import {
   laneDist2, nearestS, pointAt, directionAt, towerPos, uToS,
 } from './map';
 import {
-  ALL_CARDS, BOUNTY, CARDS, CLASS_CARDS, DEPLOY, FURY, HAND_SIZE, HEROES, HERO_IDS, HERO_RULES, MANA, MATCH, NEUTRALS,
-  RELICS, SPECIES, SPECIES_IDS, SPELLS, STRUCTURES, UNITS, WARDS, WAVES, XP, speciesDeck,
-  type CardId, type ClassCardId, type HeroKind, type SpeciesId, type SpellCardId, type Targets, type UnitKind, sec,
+  BOUNTY, CLASSES, CLASS_IDS, FURY, HEROES, HERO_IDS, HERO_RULES, ITEMS, ITEM_IDS, ITEM_SLOTS, MANA, MATCH, NEUTRALS,
+  RELICS, SPECIES, SPECIES_IDS, STRUCTURES, UNITS, VISION, WARDS, WAVES, XP,
+  type ClassId, type HeroKind, type ItemDef, type ItemId, type SpeciesId, type Targets, type UnitKind, sec,
 } from './rules';
 import { KITS } from './heroes';
 
@@ -16,7 +16,7 @@ export type Player = 0 | 1;
 export const NEUTRAL = 2;
 export type Owner = Player | typeof NEUTRAL;
 export type EntKind = 'unit' | 'hero' | 'tower' | 'core' | 'camp' | 'ward' | 'relic';
-export type OrderType = 'push' | 'defend' | 'gank' | 'farm' | 'ward' | 'retreat';
+export type OrderType = 'push' | 'defend' | 'gank' | 'farm' | 'ward' | 'retreat' | 'move';
 export type CampKind = 'grove' | 'den' | 'boss';
 
 export interface Order {
@@ -27,6 +27,8 @@ export interface Order {
   camp: number;
   /** Ward: the ward spot index. */
   spot: number;
+  /** Move: the spot to go to and hold. */
+  x: number; y: number;
 }
 
 export interface Ent {
@@ -86,21 +88,28 @@ export interface Ent {
   // heroes
   fury: number; // Jungle Fury ticks left
   streak: number; // hero kills in a row
+  items: ItemId[]; // bought items (DEC-011)
+  ultArmed: boolean; // the player has called the ultimate; it fires at the next good moment
+  ultUntil: number; // tick when the ultimate's lasting effect ends (for drawing)
 }
 
+/** Everything a player can do (DEC-011): choose lane troops, order heroes, buy items, call ultimates. */
 export type Command =
-  | { t: 'card'; player: Player; card: CardId; lane: LaneId; u: number }
-  | { t: 'spell'; player: Player; card: CardId; x: number; y: number }
-  | { t: 'wave'; player: Player; lane: LaneId; card: ClassCardId }
-  /** camp: index into Sim.camps() (groves, dens, boss); target: an entity id (relics); spot: ward spot. */
-  | { t: 'order'; player: Player; hero: HeroKind; order: OrderType; lane?: LaneId; camp?: number; target?: number; spot?: number };
+  | { t: 'wave'; player: Player; lane: LaneId; card: ClassId }
+  /** camp: index into Sim.camps() (groves, dens, boss); target: an entity id (relics); spot: ward spot; x, y: move. */
+  | { t: 'order'; player: Player; hero: HeroKind; order: OrderType; lane?: LaneId; camp?: number; target?: number; spot?: number; x?: number; y?: number }
+  | { t: 'buy'; player: Player; hero: HeroKind; item: ItemId }
+  /** Call (or cancel) a hero's ultimate. */
+  | { t: 'ult'; player: Player; hero: HeroKind };
 
 export type GameEvent =
   | { k: 'hit'; x1: number; y1: number; x2: number; y2: number; ranged: boolean; owner: Owner }
   | { k: 'boom'; x: number; y: number; r: number; owner: Owner }
   | { k: 'line'; x1: number; y1: number; x2: number; y2: number; owner: Owner }
   | { k: 'text'; x: number; y: number; text: string; tone: 'mana' | 'xp' | 'ambush' | 'level' | 'info' | 'ult' }
-  | { k: 'death'; x: number; y: number; owner: Owner; big: boolean };
+  | { k: 'death'; x: number; y: number; owner: Owner; big: boolean }
+  /** An ultimate fired (DEC-013): where, how big, and a second point for lines (see each kit). */
+  | { k: 'ult'; hero: HeroKind; owner: Owner; x: number; y: number; r: number; x2?: number; y2?: number };
 
 export type ZoneKind = 'lantern' | 'fog' | 'flood' | 'tide';
 
@@ -117,17 +126,13 @@ export interface Zone {
 export interface PlayerState {
   species: SpeciesId;
   /** The class each lane's waves are made of (index = lane id). */
-  laneClass: ClassCardId[];
+  laneClass: ClassId[];
   mana: number; // points; MANA.perMana points = 1 Semangat
-  hand: CardId[];
-  next: CardId | null;
-  queue: CardId[];
   picks: HeroKind[];
   towersDestroyed: number; // enemy towers this player has destroyed
   heroIds: Partial<Record<HeroKind, number>>;
-  lastTroop: UnitKind | null; // for Dalang's copies
   manaSlow: number; // Senja's ultimate: refill halved
-  discount: number; // Saudagar's ultimate: cards cost 1 less
+  halfPrice: boolean; // Saudagar's ultimate: the next item costs half
 }
 
 export interface Result {
@@ -153,7 +158,7 @@ export interface FoeQuery {
   hidden?: boolean; // include hidden heroes
 }
 
-const NO_ORDER: Order = { type: 'push', lane: 0, camp: 0, spot: 0 };
+const NO_ORDER: Order = { type: 'push', lane: 0, camp: 0, spot: 0, x: 0, y: 0 };
 export const DEFAULT_PICKS: HeroKind[] = ['rimba', 'benteng'];
 
 /** A species picked at random from a seed (used for the bot and for tests). */
@@ -185,7 +190,6 @@ export class Sim {
   private nextId = 1;
   private rng: Rng;
   private queue: Command[] = [];
-  private spells: { owner: Player; kind: SpellCardId; x: number; y: number; at: number }[] = [];
   private relicCount = 0;
   private firstKill = false;
 
@@ -222,6 +226,17 @@ export class Sim {
     boss.alive = false;
     boss.respawn = NEUTRALS.boss.first;
     boss.respawnTotal = NEUTRALS.boss.first;
+    // Both heroes start at the Pusaka (DEC-011): first one to the left lane, second to the right.
+    for (const p of [0, 1] as const) {
+      this.players[p].picks.forEach((kind, i) => {
+        const lane = i === 0 ? this.lanes[0] : this.lanes[this.lanes.length - 1];
+        const [x, y] = [CORES[p][0] + (i === 0 ? -200 : 200), CORES[p][1] + (p === 0 ? -420 : 420)];
+        const h = this.spawnHero(p, kind, x, y, lane);
+        h.deploy = HERO_RULES.startDelay;
+        if (HEROES[kind].best === 'defend') h.order = { ...NO_ORDER, type: 'defend', lane };
+        else this.setPathFrom(h, lane, nearestS(LANES[lane], x, y));
+      });
+    }
   }
 
   // ---------- public helpers ----------
@@ -250,14 +265,40 @@ export class Sim {
     return this.players[p].mana;
   }
 
-  /** What a card costs this player right now (Saudagar's ultimate makes cards cheaper). */
-  costOf(p: Player, card: CardId): number {
-    const base = CARDS[card].cost;
-    return this.players[p].discount > 0 ? Math.max(1, base - 1) : base;
+  /** What an item costs this player right now, in Semangat (Saudagar's ultimate halves the next one). */
+  itemCost(p: Player, item: ItemId): number {
+    const base = ITEMS[item].cost;
+    return this.players[p].halfPrice ? Math.max(1, idiv(base, 2)) : base;
   }
 
-  canAfford(p: Player, card: CardId): boolean {
-    return this.players[p].mana >= this.costOf(p, card) * MANA.perMana;
+  /** Why an item can't be bought for a hero right now, or null if it can. */
+  cantBuy(p: Player, kind: HeroKind, item: ItemId): 'no hero' | 'owned' | 'full' | 'semangat' | null {
+    const h = this.heroOf(p, kind);
+    if (!h) return 'no hero';
+    if (h.items.includes(item)) return 'owned';
+    if (h.items.length >= ITEM_SLOTS) return 'full';
+    if (this.players[p].mana < this.itemCost(p, item) * MANA.perMana) return 'semangat';
+    return null;
+  }
+
+  /** Sum (or product, for percent multipliers) of an item stat on a hero. */
+  itemStat(h: Ent, key: keyof Pick<ItemDef, 'damagePct' | 'hpPct' | 'speedPct' | 'regenPct' | 'trueSight'>): number {
+    let n = 0;
+    for (const id of h.items) n += ITEMS[id][key] ?? 0;
+    return n;
+  }
+
+  itemMul(h: Ent, key: keyof Pick<ItemDef, 'cooldownPct' | 'attackPct' | 'armorPct' | 'sightPct'>, v: number): number {
+    for (const id of h.items) { const m = ITEMS[id][key]; if (m !== undefined) v = pct(v, m); }
+    return v;
+  }
+
+  /** Is now a good moment for this hero's ultimate? Lights the ULT button (DEC-011). */
+  ultSuggested(h: Ent): boolean {
+    if (!this.canUlt(h)) return false;
+    const kit = KITS[h.hero as HeroKind];
+    if (kit.ult) return kit.ult(this, h, false);
+    return true; // moment ultimates (ambush, gank, escape): call them ahead of time
   }
 
   get(id: number): Ent | undefined {
@@ -297,14 +338,6 @@ export class Sim {
     return this.ents.filter((e) => e.kind === 'ward' && e.alive && (p === undefined || e.owner === p));
   }
 
-  /** Furthest distance (from the player's own end) a card can be dropped in a lane. */
-  maxU(p: Player, laneId: LaneId): number {
-    const lane = LANES[laneId];
-    const enemyTower = this.towerOf((1 - p) as Player, laneId);
-    if (enemyTower && !enemyTower.alive) return lane.length - lane.towerS; // where the enemy tower stood
-    return idiv(lane.length, 2) - DEPLOY.riverGap;
-  }
-
   /** The lane an entity is in (or nearest to). */
   laneOf(e: Ent): LaneId {
     if (e.kind === 'unit') return e.lane;
@@ -329,22 +362,47 @@ export class Sim {
     return p === 0 ? s : LANES[laneId].length - s;
   }
 
-  /** Can player p currently see entity e? (Only heroes can be hidden.) */
-  visibleTo(e: Ent, p: Player): boolean {
-    return e.owner === p || !e.hidden;
+  /** How far an entity sees through the fog of war (DEC-012). */
+  visionOf(e: Ent): number {
+    switch (e.kind) {
+      case 'hero': return this.itemMul(e, 'sightPct', VISION.hero);
+      case 'unit': return e.unit === 'watchtower' ? VISION.watchtower : VISION.unit;
+      case 'tower': return VISION.tower;
+      case 'core': return VISION.core;
+      case 'ward': return VISION.ward;
+      default: return 0;
+    }
+  }
+
+  /**
+   * Can player p see entity e (DEC-012)? Your own pieces, towers, the Pusaka, camps and relics are
+   * always seen. Anything else must be within the vision of one of your pieces (or Seri's lanterns),
+   * and heroes hidden in the jungle stay unseen unless revealed.
+   */
+  sees(p: Player, e: Ent): boolean {
+    if (e.owner === p || e.kind === 'tower' || e.kind === 'core' || e.kind === 'camp' || e.kind === 'relic') return true;
+    if (e.kind === 'hero' && e.hidden) return false;
+    for (const v of this.ents) {
+      if (!v.alive || v.owner !== p) continue;
+      const r = this.visionOf(v);
+      if (r > 0 && within(v.x, v.y, e.x, e.y, r)) return true;
+    }
+    for (const z of this.zones) if (z.kind === 'lantern' && z.owner === p && within(z.x, z.y, e.x, e.y, z.r)) return true;
+    return false;
   }
 
   hash(): number {
     const v: number[] = [this.tick, this.rng.state(), this.nextId, this.result ? 1 + (this.result.winner ?? 2) : 0];
     for (const pl of this.players) {
-      v.push(pl.mana, pl.towersDestroyed, pl.queue.length, pl.manaSlow, pl.discount, SPECIES_IDS.indexOf(pl.species),
-        ...pl.laneClass.map((c) => ALL_CARDS.indexOf(c)), ...pl.hand.map((c) => ALL_CARDS.indexOf(c)));
+      v.push(pl.mana, pl.towersDestroyed, pl.manaSlow, pl.halfPrice ? 1 : 0, SPECIES_IDS.indexOf(pl.species),
+        ...pl.laneClass.map((c) => CLASS_IDS.indexOf(c)));
     }
     for (const z of this.zones) v.push(z.id, z.x, z.y, z.r, z.until);
     for (const e of this.ents) {
       v.push(e.id, e.owner, e.alive ? 1 : 0, e.x, e.y, e.hp, e.maxHp, e.atkCd, e.targetId, e.wp, e.deploy, e.slow, e.stun,
         e.silence, e.shield, e.dot, e.charm, e.duel, e.life, e.level, e.heroXp, e.respawn, e.powerCd, e.ultReady ? 1 : 0,
-        e.ambushLeft, e.hidden ? 1 : 0, e.order.lane, e.camp, e.bonusPct, e.fury, e.spawnCd, e.streak, e.order.spot);
+        e.ambushLeft, e.hidden ? 1 : 0, e.order.lane, e.camp, e.bonusPct, e.fury, e.spawnCd, e.streak, e.order.spot,
+        e.order.x, e.order.y, e.ultArmed ? 1 : 0, ...e.items.map((i) => ITEM_IDS.indexOf(i)));
     }
     return hashInts(v);
   }
@@ -375,7 +433,7 @@ export class Sim {
     return this.ents.filter((t) => t.alive && t.hp > 0 && t.owner === p && (t.kind === 'unit' || (heroes && t.kind === 'hero')) && within(x, y, t.x, t.y, r + t.r));
   }
 
-  /** Damage from a hero power or spell. Returns the damage dealt. */
+  /** Damage from a hero power. Returns the damage dealt. */
   hurt(t: Ent, amount: number, src: Ent | null, spell = true): number {
     return this.damage(t, amount, src, { spell });
   }
@@ -523,6 +581,11 @@ export class Sim {
     this.events.push(ev);
   }
 
+  /** An ultimate's on-screen effect (DEC-013). x2, y2: a second point (line ultimates). */
+  ultFx(h: Ent, x: number, y: number, r: number, x2?: number, y2?: number): void {
+    this.events.push({ k: 'ult', hero: h.hero as HeroKind, owner: h.homeOwner, x, y, r, x2, y2 });
+  }
+
   /** Power rank 1-3 from the hero's level. */
   rank(h: Ent): 1 | 2 | 3 {
     return Math.min(3, h.level) as 1 | 2 | 3;
@@ -546,12 +609,6 @@ export class Sim {
     this.regenMana();
 
     if (this.waves && this.tick >= WAVES.first && (this.tick - WAVES.first) % WAVES.every === 0) this.spawnWaves();
-
-    this.spells = this.spells.filter((s) => {
-      if (s.at > this.tick) return true;
-      this.castSpell(s.kind, s.owner, s.x, s.y);
-      return false;
-    });
 
     if (this.tick >= RELICS.first && (this.tick - RELICS.first) % RELICS.every === 0) this.spawnRelics();
     this.updateZones();
@@ -585,7 +642,6 @@ export class Sim {
   private regenMana(): void {
     const base = this.doubleMana() ? MANA.doubleRegenPerTick : MANA.regenPerTick;
     this.players.forEach((pl, p) => {
-      if (pl.discount > 0) pl.discount--;
       let regen: number = base;
       if (pl.manaSlow > 0) { pl.manaSlow--; if (this.tick % 2 === 1) regen = 0; }
       // Saudagar's Trade Route: +10% refill while he lives.
@@ -599,44 +655,29 @@ export class Sim {
   private apply(c: Command): boolean {
     if (this.result) return false;
     const pl = this.players[c.player];
-    if (c.t === 'order') return this.applyOrder(c);
-    if (c.t === 'wave') {
-      if (!SPECIES[pl.species].classes.includes(c.card) || c.lane < 0 || c.lane > 2) return false;
-      pl.laneClass[c.lane] = c.card;
-      return true;
-    }
-    const handIndex = pl.hand.indexOf(c.card);
-    if (handIndex < 0) return false;
-    const def = CARDS[c.card];
-    const cost = this.costOf(c.player, c.card) * MANA.perMana;
-    if (pl.mana < cost) return false;
-    if (c.t === 'spell') {
-      if (def.kind !== 'spell') return false;
-      const x = clamp(Math.trunc(c.x), FIELD.minX, FIELD.maxX);
-      const y = clamp(Math.trunc(c.y), FIELD.minY, FIELD.maxY);
-      const kind = c.card as SpellCardId;
-      this.spells.push({ owner: c.player, kind, x, y, at: this.tick + SPELLS[kind].delay });
-    } else {
-      if (def.kind === 'spell' || !this.lanes.includes(c.lane)) return false;
-      const lane = LANES[c.lane];
-      const u = clamp(Math.trunc(c.u), DEPLOY.minU, this.maxU(c.player, c.lane));
-      const s = uToS(lane, c.player, u);
-      if (def.kind === 'hero' && def.hero) {
-        if (pl.heroIds[def.hero] !== undefined) return false;
-        const [x, y] = pointAt(lane, s);
-        const h = this.spawnHero(c.player, def.hero, x, y, c.lane);
-        h.deploy = DEPLOY.delay;
-        this.setPathFrom(h, c.lane, s);
-      } else if (def.unit) {
-        this.spawnSquad(c.player, def.unit, def.count ?? 1, c.lane, s);
-        pl.lastTroop = def.unit;
+    switch (c.t) {
+      case 'order': return this.applyOrder(c);
+      case 'wave':
+        if (!SPECIES[pl.species].classes.includes(c.card) || c.lane < 0 || c.lane > 2) return false;
+        pl.laneClass[c.lane] = c.card;
+        return true;
+      case 'buy': {
+        if (!ITEMS[c.item] || this.cantBuy(c.player, c.hero, c.item)) return false;
+        const h = this.heroOf(c.player, c.hero) as Ent;
+        pl.mana -= this.itemCost(c.player, c.item) * MANA.perMana;
+        pl.halfPrice = false;
+        h.items.push(c.item);
+        this.refreshHero(h);
+        this.say(h.x, h.y - 150, ITEMS[c.item].name, 'level');
+        return true;
+      }
+      case 'ult': {
+        const h = this.heroOf(c.player, c.hero);
+        if (!h || !h.ultReady) return false;
+        h.ultArmed = !h.ultArmed;
+        return true;
       }
     }
-    pl.mana -= cost;
-    pl.hand[handIndex] = pl.next ?? c.card;
-    pl.next = pl.queue.shift() ?? null;
-    if (def.kind !== 'hero') pl.queue.push(c.card);
-    return true;
   }
 
   private applyOrder(c: Extract<Command, { t: 'order' }>): boolean {
@@ -647,22 +688,26 @@ export class Sim {
     switch (c.order) {
       case 'push': case 'gank': case 'defend':
         if (!this.lanes.includes(lane)) return false;
-        order = { type: c.order, lane, camp: 0, spot: 0 };
+        order = { ...NO_ORDER, type: c.order, lane };
+        break;
+      case 'move':
+        if (c.x === undefined || c.y === undefined) return false;
+        order = { ...NO_ORDER, type: 'move', lane: h.order.lane, x: clamp(Math.trunc(c.x), FIELD.minX, FIELD.maxX), y: clamp(Math.trunc(c.y), FIELD.minY, FIELD.maxY) };
         break;
       case 'farm': {
         const target = c.target !== undefined ? this.get(c.target) : this.camps()[c.camp ?? 0];
         if (!target || (target.kind !== 'camp' && target.kind !== 'relic')) return false;
-        order = { type: 'farm', lane: h.order.lane, camp: target.id, spot: 0 };
+        order = { ...NO_ORDER, type: 'farm', lane: h.order.lane, camp: target.id };
         break;
       }
       case 'ward': {
         const spot = c.spot ?? 0;
         if (spot < 0 || spot >= WARD_SPOTS.length) return false;
-        order = { type: 'ward', lane: h.order.lane, camp: 0, spot };
+        order = { ...NO_ORDER, type: 'ward', lane: h.order.lane, spot };
         break;
       }
       case 'retreat':
-        order = { type: 'retreat', lane: h.order.lane, camp: 0, spot: 0 };
+        order = { ...NO_ORDER, type: 'retreat', lane: h.order.lane };
         break;
     }
     if (order.type === 'gank' && h.alive && this.heroLane(h) === order.lane) order.type = 'push';
@@ -682,7 +727,7 @@ export class Sim {
   private onGankStart(h: Ent): void {
     for (const ally of this.heroes(h.homeOwner as Player)) {
       const kit = KITS[ally.hero as HeroKind];
-      if (kit.onTeamGank && this.canUlt(ally)) {
+      if (kit.onTeamGank && this.canUlt(ally) && ally.ultArmed) {
         if (kit.onTeamGank(this, ally, h)) this.ultFired(ally);
       }
     }
@@ -693,15 +738,9 @@ export class Sim {
   private newPlayer(picks: HeroKind[], species: SpeciesId): PlayerState {
     const sp = SPECIES[species] ? species : 'kampung';
     const classes = SPECIES[sp].classes;
-    const deck: CardId[] = [...speciesDeck(sp), ...picks];
-    for (let i = deck.length - 1; i > 0; i--) {
-      const j = this.rng.int(i + 1);
-      [deck[i], deck[j]] = [deck[j], deck[i]];
-    }
     return {
       species: sp, laneClass: [classes[0], classes[1 % classes.length], classes[2 % classes.length]],
-      mana: MANA.start, hand: deck.slice(0, HAND_SIZE), next: deck[HAND_SIZE], queue: deck.slice(HAND_SIZE + 1), picks,
-      towersDestroyed: 0, heroIds: {}, lastTroop: null, manaSlow: 0, discount: 0,
+      mana: MANA.start, picks, towersDestroyed: 0, heroIds: {}, manaSlow: 0, halfPrice: false,
     };
   }
 
@@ -718,7 +757,7 @@ export class Sim {
       level: 1, heroXp: 0, respawn: 0, powerCd: 0, ultReady: false,
       ambushLeft: 0, hidden: false, grace: 0, veil: 0, gankBonus: 0, bonusPct: 0, blockCd: 0, transformed: false,
       order: NO_ORDER, prevOrder: NO_ORDER, goalX: x, goalY: y, camp: 0, campKind: 'grove', respawnTotal: 0, spot: 0, relic: 0,
-      wave: false, spawnCd: 0, usedFirst: false, fury: 0, streak: 0,
+      wave: false, spawnCd: 0, usedFirst: false, fury: 0, streak: 0, items: [], ultArmed: false, ultUntil: 0,
     };
     this.ents.push(e);
     return e;
@@ -740,31 +779,13 @@ export class Sim {
     return e;
   }
 
-  private spawnSquad(owner: Player, kind: UnitKind, count: number, laneId: LaneId, s: number): void {
-    const lane = LANES[laneId];
-    const [cx, cy] = pointAt(lane, s);
-    const [dx, dy] = directionAt(lane, s);
-    const len = Math.max(1, isqrt(dx * dx + dy * dy));
-    const fwd = owner === 0 ? 1 : -1;
-    const offsets: Pt[] = count === 1 ? [[0, 0]] : count === 2 ? [[-90, 0], [90, 0]] : count === 3 ? [[-110, 0], [0, 60], [110, 0]]
-      : count === 4 ? [[-80, 60], [80, 60], [-80, -60], [80, -60]]
-      : ([[-110, 50], [0, 50], [110, 50], [-110, -50], [0, -50], [110, -50]] as Pt[]).slice(0, count);
-    for (const [side, ahead] of offsets) {
-      // side: across the lane; ahead: along the lane, towards the enemy
-      const x = cx + idiv(-dy * side, len) + idiv(dx * ahead * fwd, len);
-      const y = cy + idiv(dx * side, len) + idiv(dy * ahead * fwd, len);
-      const u = this.spawnUnit(owner, kind, x, y, laneId, s);
-      u.deploy = DEPLOY.delay;
-    }
-  }
-
   private spawnHero(owner: Player, kind: HeroKind, x: number, y: number, laneId: LaneId): Ent {
     const st = HEROES[kind];
     const h = this.spawn('hero', owner, x, y, st.radius);
     Object.assign(h, {
       hero: kind, range: st.range, sight: st.sight, speed: st.speed, targets: st.targets, xpValue: st.xp,
       flying: st.flying, powerCd: idiv(st.powerTicks, 2),
-      order: { type: 'push', lane: laneId, camp: 0, spot: 0 } satisfies Order,
+      order: { ...NO_ORDER, lane: laneId } satisfies Order,
     });
     this.refreshHero(h);
     h.hp = h.maxHp;
@@ -778,20 +799,21 @@ export class Sim {
     const st = HEROES[h.hero as HeroKind];
     const scale = 100 + XP.perLevelPercent * (h.level - 1);
     const oldMax = h.maxHp;
-    h.maxHp = pct(pct(st.hp, scale), h.transformed ? 140 : 100);
+    h.maxHp = pct(pct(pct(st.hp, scale), h.transformed ? 140 : 100), 100 + this.itemStat(h, 'hpPct'));
     h.damage = pct(st.damage, scale);
     h.attackTicks = h.transformed ? pct(st.attackTicks, 77) : st.attackTicks;
     if (oldMax > 1 && h.alive) h.hp = Math.min(h.maxHp, h.hp + (h.maxHp - oldMax));
   }
 
-  /** Each lane sends a wave of the class its player chose for it (DEC-008), at wave strength. */
+  /** Each lane sends a wave of the class its player chose for it (DEC-008); waves grow each minute. */
   private spawnWaves(): void {
+    const strength = 100 + WAVES.growPctPerMinute * idiv(this.tick, sec(60));
     for (const id of this.lanes) {
       const lane = LANES[id];
       for (const p of [0, 1] as const) {
-        const card = CLASS_CARDS[this.players[p].laneClass[id]];
-        const kind = card.unit as UnitKind;
-        const count = card.wave ?? 1;
+        const cls = CLASSES[this.players[p].laneClass[id]];
+        const kind = cls.unit;
+        const count = cls.wave;
         const s = uToS(lane, p, WAVES.spawnU);
         const [cx, cy] = pointAt(lane, s);
         const [dx, dy] = directionAt(lane, s);
@@ -799,9 +821,9 @@ export class Sim {
         for (let i = 0; i < count; i++) {
           const side = count === 1 ? 0 : -110 + idiv(220 * i, count - 1);
           const e = this.spawnUnit(p, kind, cx + idiv(-dy * side, len), cy + idiv(dx * side, len), id, s);
-          e.maxHp = Math.max(1, pct(e.maxHp, WAVES.strengthPct));
+          e.maxHp = Math.max(1, pct(e.maxHp, strength));
           e.hp = e.maxHp;
-          e.damage = pct(e.damage, WAVES.strengthPct);
+          e.damage = pct(e.damage, strength);
           e.wave = true;
           e.xpValue = idiv(WAVES.waveXp, count);
         }
@@ -907,6 +929,7 @@ export class Sim {
     if (e.kind === 'hero') {
       const kit = KITS[e.hero as HeroKind];
       if (kit.speedPct) s = pct(s, kit.speedPct(this, e));
+      s = pct(s, 100 + this.itemStat(e, 'speedPct'));
     }
     return s;
   }
@@ -989,6 +1012,7 @@ export class Sim {
   private attackInterval(e: Ent): number {
     let ticks = e.attackTicks;
     if (e.atkBuff > 0) ticks = pct(ticks, e.atkBuffPct);
+    if (e.kind === 'hero') ticks = this.itemMul(e, 'attackPct', ticks);
     if (e.kind === 'tower' || e.kind === 'core') {
       // Benteng's Hold the Gate: a tower near him attacks 20% faster.
       for (const h of this.ents) {
@@ -1004,7 +1028,7 @@ export class Sim {
     const kit = e.kind === 'hero' ? KITS[e.hero as HeroKind] : undefined;
     if (e.kind === 'hero') {
       const def = HEROES[e.hero as HeroKind];
-      let bonus = e.bonusPct + (e.dmgBuff > 0 ? e.dmgBuffPct : 0) + (e.fury > 0 ? FURY.damagePct : 0);
+      let bonus = e.bonusPct + (e.dmgBuff > 0 ? e.dmgBuffPct : 0) + (e.fury > 0 ? FURY.damagePct : 0) + this.itemStat(e, 'damagePct');
       if (def.best === e.order.type || (def.best === 'gank' && e.gankBonus > 0)) bonus += HERO_RULES.bestOrderPercent;
       dmg = pct(dmg, 100 + bonus);
       if (kit?.attackPct) dmg = pct(dmg, kit.attackPct(this, e, t));
@@ -1060,7 +1084,7 @@ export class Sim {
       }
     }
     if (kit?.onHit) kit.onHit(this, e, t, dealt);
-    if (ambush && kit?.onAmbush && this.canUlt(e) && kit.onAmbush(this, e, t)) this.ultFired(e);
+    if (ambush && kit?.onAmbush && this.canUlt(e) && e.ultArmed && kit.onAmbush(this, e, t)) this.ultFired(e);
   }
 
   /** Attack a target in range, or close in on it. */
@@ -1112,6 +1136,7 @@ export class Sim {
       const [x, y] = towerPos(LANES[h.order.lane], p);
       return [x, y + 250 * toRiver];
     }
+    if (h.order.type === 'move') return [h.order.x, h.order.y];
     return [CORES[p][0], CORES[p][1] + 420 * toRiver];
   }
 
@@ -1121,6 +1146,8 @@ export class Sim {
 
   private ultFired(h: Ent): void {
     h.ultReady = false;
+    h.ultArmed = false;
+    h.ultUntil = this.tick + (KITS[h.hero as HeroKind].ultLasts ?? 0);
     this.say(h.x, h.y - 170, HEROES[h.hero as HeroKind].ult.name, 'ult');
   }
 
@@ -1138,6 +1165,10 @@ export class Sim {
     const def = HEROES[h.hero as HeroKind];
     const kit = KITS[h.hero as HeroKind];
     kit.tick?.(this, h);
+    if (this.tick % 20 === 0) {
+      const regen = this.itemStat(h, 'regenPct');
+      if (regen > 0) this.heal(h, pct(h.maxHp, regen));
+    }
     const spd = this.speedOf(h);
     const o = h.order;
 
@@ -1147,18 +1178,19 @@ export class Sim {
       const atLane = laneDist2(LANES[o.lane], h.x, h.y) <= (LANE_HALF + 250) * (LANE_HALF + 250);
       const strike = atLane && this.acquire(h, h.range) !== null;
       if (strike || this.moveTo(h, h.goalX, h.goalY, spd) || within(h.x, h.y, h.goalX, h.goalY, HERO_RULES.gankArrive)) {
-        h.order = { type: 'push', lane: o.lane, camp: 0, spot: 0 };
+        h.order = { ...NO_ORDER, lane: o.lane };
         h.gankBonus = HERO_RULES.gankBonusTicks;
         this.setPathFrom(h, o.lane, nearestS(LANES[o.lane], h.x, h.y));
       }
       return;
     }
 
-    // Powers fire by themselves (DEC-004, DEC-007). Silence stops them.
+    // Powers fire by themselves (DEC-007); the ultimate fires once called, at a good moment (DEC-011).
+    // Silence stops both.
     if (h.silence <= 0) {
-      if (this.canUlt(h) && kit.ult && kit.ult(this, h)) this.ultFired(h);
+      if (h.ultArmed && this.canUlt(h) && kit.ult && kit.ult(this, h, true)) this.ultFired(h);
       if (h.powerCd <= 0 && kit.power(this, h, this.rank(h))) {
-        h.powerCd = def.powerTicks;
+        h.powerCd = this.itemMul(h, 'cooldownPct', def.powerTicks);
         this.say(h.x, h.y - 140, def.power.name, 'info');
       }
     }
@@ -1214,9 +1246,9 @@ export class Sim {
       return;
     }
 
-    // defend / retreat: hold an anchor point, fight what comes close, don't chase far.
+    // defend / retreat / move: hold a point, fight what comes close, don't chase far.
     const [ax, ay] = this.anchorFor(h);
-    const leash = o.type === 'defend' ? HERO_RULES.defendLeash : 700;
+    const leash = o.type === 'defend' ? HERO_RULES.defendLeash : o.type === 'move' ? HERO_RULES.moveLeash : 700;
     let t = this.currentTarget(h, h.sight + 200);
     if (t && !within(ax, ay, t.x, t.y, leash)) { t = null; h.targetId = 0; }
     if (!t) {
@@ -1286,7 +1318,7 @@ export class Sim {
   }
 
   private endFarm(h: Ent): void {
-    const prev = h.prevOrder.type === 'farm' || h.prevOrder.type === 'ward' ? { type: 'push' as const, lane: h.order.lane, camp: 0, spot: 0 } : h.prevOrder;
+    const prev = h.prevOrder.type === 'farm' || h.prevOrder.type === 'ward' ? { ...NO_ORDER, lane: h.order.lane } : h.prevOrder;
     h.order = prev;
     h.targetId = 0;
     if (prev.type === 'push') this.setPathFrom(h, prev.lane, nearestS(LANES[prev.lane], h.x, h.y));
@@ -1330,6 +1362,7 @@ export class Sim {
     this.refreshHero(h);
     h.hp = h.maxHp;
     h.ultReady = h.level >= HERO_RULES.ultLevel && !KITS[h.hero as HeroKind].passiveUlt;
+    h.ultArmed = false;
     if (h.order.type === 'push') this.setPathFrom(h, h.order.lane, nearestS(LANES[h.order.lane], x, y));
     if (h.order.type === 'gank') this.updateGankGoal(h);
     if (h.order.type === 'farm' || h.order.type === 'ward') this.endFarm(h);
@@ -1365,11 +1398,11 @@ export class Sim {
     }
   }
 
-  // ---------- damage, spells, deaths ----------
+  // ---------- damage and deaths ----------
 
   /**
    * All damage goes through here. Returns the damage actually taken.
-   * spell: from a spell or hero power (Senja resists it). pure: damage over time (no shields, no blocks).
+   * spell: from a hero power (Senja resists it). pure: damage over time (no shields, no blocks).
    */
   private damage(t: Ent, amount: number, src: Ent | null, opts: { spell?: boolean; pure?: boolean; owner?: number }): number {
     if (!t.alive || t.hp <= 0) return 0;
@@ -1394,6 +1427,7 @@ export class Sim {
     if (t.kind === 'hero') {
       const kit = KITS[t.hero as HeroKind];
       if (kit.incoming) dmg = kit.incoming(this, t, dmg, src, !!opts.spell, !!opts.pure);
+      dmg = this.itemMul(t, 'armorPct', dmg);
     }
     if (dmg <= 0) return 0;
     if (t.shield > 0 && !opts.pure) {
@@ -1406,7 +1440,7 @@ export class Sim {
     dmg = Math.max(1, dmg);
     if (t.hp - dmg <= 0 && t.kind === 'hero') {
       const kit = KITS[t.hero as HeroKind];
-      if (kit.onLethal && t.ultReady && t.silence <= 0 && kit.onLethal(this, t)) { this.ultFired(t); return 0; }
+      if (kit.onLethal && t.ultReady && t.ultArmed && t.silence <= 0 && kit.onLethal(this, t)) { this.ultFired(t); return 0; }
     }
     t.hp -= dmg;
     t.lastHitOwner = srcOwner;
@@ -1414,42 +1448,6 @@ export class Sim {
     t.lastHitTick = this.tick;
     if (src && src.kind === 'hero' && src.hero) KITS[src.hero].onDealt?.(this, src, t, dmg);
     return dmg;
-  }
-
-  /** Spells (Petir and the species spells). */
-  private castSpell(kind: SpellCardId, owner: Player, x: number, y: number): void {
-    const sp = SPELLS[kind];
-    this.events.push({ k: 'boom', x, y, r: sp.radius, owner });
-    for (const t of this.ents) {
-      if (!t.alive || t.hp <= 0 || t.kind === 'camp' && kind !== 'firebolt' || t.kind === 'relic' || t.kind === 'ward') continue;
-      const r = sp.radius + t.r;
-      if (dist2(x, y, t.x, t.y) > r * r) continue;
-      const mine = t.owner === owner;
-      const structure = t.kind === 'tower' || t.kind === 'core';
-      const fighter = t.kind === 'unit' || t.kind === 'hero';
-      switch (kind) {
-        case 'firebolt':
-          if (!mine) this.damage(t, structure ? sp.structureDamage : sp.damage, null, { spell: true, owner });
-          break;
-        case 'gotong':
-          if (mine && fighter) { this.heal(t, 250); this.shieldFor(t, 150, sec(6)); }
-          break;
-        case 'auman':
-          if (mine && fighter) { this.dmgBuffFor(t, 30, sec(6)); this.hasteFor(t, 30, sec(6)); }
-          break;
-        case 'arus':
-          if (!mine && fighter && t.owner !== NEUTRAL) { this.damage(t, sp.damage, null, { spell: true, owner }); this.pushBack(t, 350); this.slowFor(t, 50, sec(2)); }
-          break;
-        case 'sengat':
-          if (!mine && fighter && t.owner !== NEUTRAL) { this.dotFor(t, 6, 0, sec(4), owner); this.slowFor(t, 80, sec(2)); }
-          break;
-        case 'gempa':
-          if (mine || t.owner === NEUTRAL) break;
-          if (structure) this.damage(t, sp.structureDamage, null, { spell: true, owner });
-          else if (fighter) { this.damage(t, sp.damage, null, { spell: true, owner }); this.stunFor(t, sec(1)); }
-          break;
-      }
-    }
   }
 
   private separate(): void {
@@ -1502,6 +1500,7 @@ export class Sim {
           for (const e of this.ents) {
             if (!e.alive || e.hp <= 0 || e.owner === h.owner || e.owner === NEUTRAL) continue;
             if (e.kind === 'hero' && e.hero === 'seri' && within(h.x, h.y, e.x, e.y, 900)) { trueSight = true; break; }
+            if (e.kind === 'hero') { const ts = this.itemStat(e, 'trueSight'); if (ts > 0 && within(h.x, h.y, e.x, e.y, ts)) { trueSight = true; break; } }
             if (within(h.x, h.y, e.x, e.y, revealR)) spotted = true;
           }
           for (const z of this.zones) {
@@ -1651,8 +1650,8 @@ export class Sim {
 }
 
 function validPicks(p: HeroKind[]): HeroKind[] {
-  const out = p.filter((k, i) => HEROES[k] !== undefined && p.indexOf(k) === i).slice(0, HERO_RULES.heroesPerDeck);
-  for (const k of DEFAULT_PICKS) if (out.length < HERO_RULES.heroesPerDeck && !out.includes(k)) out.push(k);
+  const out = p.filter((k, i) => HEROES[k] !== undefined && p.indexOf(k) === i).slice(0, HERO_RULES.heroesPerPlayer);
+  for (const k of DEFAULT_PICKS) if (out.length < HERO_RULES.heroesPerPlayer && !out.includes(k)) out.push(k);
   return out;
 }
 

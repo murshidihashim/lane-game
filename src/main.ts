@@ -3,8 +3,9 @@
 //   &picks=kail,seri (your two heroes; with nohelp the pick screen is skipped) &species=batu
 import type { BotLevel } from './game/bot';
 import { LANES } from './game/map';
-import { CLASS_CARDS, HEROES, HERO_IDS, SPECIES, SPECIES_IDS, SPELLS, TICKS_PER_SECOND, UNITS, type HeroKind, type SpeciesId } from './game/rules';
+import { CLASSES, HEROES, HERO_IDS, ITEMS, ITEM_IDS, ITEM_SLOTS, MANA, SPECIES, SPECIES_IDS, TICKS_PER_SECOND, type HeroKind, type SpeciesId } from './game/rules';
 import { SPECIES_COLORS } from './ui/art';
+import { drawPortrait, drawTroopFigure } from './ui/figures';
 import { randomPicks } from './game/sim';
 import { ORDER_COLORS } from './ui/render';
 import { Game, type Settings } from './ui/game';
@@ -77,6 +78,20 @@ function loadSpecies(): SpeciesId {
   return 'kampung';
 }
 
+/** A small drawn picture (character portrait or troop figure) for a pick-screen tile. */
+function picture(size: number, paint: (ctx: CanvasRenderingContext2D) => void): HTMLCanvasElement {
+  const dpr = Math.min(3, devicePixelRatio || 1);
+  const cv = document.createElement('canvas');
+  cv.className = 'pic';
+  cv.width = Math.round(size * dpr);
+  cv.height = Math.round(size * dpr);
+  cv.style.width = `${size}px`;
+  cv.style.height = `${size}px`;
+  const ctx = cv.getContext('2d');
+  if (ctx) { ctx.scale(dpr, dpr); paint(ctx); }
+  return cv;
+}
+
 function buildSpeciesGrid(): void {
   const grid = $('species-grid');
   grid.replaceChildren(...SPECIES_IDS.map((id) => {
@@ -88,8 +103,8 @@ function buildSpeciesGrid(): void {
     b.dataset.species = id;
     b.style.setProperty('--spc', SPECIES_COLORS[id]);
     b.style.setProperty('--ring', SPECIES_COLORS[id]);
-    b.innerHTML = `<span class="sig"></span><span class="nm"></span><span class="rl"></span>`;
-    (b.querySelector('.sig') as HTMLElement).textContent = d.name.slice(0, 2);
+    b.innerHTML = `<span class="nm"></span><span class="rl"></span>`;
+    b.prepend(picture(36, (ctx) => drawTroopFigure(ctx, CLASSES[d.classes[0]].unit, 18, 33, 26, 0, devicePixelRatio || 1, { facing: 1, walk: 0, attack: 0 })));
     (b.querySelector('.nm') as HTMLElement).textContent = d.name;
     (b.querySelector('.rl') as HTMLElement).textContent = `${d.classes.length} classes`;
     return b;
@@ -105,12 +120,8 @@ function refreshSpecies(): void {
   const p = document.createElement('p');
   p.textContent = d.text;
   const list = document.createElement('p');
-  list.textContent = d.classes.map((c) => `${CLASS_CARDS[c].name} (${CLASS_CARDS[c].cost}): ${UNITS[CLASS_CARDS[c].unit as keyof typeof UNITS].ability ?? ''}`).join(' · ');
-  const spell = document.createElement('p');
-  const b = document.createElement('b');
-  b.textContent = `Spell · ${SPELLS[d.spell].name} (${SPELLS[d.spell].cost})`;
-  spell.append(b, document.createTextNode(`. ${SPELLS[d.spell].text}.`));
-  det.replaceChildren(h, p, list, spell);
+  list.textContent = d.classes.map((c) => `${CLASSES[c].name} (×${CLASSES[c].wave} a wave): ${CLASSES[c].text}`).join(' · ');
+  det.replaceChildren(h, p, list);
 }
 
 $('species-grid').addEventListener('click', (ev) => {
@@ -144,9 +155,8 @@ function buildPickGrid(): void {
     b.id = `pick-${id}`;
     b.dataset.hero = id;
     b.style.setProperty('--ring', ORDER_COLORS[d.best]);
-    b.innerHTML = `<span class="cs"></span><span class="sig"></span><span class="nm"></span><span class="rl"></span>`;
-    (b.querySelector('.cs') as HTMLElement).textContent = String(d.cost);
-    (b.querySelector('.sig') as HTMLElement).textContent = d.code;
+    b.innerHTML = `<span class="nm"></span><span class="rl"></span>`;
+    b.prepend(picture(36, (ctx) => drawPortrait(ctx, id, 18, 18, 17, 0, devicePixelRatio || 1)));
     (b.querySelector('.nm') as HTMLElement).textContent = d.name;
     (b.querySelector('.rl') as HTMLElement).textContent = d.role;
     return b;
@@ -179,10 +189,10 @@ function refreshPick(): void {
   h.textContent = `${d.name}, ${d.title}`;
   const meta = document.createElement('div');
   meta.className = 'meta';
-  meta.textContent = `${d.role} · best order: ${d.best} · costs ${d.cost} · ${d.range >= 300 ? 'ranged' : 'melee'}${d.flying ? ', flies' : ''}`;
+  meta.textContent = `${d.role} · best order: ${d.best} · ${d.range >= 300 ? 'ranged' : 'melee'}${d.flying ? ', flies' : ''}`;
   const vs = document.createElement('p');
   vs.textContent = `Strong vs ${d.strong}. Weak vs ${d.weak}.`;
-  det.replaceChildren(h, meta, line('Trait', d.trait.name, '', d.trait.text), line('Power', d.power.name, d.power.when, d.power.text), line('Ultimate, level 4', d.ult.name, d.ult.when, d.ult.text), vs);
+  det.replaceChildren(h, meta, line('Trait', d.trait.name, '', d.trait.text), line('Power', d.power.name, d.power.when, d.power.text), line('Ultimate, level 4 (you call it)', d.ult.name, `best moment: ${d.ult.when}`, d.ult.text), vs);
   const go = $('pick-go') as HTMLButtonElement;
   go.disabled = chosen.length !== 2;
   go.textContent = chosen.length === 2 ? `Start: ${SPECIES[chosenSpecies].name} with ${HEROES[chosen[0]].name} + ${HEROES[chosen[1]].name}` : `Pick ${2 - chosen.length} more hero${chosen.length === 1 ? '' : 'es'}`;
@@ -254,7 +264,10 @@ function showResult(g: Game): void {
   $('result-title').style.color = r.winner === 0 ? '#7cc4ff' : r.winner === 1 ? '#ff8a80' : '#ffd166';
   $('result-sub').textContent = why;
   const secs = Math.floor(g.sim.tick / TICKS_PER_SECOND);
-  const heroes = (p: 0 | 1) => g.sim.players[p].picks.map((k) => { const h = g.sim.heroOf(p, k); return `${HEROES[k].name} ${h ? `Lv${h.level}` : '(not played)'}`; }).join(', ');
+  const heroes = (p: 0 | 1) => g.sim.players[p].picks.map((k) => {
+    const h = g.sim.heroOf(p, k);
+    return h ? `${HEROES[k].name} Lv${h.level}${h.items.length ? ` (${h.items.map((i) => ITEMS[i].name).join(', ')})` : ''}` : HEROES[k].name;
+  }).join('; ');
   const rows: [string, string][] = [
     ['Towers you destroyed', String(g.sim.players[0].towersDestroyed)],
     ['Towers the bot destroyed', String(g.sim.players[1].towersDestroyed)],
@@ -277,10 +290,76 @@ function showResult(g: Game): void {
     return tr;
   }));
   game.setRunning(false);
+  closeShop();
   show(result, true);
 }
 
 document.addEventListener('open-settings', openSettings);
+
+// ---------- shop (DEC-011): the match keeps running while it is open ----------
+
+const shopEl = $('shop');
+let shopHero: HeroKind = 'rimba';
+
+function refreshShop(): void {
+  const sim = game.sim;
+  const picks = sim.players[0].picks;
+  if (!picks.includes(shopHero)) shopHero = picks[0];
+  $('shop-sem').textContent = `${Math.floor(sim.manaOf(0) / MANA.perMana)} ${MANA.name}${sim.players[0].halfPrice ? ' · next item half price' : ''}`;
+  $('shop-tabs').replaceChildren(...picks.map((k) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.shopHero = k;
+    b.className = k === shopHero ? 'on' : '';
+    const h = sim.heroOf(0, k);
+    b.textContent = `${HEROES[k].name} ${h ? h.items.length : 0}/${ITEM_SLOTS}`;
+    return b;
+  }));
+  const h = sim.heroOf(0, shopHero);
+  $('shop-items').replaceChildren(...ITEM_IDS.map((id) => {
+    const d = ITEMS[id];
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.id = `item-${id}`;
+    b.dataset.item = id;
+    const own = !!h?.items.includes(id);
+    b.className = `item${own ? ' own' : sim.cantBuy(0, shopHero, id) ? ' no' : ''}`;
+    const c = document.createElement('span');
+    c.className = 'c';
+    c.textContent = own ? 'owned' : String(sim.itemCost(0, id));
+    const n = document.createElement('b');
+    n.textContent = d.name;
+    b.append(c, n, document.createTextNode(d.text));
+    return b;
+  }));
+}
+
+let shopTimer = 0;
+function openShop(hero: HeroKind): void {
+  shopHero = hero;
+  $('shop-msg').textContent = '';
+  refreshShop();
+  show(shopEl, true);
+  window.clearInterval(shopTimer);
+  shopTimer = window.setInterval(() => { if (shopEl.classList.contains('show')) refreshShop(); }, 300);
+}
+
+function closeShop(): void {
+  show(shopEl, false);
+  window.clearInterval(shopTimer);
+}
+
+document.addEventListener('open-shop', (ev) => openShop((ev as CustomEvent<HeroKind>).detail));
+shopEl.addEventListener('click', (ev) => {
+  const t = ev.target as HTMLElement;
+  const tab = t.closest<HTMLButtonElement>('[data-shop-hero]');
+  if (tab) { shopHero = tab.dataset.shopHero as HeroKind; refreshShop(); return; }
+  const item = t.closest<HTMLButtonElement>('[data-item]');
+  if (item) {
+    $('shop-msg').textContent = game.buy(shopHero, item.dataset.item as keyof typeof ITEMS);
+    window.setTimeout(refreshShop, 120);
+  }
+});
 
 document.body.addEventListener('click', (ev) => {
   const btn = (ev.target as HTMLElement).closest('button');
@@ -300,6 +379,9 @@ document.body.addEventListener('click', (ev) => {
     return;
   }
   switch (btn.dataset.action) {
+    case 'shop-close':
+      closeShop();
+      break;
     case 'start':
       show(help, false);
       openPick();

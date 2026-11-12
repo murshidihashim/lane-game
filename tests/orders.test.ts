@@ -1,25 +1,22 @@
-// PLAN-001 T3: each of the five hero orders makes the hero do the right thing.
+// PLAN-001 T3, PLAN-004 T2: each hero order makes the hero do the right thing.
 import { describe, expect, test } from 'vitest';
-import { LANES, CORES, nearestS, towerPos } from '../src/game/map';
-import { MANA } from '../src/game/rules';
+import { LANES, CORES, nearestS, pointAt, towerPos, uToS } from '../src/game/map';
+import { HEROES, HERO_RULES, MANA } from '../src/game/rules';
 import { type Ent, Sim } from '../src/game/sim';
-import { stepN } from './helpers';
+import { heroOnLane, parkHeroes, stepN } from './helpers';
 
-/** A quiet match (no minion waves) where player 0 holds both hero cards and full mana. */
+/** A quiet match (no waves) with every hero waiting at home. */
 function quiet(): Sim {
   const sim = new Sim({ seed: 3, waves: false });
-  sim.players[0].hand = ['rimba', 'benteng', 'spearmen', 'archers'];
-  sim.players[0].mana = MANA.max;
+  parkHeroes(sim, 0);
+  parkHeroes(sim, 1);
   return sim;
 }
 
+/** Bring one of player 0's heroes (Rimba or Benteng) to a lane spot. */
 function playHero(sim: Sim, hero: 'rimba' | 'benteng', lane: 0 | 1 | 2, u: number): Ent {
-  sim.players[0].mana = MANA.max;
-  sim.submit({ t: 'card', player: 0, card: hero, lane, u });
-  sim.step();
-  const h = sim.heroOf(0, hero);
-  if (!h) throw new Error('hero not played');
-  stepN(sim, 21); // deploy time
+  const h = heroOnLane(sim, 0, hero, lane, u);
+  stepN(sim, 22);
   return h;
 }
 
@@ -50,10 +47,9 @@ describe('hero orders', () => {
   test('gank: a hero crosses the jungle hidden, ambushes, then pushes the new lane', () => {
     const sim = quiet();
     const h = playHero(sim, 'rimba', 1, 2300);
-    // The opponent sends Spearmen down the right lane.
-    sim.players[1].hand = ['spearmen', 'archers', 'gotong', 'ram'];
-    sim.players[1].mana = MANA.max;
-    sim.submit({ t: 'card', player: 1, card: 'spearmen', lane: 2, u: 3400 });
+    // The opponent has Spearmen coming down the right lane.
+    const [sx, sy] = pointAt(LANES[2], uToS(LANES[2], 1, 3400));
+    for (const dx of [-110, 0, 110]) sim.summon(1, 'spearman', sx + dx, sy, 2);
     stepN(sim, 40);
     sim.submit({ t: 'order', player: 0, hero: 'rimba', order: 'gank', lane: 2 });
     let wasHidden = false;
@@ -62,7 +58,7 @@ describe('hero orders', () => {
     for (let i = 0; i < 400 && !ambush; i++) {
       sim.step();
       if (h.hidden) wasHidden = true;
-      if (!sim.visibleTo(h, 1)) hiddenFromEnemy = true;
+      if (!sim.sees(1, h)) hiddenFromEnemy = true;
       if (sim.events.some((e) => e.k === 'text' && e.text === 'Ambush!')) ambush = true;
     }
     expect(wasHidden).toBe(true);
@@ -123,5 +119,38 @@ describe('hero orders', () => {
     stepN(sim, h.respawn + 2);
     expect(h.alive).toBe(true);
     expect(h.order).toMatchObject({ type: 'defend', lane: 2 });
+  });
+
+  test('heroes start on the map: both walk out from the Pusaka with an order (DEC-011)', () => {
+    const sim = new Sim({ seed: 3, picks: [['helang', 'benteng'], ['rimba', 'seri']] });
+    for (const p of [0, 1] as const) {
+      const hs = sim.heroes(p);
+      expect(hs).toHaveLength(2);
+      for (const h of hs) expect(near(h, CORES[p][0], CORES[p][1], 700)).toBe(true);
+    }
+    expect(sim.heroOf(0, 'helang')!.order).toMatchObject({ type: 'push', lane: 0 });
+    expect(sim.heroOf(0, 'benteng')!.order).toMatchObject({ type: HEROES.benteng.best, lane: 2 });
+    stepN(sim, HERO_RULES.startDelay + 100);
+    expect(near(sim.heroOf(0, 'helang')!, CORES[0][0], CORES[0][1], 700)).toBe(false);
+  });
+
+  test('move: a hero walks to any spot, holds it and fights what comes close', () => {
+    const sim = quiet();
+    const h = playHero(sim, 'rimba', 0, 1500);
+    sim.submit({ t: 'order', player: 0, hero: 'rimba', order: 'move', x: 1950, y: 4600 });
+    stepN(sim, 400);
+    expect(h.order).toMatchObject({ type: 'move', x: 1950, y: 4600 });
+    expect(near(h, 1950, 4600, 60)).toBe(true);
+    const t = sim.summon(1, 'spearman', 1950, 4200, 1);
+    t.speed = 0;
+    stepN(sim, 120);
+    expect(t.alive).toBe(false);
+    stepN(sim, 200);
+    expect(near(h, 1950, 4600, 60)).toBe(true); // back on its spot
+    // a spot off the map is pulled back onto it
+    sim.submit({ t: 'order', player: 0, hero: 'rimba', order: 'move', x: -5000, y: 99999 });
+    sim.step();
+    expect(h.order.x).toBeGreaterThanOrEqual(0);
+    expect(h.order.y).toBeLessThan(99999);
   });
 });

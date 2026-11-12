@@ -1,7 +1,8 @@
-# Art style · "Hikayat" v1
+# Art style · "Hikayat" v2
 
-Decision: DEC-010. Plan: PLAN-003. Code: `src/ui/art.ts` (palette, glyphs, tokens, forts, painted map),
-`src/ui/render.ts` (board, HUD, cards), `index.html` (menus).
+Decisions: DEC-010 (the style), DEC-013 (characters, ultimate effects, tower health). Plans: PLAN-003,
+PLAN-004. Code: `src/ui/art.ts` (palette, glyphs, forts, painted map), `src/ui/figures.ts` (characters),
+`src/ui/ultfx.ts` (ultimate effects), `src/ui/render.ts` (board, fog, HUD), `index.html` (menus).
 
 ## The idea in one line
 
@@ -42,43 +43,50 @@ Serangga `#b5892a`, Batu `#7d7f86`.
 
 ## Rules for every new piece
 
-1. **Ink outline, flat fill, one symbol.** Every token gets a 1.5–2 px ink outline, a team-colour
-   fill and one white glyph. No gradients on tokens.
-2. **Team colour is the fill, never the symbol.** Blue or red is always the largest area so sides
-   read at a glance; red-green colour blindness is helped by the bottom/top split and the outline.
-3. **Shape says what kind of thing it is.**
-   - round token: a troop
-   - big round token with a gold ring and a level badge: a hero
-   - square token: a building-hitter (Kerbau, Kerikil)
-   - token with a soft shadow below it: a flier
-   - small token with no rim: a lane-wave troop
-   - hip-roofed timber kubu: a tower
+1. **Characters are standees.** Every hero and troop is a small painted figure on a round base, like
+   a board-game piece: ink outline, flat fills, chibi proportions (big head), one signature prop
+   (Kail's hook and hat, Hujan's umbrella, Benteng's fort helmet). Each is drawn once per pose and
+   cached, so a crowded lane stays smooth on a phone.
+2. **Team colour is the base and a sash, never the character's own colours.** The base disc and a
+   sash, headband or collar are blue (you) or red (the bot), so a hero keeps its own look on either
+   side and the side still reads at a glance. The bottom/top split helps colour-blind players.
+3. **Pieces move like pieces.** Four walk frames (leg swing and bob), two attack frames (wind-up,
+   strike), facing the way they walk. Fliers hover above their shadow. Heroes are about 34 px tall,
+   troops about 21 px (lane-wave troops a little smaller).
+4. **Shape says what kind of thing it is.**
+   - small figure: a troop; a big figure with a level badge and health bar: a hero
+   - hip-roofed timber kubu: a tower, with a big health bar and its number
    - the Pusaka pavilion: the heirloom you protect
-4. **The map is painted once.** Ground, river, trees, roads, bridges, camps, cairns and shrines are
+5. **The map is painted once.** Ground, river, trees, roads, bridges, camps, cairns and shrines are
    drawn once into a cached picture (MapPainter). Only moving things are redrawn each frame,
    which keeps phones cool.
-5. **Text is serif for names and titles, sans for numbers and help.** Georgia (or the phone's
+6. **Text is serif for names and titles, sans for numbers and help.** Georgia (or the phone's
    serif) for names; the system font for numbers.
-6. **Gold means "you can act here".** Glowing gold rings mark order spots, ready ultimates,
-   affordable cards and relics.
-7. **No borrowed looks.** No shapes, icons, frames or colours copied from other games.
+7. **Gold means "you can act here".** Glowing gold rings mark order spots, a ULT button at its best
+   moment, a Shop with something affordable, and relics.
+8. **The fog of war is night over the jungle.** Everything outside your vision is dimmed with a dark
+   violet-brown wash with soft edges; enemies there are not drawn. Towers, the Pusaka and their
+   health stay readable above it. A lost enemy hero leaves a fading "?" where it was last seen.
+9. **Ultimates are big moments.** Each one shows a banner across the top of the board (portrait,
+   "ULTIMATE", hero and ultimate name; blue and gold for yours, red for the bot's) and its own
+   effect on the map: water rings for Kail, a golden dome for Benteng, a dusk moon for Senja, a
+   frost ring for Embun, and so on. Lasting ultimates keep an aura on the hero (Gergasi's rage,
+   Helang's feathers, Buaya's scales, Ombak's spray, Seri's veil).
+10. **No borrowed looks.** No shapes, icons, frames or colours copied from other games.
 
-## Glyph list
+## Map symbols
 
-| Thing | Glyph |
+| Thing | Symbol |
 |---|---|
-| Kampung: Silat Guard, Pemanah, Perisai, Kerbau | spear, bow, shield, horns |
-| Hutan: Kera, Harimau Bintang, Enggang, Seladang | monkey, paw, beak, gaur |
-| Sungai: Ketam, Ikan Sumpit, Belut | claw, fish, bolt |
-| Serangga: Kerengga, Tebuan, Kumbang, Ratu Sarang | ant, bee, beetle, crown |
-| Batu: Kerikil, Batu Besar, Lontar | pebble, boulder, sling |
-| Spells: Petir, Gotong-royong, Auman, Arus, Sengat, Gempa | bolt, heart, roar, wave, sting, crack |
-| Summons: puppet, decoy, watchtower, Gajah Mina | mask, dot, hut, trunk |
-| Map: grove, den, ward cairn, relic | fruit, paw/cave, stone cairn, gem |
+| Fruit grove, beast den, Gajah Mina | fruit, paw, trunk (in a ringed disc) |
+| Ward cairn, ward | stone cairn; a lantern on a pole in team colour |
+| Relic | a glowing gem (purple Semangat, green XP, gold boost) |
+| Order spots | ↑ push, ⤳ gank, ⛨ defend, ✦ farm, ◉ ward, ◆ relic, ⌂ retreat; a gold flag for Move |
+| Items | small drawings: keris, chain vest, winged sandal, amulet, tonic bottle, rattan shield, bangles, oil lamp |
 
 ## What is not done yet
 
 - No sound or music.
-- No animation frames: pieces slide, flash when hit, and show effects (rings, lines, sparks).
-- Hero portraits are monograms (two letters) in a gold ring, not painted faces.
-- A real artist pass (painted heroes, textured board) is a later, separate plan with its own cost.
+- Characters are code-drawn and small; a real artist pass (painted heroes, textured board) is a
+  later, separate plan with its own cost.
+- Death and spawn animations are simple puffs.

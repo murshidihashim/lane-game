@@ -56,14 +56,12 @@
       .species-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; margin: 8px 0 8px; }
       .tile { position: relative; display: grid; justify-items: center; gap: 2px; padding: 8px 2px 6px; border-radius: 10px;
         background: #fbf3df; border: 2px solid var(--parchment-dark); color: var(--ink); font-size: 11px; line-height: 1.15; }
-      .tile .sig { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font: 700 13px var(--serif);
-        background: var(--you); color: #fff8e6; box-shadow: 0 0 0 3px var(--gold), inset 0 0 0 2px var(--ring); border: 1.5px solid var(--ink); }
+      .tile .pic { display: block; border-radius: 50%; box-shadow: 0 0 0 2.5px var(--ring); background: #e9d9b0; }
+      .tile.sp .pic { border-radius: 10px; box-shadow: 0 0 0 2.5px var(--spc); }
       .tile .nm { font: 700 12px var(--serif); }
       .tile .rl { color: var(--muted); font-size: 10.5px; }
-      .tile .cs { position: absolute; top: 4px; left: 5px; font-weight: 800; font-size: 11px; color: #7b3fb0; }
       .tile.sel { border-color: var(--ink); background: var(--gold); }
       .tile .n { position: absolute; top: 3px; right: 4px; background: var(--maroon); color: var(--parchment); border-radius: 999px; font-weight: 800; font-size: 10px; padding: 1px 5px; }
-      .tile.sp .sig { background: var(--spc); border-radius: 10px; }
       .detail { background: #fbf3df; border: 1.5px solid var(--parchment-dark); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; line-height: 1.4; }
       .detail h3 { margin: 0 0 2px; font: 700 16px var(--serif); }
       .detail .meta { color: var(--muted); font-size: 12.5px; margin-bottom: 6px; }
@@ -71,6 +69,22 @@
       .detail b { color: var(--maroon); }
       .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
       .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; border: 1px solid var(--ink); }
+      /* Shop (DEC-011): a bottom sheet, so the battle stays in view above it. */
+      .sheet { position: fixed; left: 0; right: 0; bottom: 0; display: none; justify-content: center; z-index: 9; pointer-events: none; }
+      .sheet.show { display: flex; }
+      .sheet .card { pointer-events: auto; border-radius: 14px 14px 0 0; max-height: 56vh; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+      .sheet .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .sheet .head h1 { margin: 0; font-size: 20px; }
+      .sem { font: 700 15px var(--serif); color: #6a2f96; }
+      .tabs { display: flex; gap: 6px; margin: 8px 0; }
+      .tabs button { flex: 1; padding: 7px 6px; font-size: 13px; }
+      .items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+      .item { text-align: left; background: #fbf3df; color: var(--ink); border: 2px solid var(--parchment-dark); padding: 7px 8px; border-radius: 10px; font-size: 12px; line-height: 1.25; }
+      .item b { display: block; font: 700 13.5px var(--serif); }
+      .item .c { float: right; font-weight: 800; color: #6a2f96; }
+      .item.own { border-color: var(--ink); background: var(--gold); }
+      .item.no { opacity: 0.5; }
+      .msg { min-height: 18px; font-size: 13px; color: var(--maroon); margin: 6px 0 0; }
     </style>
   </head>
   <body>
@@ -79,33 +93,34 @@
     <div id="help" class="overlay">
       <div class="card">
         <h1>Lane Game · prototype</h1>
-        <p class="muted">Test build. Simple shapes, no sound. You are blue (bottom); the bot is red (top).</p>
-        <h2>Goal</h2>
-        <p>Destroy the enemy Pusaka (the heirloom behind their towers). If time runs out, whoever destroyed more towers wins.</p>
-        <h2>Your people and your lanes</h2>
+        <p class="muted">Test build, no sound. You are blue (bottom); the bot is red (top).</p>
+        <h2>You command, you don't deploy</h2>
         <ul>
-          <li>Before the match you pick a <b>species</b> (Kampung, Hutan, Sungai, Serangga or Batu) and 2 heroes.</li>
-          <li>Every 20 s each lane sends a <b>wave</b> of one of your species' classes. Tap a wave chip (above your heroes) to change what marches in that lane.</li>
-          <li>Your cards are your species' classes, its spell, and Petir (lightning). Drag a card into a lane, or tap a card then a lane.</li>
-          <li>Cards cost Semangat (spirit, the purple beads). It refills by itself, twice as fast in the last minute.</li>
+          <li>Before the match you pick a <b>species</b> (Kampung, Hutan, Sungai, Serangga or Batu) and 2 <b>heroes</b>. Both heroes start on the map.</li>
+          <li>Every 20 s each lane sends a <b>wave</b> of one of your species' troop classes. Tap a wave chip (above your heroes) to change what marches in that lane. Waves grow stronger every minute.</li>
+          <li>There are no troop cards: you win with your lane choices and your heroes.</li>
         </ul>
         <h2>Heroes</h2>
         <ul>
-          <li>You pick 2 of 20 heroes before each match. Hero cards stay on the map all match, level up and come back after dying.</li>
-          <li>Each hero has a <b>Trait</b> (always on), a <b>Power</b> that fires by itself (the ring on its portrait), and an <b>Ultimate</b> at level 4, once per life (portrait shows ULT).</li>
-          <li>Drag a hero's portrait (above your cards) onto the map to give an order:
-            <b>Push</b> or <b>Gank</b> (a lane), <b>Defend</b> (your tower), <b>Farm</b> (a ✦ camp), <b>Retreat</b> (your Pusaka). The ★ order is the hero's best: +15% damage.</li>
-          <li>A hero in the jungle is hidden from the enemy. Its first hit after that is an <b>Ambush</b> (double damage).</li>
-          <li>The middle lane is longer and winding. Its tower sits right in front of the Pusaka.</li>
+          <li>Drag a hero's portrait onto the map to give an order: <b>Push</b> or <b>Gank</b> (a lane), <b>Defend</b> (your tower), <b>Farm</b> (a camp), <b>Ward</b> (a stone cairn), collect a <b>relic</b>, <b>Retreat</b> (your Pusaka), or drop it anywhere else to <b>Move</b> there and hold the spot. Or tap a portrait, then tap the map.</li>
+          <li>Each hero has a <b>Trait</b> (always on) and a <b>Power</b> that fires by itself. The ★ order is the hero's best: +15% damage.</li>
+          <li><b>Ultimate</b>: unlocks at level 4, once per life. The <b>ULT</b> button glows when it is a good moment. Tap it and the hero fires at the next good moment (tap again to cancel).</li>
+          <li><b>Shop</b>: spend Semangat (spirit, the purple count) on items for your heroes, 3 each. Semangat refills slowly; kills, towers, groves and relics pay more.</li>
+        </ul>
+        <h2>Fog of war</h2>
+        <ul>
+          <li>You only see what your heroes, troops, towers and wards can see. The rest of the map is dark, and enemies there are hidden.</li>
+          <li>A hero in the jungle is hidden even closer. Its first hit after that is an <b>Ambush</b> (double damage).</li>
         </ul>
         <h2>The map pays</h2>
         <ul>
-          <li><b>Ward</b> spots (stone cairns): a ward shows hidden enemy heroes for 90 s. Clearing an enemy ward pays.</li>
+          <li><b>Wards</b> on the stone cairns light up the fog for 90 s. Clearing an enemy ward pays.</li>
           <li><b>Fruit groves</b> on the river pay Semangat. <b>Beast dens</b> give a hero Jungle Fury (+20% damage).</li>
           <li><b>Gajah Mina</b> rises in the river at 1:30. Beat it and it joins you, charging down the middle lane.</li>
           <li><b>Relics</b> glow at the shrines every 45 s: Semangat, XP or a boost for the hero who grabs one.</li>
-          <li>Hero kills and towers pay Semangat; the first kill of the match pays extra.</li>
         </ul>
+        <h2>Goal</h2>
+        <p>Destroy the enemy Pusaka (behind their towers). Tower health shows on each tower and in the top bar. If time runs out, whoever destroyed more towers wins.</p>
         <button class="primary" data-action="start">Choose species and heroes</button>
       </div>
     </div>
@@ -116,11 +131,20 @@
         <div class="species-grid" id="species-grid"></div>
         <div class="detail" id="species-detail"></div>
         <h2>Pick 2 heroes</h2>
-        <div class="legend"><span><i style="background:#ff6b6b"></i>Gank</span><span><i style="background:#54a0ff"></i>Defend</span><span><i style="background:#ff9f43"></i>Push</span><span><i style="background:#7bd389"></i>Farm</span><span>ring = best order · number = cost</span></div>
+        <div class="legend"><span><i style="background:#ff6b6b"></i>Gank</span><span><i style="background:#54a0ff"></i>Defend</span><span><i style="background:#ff9f43"></i>Push</span><span><i style="background:#7bd389"></i>Farm</span><span>ring = best order</span></div>
         <div class="pick-grid" id="pick-grid"></div>
         <div class="detail" id="pick-detail"></div>
         <div class="row"><button data-action="random-picks">Random 2</button></div>
         <button class="primary" data-action="go" id="pick-go">Start match</button>
+      </div>
+    </div>
+
+    <div id="shop" class="sheet">
+      <div class="card">
+        <div class="head"><h1>Shop</h1><span class="sem" id="shop-sem"></span><button data-action="shop-close">Close</button></div>
+        <div class="tabs" id="shop-tabs"></div>
+        <div class="items" id="shop-items"></div>
+        <p class="msg" id="shop-msg"></p>
       </div>
     </div>
 

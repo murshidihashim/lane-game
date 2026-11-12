@@ -1,9 +1,10 @@
-// Rule-based computer opponent. It reads the match state and returns commands, like a player.
-// It only uses what its side can see (hidden heroes in the jungle are ignored) and its own
-// seeded random numbers, so a match with the same seed and the same human moves replays exactly.
+// Rule-based computer opponent. It reads the match state and returns commands, like a player:
+// lane troops, hero orders, items and ultimate calls (DEC-011). It only uses what its side can see
+// through the fog of war (DEC-012) and its own seeded random numbers, so a match with the same seed
+// and the same human moves replays exactly.
 import { Rng, idiv, within } from './math';
 import { LANES, type LaneId, WARD_SPOTS, nearestS } from './map';
-import { CLASS_CARDS, DEPLOY, HEROES, MANA, SPECIES, UNITS, type CardId, type ClassCardId, type HeroKind, type SpellCardId } from './rules';
+import { CLASSES, HEROES, MANA, SPECIES, UNITS, type ClassId, type HeroKind, type ItemId } from './rules';
 import type { Command, Ent, Player, Sim } from './sim';
 
 export type BotLevel = 'easy' | 'normal';
@@ -18,18 +19,23 @@ interface LaneView {
   hasSiege: boolean; // an enemy that only hits buildings is coming
 }
 
-/** Spells that hurt enemies (aim at an enemy group) and spells that help (aim at our group). */
-const HARM: SpellCardId[] = ['firebolt', 'arus', 'sengat', 'gempa'];
-const HELP: SpellCardId[] = ['gotong', 'auman'];
+/** What to buy, by the kind of hero: front-liners, damage dealers and the rest. */
+const TANKY: readonly HeroKind[] = ['benteng', 'gergasi', 'badak', 'buaya', 'belang', 'pendekar'];
+const DAMAGE: readonly HeroKind[] = ['helang', 'senja', 'rimba', 'tedung', 'layang', 'kail'];
+const SHOPPING: Record<'tank' | 'damage' | 'other', ItemId[]> = {
+  tank: ['baju', 'rotan', 'keris', 'gelang', 'jamu'],
+  damage: ['keris', 'gelang', 'capal', 'tangkal', 'baju'],
+  other: ['tangkal', 'jamu', 'pelita', 'baju', 'capal'],
+};
 
 export class Bot {
   private rng: Rng;
-  private nextThink = 0;
+  private nextShop = 100;
   private nextLaneThink = 60;
+  private ultSeen: Partial<Record<HeroKind, number>> = {};
   private nextHeroThink: Partial<Record<HeroKind, number>> = {};
   private lastGank: Partial<Record<HeroKind, number>> = {};
   private lastErrand: Partial<Record<HeroKind, number>> = {};
-  private supportLane: LaneId | -1 = -1;
 
   constructor(readonly player: Player, seed: number, readonly level: BotLevel = 'normal') {
     this.rng = new Rng((seed ^ (player === 0 ? 0x9e3779b9 : 0x7f4a7c15)) >>> 0);
@@ -50,11 +56,50 @@ export class Bot {
       if (c) out.push(c);
       this.nextLaneThink = sim.tick + 200 + this.rng.int(200);
     }
-    if (sim.tick < this.nextThink) return out;
-    this.nextThink = sim.tick + (this.level === 'easy' ? 24 + this.rng.int(24) : 8 + this.rng.int(10));
-    const c = this.playCard(sim);
-    if (c) out.push(c);
+    for (const kind of sim.players[this.player].picks) {
+      const c = this.callUlt(sim, kind);
+      if (c) out.push(c);
+    }
+    if (sim.tick >= this.nextShop) {
+      const c = this.shop(sim);
+      if (c) out.push(c);
+      this.nextShop = sim.tick + (this.level === 'easy' ? 300 + this.rng.int(200) : 60 + this.rng.int(60));
+    }
     return out;
+  }
+
+  // ---------- items and ultimates (DEC-011) ----------
+
+  private shop(sim: Sim): Command | null {
+    const me = this.player;
+    // The hero with fewer items shops first.
+    const heroes = sim.players[me].picks.map((k) => sim.heroOf(me, k)).filter((h): h is Ent => !!h)
+      .sort((a, b) => a.items.length - b.items.length || a.id - b.id);
+    for (const h of heroes) {
+      const kind = h.hero as HeroKind;
+      const list = SHOPPING[TANKY.includes(kind) ? 'tank' : DAMAGE.includes(kind) ? 'damage' : 'other'];
+      const item = list.find((i) => !h.items.includes(i));
+      if (!item) continue;
+      // Keep a little in hand early on; spend freely later.
+      const reserve = sim.tick < 1200 ? 0 : 1;
+      if (sim.manaOf(me) >= (sim.itemCost(me, item) + reserve) * MANA.perMana && !sim.cantBuy(me, kind, item)) {
+        return { t: 'buy', player: me, hero: kind, item };
+      }
+      return null; // save up for this one
+    }
+    return null;
+  }
+
+  /** Call an ultimate once the game suggests it, after a human-like pause. */
+  private callUlt(sim: Sim, kind: HeroKind): Command | null {
+    const me = this.player;
+    const h = sim.heroOf(me, kind);
+    if (!h || !h.alive || h.ultArmed || !sim.ultSuggested(h)) { delete this.ultSeen[kind]; return null; }
+    const seen = this.ultSeen[kind] ?? (this.ultSeen[kind] = sim.tick);
+    const pause = this.level === 'easy' ? 60 : 10;
+    if (sim.tick - seen < pause) return null;
+    delete this.ultSeen[kind];
+    return { t: 'ult', player: me, hero: kind };
   }
 
   // ---------- reading the board ----------
@@ -65,8 +110,7 @@ export class Bot {
   }
 
   private value(e: Ent): number {
-    const v = idiv(e.hp, 20) + e.damage;
-    return e.wave ? idiv(v, 3) : v; // lane waves mostly cancel each other out
+    return idiv(e.hp, 20) + e.damage;
   }
 
   private lanes(sim: Sim): LaneView[] {
@@ -78,7 +122,7 @@ export class Bot {
       v.enemyTowerHp = et && et.alive ? et.hp : 0;
       for (const e of sim.ents) {
         if (!e.alive || e.hp <= 0 || (e.kind !== 'unit' && e.kind !== 'hero')) continue;
-        if (!sim.visibleTo(e, me)) continue;
+        if (!sim.sees(me, e)) continue;
         const lane = e.kind === 'unit' ? e.lane : sim.heroLane(e);
         if (lane !== id) continue;
         const u = this.u(id, e.x, e.y);
@@ -95,46 +139,14 @@ export class Bot {
     });
   }
 
-  private myClasses(sim: Sim): ClassCardId[] {
+  private myClasses(sim: Sim): ClassId[] {
     return SPECIES[sim.players[this.player].species].classes;
   }
 
-  /** Our class cards sorted for a job: tanks for defence, building-breakers then heavies for attack. */
-  private ranked(sim: Sim, job: 'defend' | 'attack'): CardId[] {
-    const list = [...this.myClasses(sim)];
-    const st = (c: ClassCardId) => UNITS[CLASS_CARDS[c].unit as keyof typeof UNITS];
-    if (job === 'defend') {
-      return list.filter((c) => st(c).targets === 'any').sort((a, b) => st(b).hp * (CLASS_CARDS[b].count ?? 1) - st(a).hp * (CLASS_CARDS[a].count ?? 1));
-    }
-    return list.sort((a, b) => (st(b).targets === 'buildings' ? 1 : 0) - (st(a).targets === 'buildings' ? 1 : 0) || st(b).hp - st(a).hp);
-  }
-
-  private affordable(sim: Sim, prefs: readonly CardId[]): CardId | null {
-    const hand = sim.players[this.player].hand;
-    for (const c of prefs) if (hand.includes(c) && sim.canAfford(this.player, c)) return c;
-    return null;
-  }
-
-  private place(sim: Sim, card: CardId, lane: LaneId, u: number): Command {
-    const clamped = Math.max(DEPLOY.minU, Math.min(sim.maxU(this.player, lane), u));
-    return { t: 'card', player: this.player, card, lane, u: clamped };
-  }
-
-  /** The best spot for a spell: the biggest group of enemies (harm) or of our own fighters (help). */
-  private spellSpot(sim: Sim, ours: boolean): { x: number; y: number; n: number } | null {
-    const me = this.player;
-    const side = ours ? me : 1 - me;
-    let best: { x: number; y: number; n: number } | null = null;
-    for (const e of sim.ents) {
-      if (!e.alive || e.hp <= 0 || e.owner !== side || (e.kind !== 'unit' && e.kind !== 'hero') || !sim.visibleTo(e, me) || e.wave) continue;
-      let n = 0;
-      for (const o of sim.ents) {
-        if (o.alive && o.hp > 0 && o.owner === side && (o.kind === 'unit' || o.kind === 'hero') && within(e.x, e.y, o.x, o.y, 230)) n++;
-      }
-      if (ours && sim.foes(me, e.x, e.y, 500).length === 0) continue; // only help a fight
-      if (!best || n > best.n) best = { x: e.x, y: e.y, n };
-    }
-    return best;
+  /** Our classes sorted for a job: the toughest wave for defence. */
+  private ranked(sim: Sim): ClassId[] {
+    const st = (c: ClassId) => UNITS[CLASSES[c].unit];
+    return this.myClasses(sim).filter((c) => st(c).targets === 'any').sort((a, b) => st(b).hp * CLASSES[b].wave - st(a).hp * CLASSES[a].wave);
   }
 
   // ---------- lane waves (DEC-008) ----------
@@ -144,7 +156,7 @@ export class Bot {
     const pl = sim.players[this.player];
     const worst = [...views].sort((a, b) => (b.threat - b.defence) - (a.threat - a.defence) || a.lane - b.lane)[0];
     if (worst && worst.threat - worst.defence > 40) {
-      const tank = this.ranked(sim, 'defend')[0] as ClassCardId | undefined;
+      const tank = this.ranked(sim)[0] as ClassId | undefined;
       if (tank && pl.laneClass[worst.lane] !== tank) return { t: 'wave', player: this.player, lane: worst.lane, card: tank };
     }
     // Otherwise, now and then, try a different class in a random lane.
@@ -153,67 +165,6 @@ export class Bot {
       const classes = this.myClasses(sim);
       const card = classes[this.rng.int(classes.length)];
       if (pl.laneClass[lane] !== card) return { t: 'wave', player: this.player, lane, card };
-    }
-    return null;
-  }
-
-  // ---------- cards ----------
-
-  private playCard(sim: Sim): Command | null {
-    const me = this.player;
-    const pl = sim.players[me];
-    const views = this.lanes(sim);
-
-    // 1. Spells: hit an enemy group of 3+, or boost our fighters in a fight.
-    for (const spell of HARM) {
-      if (!pl.hand.includes(spell) || !sim.canAfford(me, spell)) continue;
-      const spot = this.spellSpot(sim, false);
-      if (spot && spot.n >= 3) return { t: 'spell', player: me, card: spell, x: spot.x, y: spot.y };
-    }
-    for (const spell of HELP) {
-      if (!pl.hand.includes(spell) || !sim.canAfford(me, spell)) continue;
-      const spot = this.spellSpot(sim, true);
-      if (spot && spot.n >= 3) return { t: 'spell', player: me, card: spell, x: spot.x, y: spot.y };
-    }
-
-    // 2. Defend the lane under the most pressure.
-    const worst = [...views].sort((a, b) => (b.threat - b.defence) - (a.threat - a.defence) || a.lane - b.lane)[0];
-    if (worst && worst.threat - worst.defence > 45 && worst.front >= 0) {
-      const card = this.affordable(sim, this.ranked(sim, 'defend'));
-      if (card) return this.place(sim, card, worst.lane, worst.front - 350);
-      return null; // save Semangat for defence
-    }
-
-    // 3. Bring out heroes once the match is under way.
-    if (sim.tick > 200) {
-      for (const hero of pl.picks) {
-        if (pl.hand.includes(hero) && pl.mana >= (sim.costOf(me, hero) + 1) * MANA.perMana) {
-          const defender = HEROES[hero].best === 'defend';
-          const lane = defender && worst && worst.threat > 0 ? worst.lane : this.attackLane(sim, views);
-          return this.place(sim, hero, lane, sim.maxU(me, lane) - 300);
-        }
-      }
-    }
-
-    // 4. Support a building-breaker that was just sent.
-    if (this.supportLane !== -1) {
-      const lane: LaneId = this.supportLane;
-      const card = this.affordable(sim, this.ranked(sim, 'defend'));
-      if (card) {
-        this.supportLane = -1;
-        return this.place(sim, card, lane, sim.maxU(me, lane) - 500);
-      }
-    }
-
-    // 5. Attack when Semangat is high (or about to overflow).
-    const threshold = this.level === 'easy' ? 9 : 7 + this.rng.int(3);
-    if (pl.mana >= threshold * MANA.perMana) {
-      const lane = this.attackLane(sim, views);
-      const card = this.affordable(sim, this.ranked(sim, 'attack'));
-      if (card) {
-        if (CLASS_CARDS[card as ClassCardId]?.unit && UNITS[CLASS_CARDS[card as ClassCardId].unit as keyof typeof UNITS].targets === 'buildings') this.supportLane = lane;
-        return this.place(sim, card, lane, sim.maxU(me, lane));
-      }
     }
     return null;
   }

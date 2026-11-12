@@ -1,13 +1,17 @@
-// PLAN-003 T1/T2: species, troop classes and their abilities, lane waves, species spells.
+// PLAN-003 T1/T2: species, troop classes and their abilities, lane waves (troops come only from
+// lane waves: DEC-011).
 import { describe, expect, test } from 'vitest';
-import { CLASS_CARDS, CLASS_IDS, MANA, SPECIES, SPECIES_IDS, UNITS, WAVES, type ClassCardId, type SpeciesId, type UnitKind } from '../src/game/rules';
+import { CLASSES, CLASS_IDS, SPECIES, SPECIES_IDS, UNITS, WAVES, type ClassId, type SpeciesId, type UnitKind } from '../src/game/rules';
 import { type Ent, Sim } from '../src/game/sim';
-import { stepN } from './helpers';
+import { parkHeroes, stepN } from './helpers';
 
-const speciesOf = (c: ClassCardId): SpeciesId => SPECIES_IDS.find((s) => SPECIES[s].classes.includes(c)) as SpeciesId;
+const speciesOf = (c: ClassId): SpeciesId => SPECIES_IDS.find((s) => SPECIES[s].classes.includes(c)) as SpeciesId;
 
 function quiet(species: SpeciesId = 'kampung', foeSpecies: SpeciesId = 'kampung'): Sim {
-  return new Sim({ seed: 21, waves: false, species: [species, foeSpecies] });
+  const sim = new Sim({ seed: 21, waves: false, species: [species, foeSpecies] });
+  parkHeroes(sim, 0);
+  parkHeroes(sim, 1);
+  return sim;
 }
 
 /** Units of a kind, side by side at a spot on the left lane, already active. */
@@ -29,26 +33,24 @@ describe('species', () => {
     expect(all.sort()).toEqual([...CLASS_IDS].sort());
   });
 
-  test('your deck is your species’ classes, its spell, Petir and your 2 heroes', () => {
-    for (const s of SPECIES_IDS) {
-      const sim = new Sim({ seed: 3, species: [s, 'kampung'], picks: [['kail', 'seri'], ['rimba', 'benteng']] });
-      const pl = sim.players[0];
-      const cards = [...pl.hand, pl.next, ...pl.queue].sort();
-      expect(cards).toEqual([...SPECIES[s].classes, SPECIES[s].spell, 'firebolt', 'kail', 'seri'].sort());
+  test('your lanes start with your species\u2019 classes', () => {
+    for (const sp of SPECIES_IDS) {
+      const sim = new Sim({ seed: 3, species: [sp, 'kampung'] });
+      for (const c of sim.players[0].laneClass) expect(SPECIES[sp].classes).toContain(c);
     }
   });
 
-  test('every class card spawns its units', () => {
+  test('every class marches in its lane wave, full strength', () => {
     for (const c of CLASS_IDS) {
-      const sim = quiet(speciesOf(c));
-      sim.players[0].hand = [c, 'firebolt', 'kail', 'seri'];
-      sim.players[0].mana = MANA.max;
-      sim.submit({ t: 'card', player: 0, card: c, lane: 0, u: 2000 });
-      sim.step();
-      const def = CLASS_CARDS[c];
-      const units = sim.ents.filter((e) => e.kind === 'unit' && e.owner === 0 && e.unit === def.unit);
-      expect(units, c).toHaveLength(def.count ?? 1);
-      expect(units[0].maxHp).toBe(UNITS[def.unit as UnitKind].hp);
+      const sim = new Sim({ seed: 21, species: [speciesOf(c), 'kampung'] });
+      parkHeroes(sim, 0);
+      parkHeroes(sim, 1);
+      sim.submit({ t: 'wave', player: 0, lane: 0, card: c });
+      stepN(sim, WAVES.first + 1);
+      const def = CLASSES[c];
+      const units = sim.ents.filter((e) => e.kind === 'unit' && e.owner === 0 && e.lane === 0 && e.unit === def.unit);
+      expect(units, c).toHaveLength(def.wave);
+      expect(units[0].maxHp).toBe(UNITS[def.unit].hp);
     }
   });
 });
@@ -62,12 +64,12 @@ describe('lane waves', () => {
     const lane = (id: number) => sim.ents.filter((e) => e.kind === 'unit' && e.owner === 0 && e.lane === id && e.wave);
     expect(lane(0).map((e) => e.unit)).toEqual(['archer', 'archer']);
     expect(lane(2).map((e) => e.unit)).toEqual(['ram']);
-    expect(lane(1).every((e) => e.unit === CLASS_CARDS[sim.players[0].laneClass[1]].unit)).toBe(true);
-    expect(lane(1).length).toBe(CLASS_CARDS[sim.players[0].laneClass[1]].wave);
-    expect(lane(0)[0].maxHp).toBe(Math.trunc((UNITS.archer.hp * WAVES.strengthPct) / 100));
+    expect(lane(1).every((e) => e.unit === CLASSES[sim.players[0].laneClass[1]].unit)).toBe(true);
+    expect(lane(1).length).toBe(CLASSES[sim.players[0].laneClass[1]].wave);
+    expect(lane(0)[0].maxHp).toBe(UNITS.archer.hp);
     // the opponent's lanes follow their own species
     const foe = sim.ents.filter((e) => e.kind === 'unit' && e.owner === 1 && e.wave).map((e) => e.unit);
-    for (const u of foe) expect(SPECIES.batu.classes.map((c) => CLASS_CARDS[c].unit)).toContain(u);
+    for (const u of foe) expect(SPECIES.batu.classes.map((c) => CLASSES[c].unit)).toContain(u);
   });
 
   test('changing a lane only changes that lane; another species’ class is refused', () => {
@@ -188,59 +190,5 @@ describe('class abilities', () => {
     queen.speed = 0;
     stepN(s2, UNITS.ratu.spawn!.every + 2);
     expect(s2.ents.filter((e) => e.kind === 'unit' && e.owner === 0 && e.unit === 'kerengga').length).toBe(2);
-  });
-});
-
-describe('species spells', () => {
-  const X = 570;
-  const Y = 4000;
-  const cast = (sim: Sim, card: 'gotong' | 'auman' | 'arus' | 'sengat' | 'gempa', x: number, y: number) => {
-    sim.players[0].hand = [card, 'firebolt', 'spearmen', 'archers'];
-    sim.players[0].mana = MANA.max;
-    sim.submit({ t: 'spell', player: 0, card, x, y });
-    stepN(sim, 15);
-  };
-
-  test('Gotong-royong heals and shields; Auman powers up your side', () => {
-    const sim = quiet();
-    const a = put(sim, 0, 'shieldbearer', X, Y);
-    a.speed = 0;
-    a.hp = 300;
-    cast(sim, 'gotong', X, Y);
-    expect(a.hp).toBeGreaterThanOrEqual(550);
-    expect(a.shield).toBeGreaterThan(0);
-    const s2 = quiet('hutan');
-    const b = put(s2, 0, 'kera', X, Y);
-    b.speed = 0;
-    cast(s2, 'auman', X, Y);
-    expect(b.dmgBuff).toBeGreaterThan(0);
-    expect(b.haste).toBeGreaterThan(0);
-  });
-
-  test('Arus washes enemies back; Sengat poisons; Gempa stuns and cracks towers', () => {
-    const sim = quiet('sungai');
-    const t = put(sim, 1, 'shieldbearer', X, Y);
-    t.speed = 0;
-    const y0 = t.y;
-    cast(sim, 'arus', X, Y);
-    expect(y0 - t.y).toBeGreaterThan(200);
-    expect(t.slow).toBeGreaterThan(0);
-
-    const s2 = quiet('serangga');
-    const t2 = put(s2, 1, 'shieldbearer', X, Y);
-    t2.speed = 0;
-    cast(s2, 'sengat', X, Y);
-    expect(t2.dot).toBeGreaterThan(0);
-
-    const s3 = quiet('batu');
-    const tower = s3.towerOf(1, 0)!;
-    const t3 = put(s3, 1, 'spearman', tower.x, tower.y + 200);
-    t3.speed = 0;
-    s3.players[0].hand = ['gempa', 'firebolt', 'kerikil', 'golem'];
-    s3.players[0].mana = MANA.max;
-    s3.submit({ t: 'spell', player: 0, card: 'gempa', x: tower.x, y: tower.y + 100 });
-    stepN(s3, 13);
-    expect(t3.stun).toBeGreaterThan(0);
-    expect(tower.hp).toBe(tower.maxHp - 100); // 200, halved by the first-minute tower shield
   });
 });

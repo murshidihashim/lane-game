@@ -3,7 +3,7 @@
 // rainforest map (drawn once and cached), batik/songket accents. Drawing only; no game rules.
 import { CAMPS, DENS, BOSS_PIT, FIELD, LANES, LANE_HALF, RIVER, SHRINES, WARD_SPOTS, inJungle, pointAt } from '../game/map';
 import { Rng } from '../game/math';
-import type { SpeciesId, UnitKind } from '../game/rules';
+import type { SpeciesId } from '../game/rules';
 import type { Sim } from '../game/sim';
 import { type Layout, toScreen } from './layout';
 
@@ -29,23 +29,6 @@ export type Glyph =
   | 'spear' | 'bow' | 'shield' | 'horns' | 'monkey' | 'paw' | 'beak' | 'gaur' | 'claw' | 'fish' | 'bolt' | 'ant' | 'bee'
   | 'beetle' | 'crown' | 'pebble' | 'boulder' | 'sling' | 'mask' | 'hut' | 'trunk' | 'fruit' | 'cave' | 'lantern' | 'gem'
   | 'heart' | 'roar' | 'wave' | 'sting' | 'crack' | 'dot';
-
-export const UNIT_GLYPH: Record<UnitKind, Glyph> = {
-  spearman: 'spear', archer: 'bow', shieldbearer: 'shield', ram: 'horns',
-  kera: 'monkey', harimau: 'paw', enggang: 'beak', seladang: 'gaur',
-  ketam: 'claw', sumpit: 'fish', belut: 'bolt',
-  kerengga: 'ant', tebuan: 'bee', kumbang: 'beetle', ratu: 'crown',
-  kerikil: 'pebble', golem: 'boulder', lontar: 'sling',
-  puppet: 'mask', decoy: 'dot', watchtower: 'hut', gajahmina: 'trunk',
-};
-
-export const SPELL_GLYPH: Record<string, Glyph> = {
-  firebolt: 'bolt', gotong: 'heart', auman: 'roar', arus: 'wave', sengat: 'sting', gempa: 'crack',
-};
-
-export const SPECIES_GLYPH: Record<SpeciesId, Glyph> = {
-  kampung: 'spear', hutan: 'paw', sungai: 'fish', serangga: 'bee', batu: 'boulder',
-};
 
 // ---------- glyphs: drawn in a box from -1 to 1, scaled to `s` ----------
 
@@ -198,42 +181,6 @@ export function teamColors(owner: number): { base: string; light: string; dark: 
   if (owner === 0) return { base: PAL.you, light: PAL.youLight, dark: PAL.youDark };
   if (owner === 1) return { base: PAL.foe, light: PAL.foeLight, dark: PAL.foeDark };
   return { base: PAL.neutral, light: PAL.gold, dark: PAL.woodDark };
-}
-
-/** A unit token: a coloured disc with an ink outline, a soft shadow and the class glyph. */
-export function token(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, owner: number, g: Glyph, opts: { flying?: boolean; square?: boolean; wave?: boolean; faded?: boolean } = {}): void {
-  const c = teamColors(owner);
-  ctx.save();
-  if (opts.faded) ctx.globalAlpha *= 0.5;
-  // shadow (further away for fliers)
-  ctx.fillStyle = 'rgba(10,20,10,0.35)';
-  ctx.beginPath();
-  ctx.ellipse(x + (opts.flying ? 4 : 1.5), y + r * 0.55 + (opts.flying ? 7 : 2), r * 0.95, r * 0.45, 0, 0, Math.PI * 2);
-  ctx.fill();
-  const yy = opts.flying ? y - 3 : y;
-  ctx.fillStyle = opts.wave ? c.light : c.base;
-  ctx.strokeStyle = PAL.ink;
-  ctx.lineWidth = Math.max(1, r * 0.16);
-  ctx.beginPath();
-  if (opts.square) {
-    const s = r * 0.92;
-    ctx.moveTo(x - s, yy - s * 0.6); ctx.lineTo(x - s * 0.6, yy - s); ctx.lineTo(x + s * 0.6, yy - s); ctx.lineTo(x + s, yy - s * 0.6);
-    ctx.lineTo(x + s, yy + s * 0.6); ctx.lineTo(x + s * 0.6, yy + s); ctx.lineTo(x - s * 0.6, yy + s); ctx.lineTo(x - s, yy + s * 0.6); ctx.closePath();
-  } else if (opts.flying) {
-    // wing-shaped token
-    ctx.moveTo(x - r * 1.25, yy - r * 0.2);
-    ctx.quadraticCurveTo(x - r * 0.6, yy - r * 1.05, x, yy - r * 0.6);
-    ctx.quadraticCurveTo(x + r * 0.6, yy - r * 1.05, x + r * 1.25, yy - r * 0.2);
-    ctx.quadraticCurveTo(x + r * 0.7, yy + r * 1.05, x, yy + r * 0.9);
-    ctx.quadraticCurveTo(x - r * 0.7, yy + r * 1.05, x - r * 1.25, yy - r * 0.2);
-    ctx.closePath();
-  } else {
-    ctx.arc(x, yy, r, 0, Math.PI * 2);
-  }
-  ctx.fill();
-  ctx.stroke();
-  if (r >= 6) glyph(ctx, g, x, yy + (opts.flying ? r * 0.1 : 0), r * 0.62, opts.wave ? c.dark : '#fff8e6');
-  ctx.restore();
 }
 
 /** Songket-style zigzag band (gold on maroon) for frames and HUD edges. */

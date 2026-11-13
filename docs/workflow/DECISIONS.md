@@ -52,6 +52,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | PLAN-010 | Full-width map and paper ultimate effects | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
 | PLAN-011 | Faster levelling to the ultimate | Approved (owner, 2026-11-13) | Implemented | 4/6 | Unreleased |
 | PLAN-012 | Ring menu for hero orders | Approved (owner, 2026-11-13) | Implemented | 5/7 | Unreleased |
+| PLAN-013 | Combat animation and hero feedback | Approved (owner, 2026-11-13) | Implemented | 7/9 | Unreleased |
 
 ## Decision details
 
@@ -548,3 +549,17 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 - 2026-11-13 08:32 · PLAN-012 delivery: implemented.
 - 2026-11-13 08:32 · DEC-021 delivery: implemented.
 - 2026-11-13 08:32 · REP-015 written: PLAN-012: the order ring.
+- 2026-11-13 08:48 · PLAN-013 proposed: Combat animation and hero feedback.
+- 2026-11-13 08:48 · Owner approved PLAN-013: "enhance all the character's animation, including ulti and where they are attacking, how they are attacking, there's not much visual feedback between heroes back to the playwr".
+- 2026-11-13 08:48 · PLAN-013 delivery: in progress.
+- 2026-11-13 09:04 · PLAN-013 T1: PASS (Fight screenshots in a bot match: arrows in flight, slash crescents, impact confetti, heavy thuds, attackers facing and lunging at targets; staged capture of a death toppling. Every ranged style has a drawing in src/ui/combat.ts.).
+- 2026-11-13 09:04 · PLAN-013 T2: PASS (Fight screenshots: gold dashed target lines with reticles from your heroes, damage numbers on hero fights (-64, -148, -75); tests/rules.test.ts checks hits carry attacker, target and damage.).
+- 2026-11-13 09:04 · PLAN-013 T3: PASS (Staged capture: cast rays, the hero's pop and flash, the shouted name in a gold bubble; charge ring with sparks while called; ULT badges above ready heroes in match screenshots.).
+- 2026-11-13 09:04 · PLAN-013 T4: PASS (Phone check: Kail answers a Push order ("Pushing Right!"); an off-screen hero gets an edge tab and tapping it scrolls to him. Screenshots: falling back, help, ready and spotted bubbles; stacked bubbles; red panel flash on a hurt hero; status badges.).
+- 2026-11-13 09:04 · PLAN-013 T5: PASS (Staged capture: a spearman's standee topples backwards and fades with paper scraps; tests/rules.test.ts checks deaths say what died.).
+- 2026-11-13 09:04 · PLAN-013 T6: PASS (Frame drawing time while playing (desktop test browser, iPhone 13 size, 4 s, two runs each): median 5.7-5.8 ms against 5.4-7.6 ms before; 90th percentile 10.3-11.1 ms against 10.4-12.7 ms. No measurable cost.).
+- 2026-11-13 09:04 · PLAN-013 T8: NOT RUN (Not yet tried on the owner's phone.).
+- 2026-11-13 09:04 · PLAN-013 T9: NOT RUN (Waiting for the owner's verdict.).
+- 2026-11-13 09:04 · REP-016 written: PLAN-013: combat animation and hero feedback.
+- 2026-11-13 09:06 · PLAN-013 T7: PASS (Rules unchanged: npm run verify 96/96 (determinism included); the 100-match soak gives exactly the same results as before (43/45/12, average 312 s, ultimate at 88 s); the 1,200-match balance check matches the PLAN-011 run number for number (species 47-53%, heroes 40-62%, draws 11%, early 0%); PHONE CHECK OK.).
+- 2026-11-13 09:06 · PLAN-013 delivery: implemented.

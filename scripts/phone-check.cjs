@@ -143,6 +143,12 @@ async function page(browser, query) {
     const po = await order();
     if (!(['push', 'gank'].includes(po.type) && po.lane === 2)) fail('Push on the right lane gave ' + JSON.stringify(po));
     else console.log(`PASS ring → Push, tap the right lane gives ${po.type} lane 2`);
+    // heroes talk back (PLAN-013): the order gets an answer in a speech bubble
+    await p.waitForTimeout(150);
+    const said = await p.evaluate(() => { const g = window.__game; const h = g.sim.heroOf(0, 'kail'); const t = g.renderer.talk.get(h.id); return t ? { text: t.text, ago: Math.round(performance.now() - t.at) } : null; });
+    if (!said || said.ago > 2500 || !/Pushing|Ganking/.test(said.text)) fail('Kail did not answer the Push order: ' + JSON.stringify(said));
+    else console.log(`PASS Kail answers the order in a speech bubble ("${said.text}")`);
+    await p.screenshot({ path: `${out}/3e-answer.png` });
     // Attack: an enemy in sight gets a red ring; tap it
     const foeId = await p.evaluate(() => { const sim = window.__game.sim; const h = sim.heroOf(0, 'kail'); const e = sim.summon(1, 'shieldbearer', h.x + 120, h.y - 380, 0); e.speed = 0; return e.id; });
     await p.waitForTimeout(100);
@@ -290,6 +296,19 @@ async function page(browser, query) {
     v = await cam();
     if (!(v.scale / v.home > 1.5)) fail('pinch did not zoom in: ' + (v.scale / v.home));
     else console.log(`PASS a two-finger pinch zooms in (${(v.scale / v.home).toFixed(2)}x the full-width view)`);
+    // a hero off the screen gets a tab at the map's edge; tapping it looks there (PLAN-013)
+    await p.evaluate(() => { const g = window.__game; const h = g.sim.heroOf(0, 'kail'); g.setView({ zoom: g.base.homeScale / g.base.baseScale, cx: 1950, cy: h.y < 3470 ? 6440 : 500 }); });
+    await p.waitForTimeout(200);
+    const kt = (await p.evaluate(() => window.__game.renderer.offscreen)).find((t) => t.hero === 'kail');
+    if (!kt) fail('no edge tab for Kail when he is off the screen');
+    else {
+      await p.screenshot({ path: `${out}/8-edge-tab.png` });
+      await p.mouse.click(kt.x, kt.y);
+      await p.waitForTimeout(200);
+      const onScreen = await p.evaluate(() => { const g = window.__game; const h = g.sim.heroOf(0, 'kail'); const L = g.layout; const y = L.field.y + (h.y - L.vy) * L.scale; return y > L.field.y && y < L.field.y + L.field.h; });
+      if (!onScreen) fail('tapping Kail\'s edge tab did not bring him into view');
+      else console.log('PASS an off-screen hero has a tab at the map\'s edge; tapping it scrolls to him');
+    }
     if (errors.length) fail('page errors: ' + errors.join(' | '));
   }
 

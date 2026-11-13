@@ -69,10 +69,13 @@ Order colours and species colours are unchanged; see the code (`ORDER_COLORS` an
    - Never print motifs that could be mistaken for map markers.
 3. **Team colour is the base and a sash, never the character's own colours.** Blue for you, red for
    the bot, as before.
-4. **Pieces move like pieces.** Unchanged from v2:
+4. **Pieces move like pieces.**
    - eight walk frames that follow distance walked;
    - idle breathing and three attack beats;
-   - a white flash when hit, and a rise from the base when appearing.
+   - a white flash when hit, and a rise from the base when appearing;
+   - while fighting, a piece faces its target and lunges a little on the strike; ranged pieces rock
+     back instead (PLAN-013);
+   - when a piece dies, its paper standee topples backwards and fades as paper scraps fly.
    - Heroes are about 34 px tall and troops about 21 px in the usual full-width view (DEC-019); both
      grow when you zoom in, and shrink a little in the whole-map view.
 5. **Draw once, copy every frame.**
@@ -114,6 +117,42 @@ Order colours and species colours are unchanged; see the code (`ORDER_COLORS` an
 | Gajah Mina's pool | an indigo paper oval with wave lines and a stitched edge |
 | Ward cairns | two paper pebbles |
 | Order spots, items, relics | the symbols from v2, unchanged |
+
+## Combat you can read (PLAN-013)
+
+Code: `src/ui/combat.ts` and `src/ui/render.ts`.
+
+- **How they attack.** Every ranged attacker throws something you can see, all cut paper:
+  - arrows for archers, Rimba, Helang and watchtowers;
+  - sling stones (lobbed) for Lontar;
+  - water jets for archerfish and Hujan, and spit for Tedung and the hive queen;
+  - coins for Saudagar and bamboo darts for Tukang;
+  - star-bolts for the casters;
+  - gold darts for towers.
+
+  Melee hits sweep a paper crescent across the target, and heavy hitters thud a ring at its feet.
+  Paper confetti bursts from every hit.
+- **Where they attack.** A visible hero that is fighting shows a dashed line and a turning reticle
+  on its target. Yours are gold; an enemy hero hitting your side is red. Hits by or on heroes float
+  a damage number: cream for damage you deal, red for damage you take.
+- **Ultimates on the hero.**
+  - While called and waiting: a turning gold ring with orbiting sparks.
+  - When it fires: paper rays burst behind the hero, which pops up and flashes, and shouts the
+    ultimate's name in a gold-edged bubble.
+  - Ready: a bobbing gold ULT badge.
+- **Heroes talk back.** Short paper speech bubbles, which step up rather than overlap:
+  - answering every order ("Pushing Right!", "After Belang!");
+  - "Waiting for our troops…", "Falling back to heal!" and "Help! I'm in trouble!";
+  - "Flash Flood is ready!", "Belang spotted!" and "Back in the fight!".
+
+  Ordinary remarks are at least 2.3 s apart; urgent ones always show.
+- **Status.** Spinning paper stars mean stunned, a struck-through speech bubble means silenced, and
+  falling green drops mean poisoned; a frost ring at the feet means slowed.
+- **Off the screen.** Your hero gets a paper tab with its portrait at the map's edge, pointing to it:
+  red when it is hurt, gold when it casts. Its speech bubble goes beside the tab. Tap the tab to
+  look there.
+- **Panels.** A hero's panel flashes red when the hero is hit, and says "⚔ vs Belang" while it fights
+  an enemy hero.
 
 ## What is not done yet
 

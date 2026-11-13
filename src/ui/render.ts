@@ -1,8 +1,9 @@
 // Drawing only, in the batik paper style (DEC-018, DEC-013). Reads the match state and the UI state;
 // never changes the rules. The painted map is cached (see art.ts); characters come from figures.ts,
 // ultimate effects from ultfx.ts; the fog of war (DEC-012) is drawn over everything you can't see.
-import { CORES, FIELD, LANES, LANE_HALF, pointAt } from '../game/map';
+import { CORES, FIELD, LANES, LANE_HALF, LANE_NAMES, pointAt } from '../game/map';
 import { CLASSES, HEROES, ITEMS, ITEM_SLOTS, MANA, MATCH, TICKS_PER_SECOND, UNITS, WARDS, type HeroKind, type ItemId } from '../game/rules';
+import { type AttackStyle, type BubbleRects, attackStyle, drawBubble, drawCastRays, drawCharge, drawEdgeTab, drawImpact, drawNumber, drawShot, drawSlash, drawStatus, drawTargetLine, drawThud, drawUltBadge, flightMs } from './combat';
 import type { Ent, GameEvent, Sim } from '../game/sim';
 import { MapPainter, PAL, SPECIES_COLORS, batikPattern, glyph, kubu, pusaka, songket, teamColors, type Glyph } from './art';
 import { drawHeroFigure, drawPortrait, drawTroopFigure, heroScale } from './figures';
@@ -34,7 +35,19 @@ export interface UiState {
   toast: { text: string; until: number } | null;
 }
 
-interface Fx { ev: GameEvent; born: number; slot: number }
+interface Fx {
+  ev: GameEvent; born: number; slot: number;
+  /** Hits (PLAN-013): how the attacker strikes, and a damage number when a hero was involved. */
+  style?: AttackStyle; num?: 'dealt' | 'taken';
+  /** Deaths: which way the piece faced, so it topples the right way. */
+  facing?: 1 | -1;
+}
+
+/** What one of your heroes last said, and what it was doing, to notice changes worth a word (PLAN-013). */
+interface Talk { sig: string; waiting: boolean; fallback: boolean; low: boolean; ult: boolean; alive: boolean; text: string; color: string; at: number }
+
+const SAY_MS = 1900; // how long a speech bubble stays
+const SAY_GAP_MS = 2300; // the quietest a hero stays between ordinary remarks
 
 export const DRAG_LIFT = 28; // while aiming with the finger down, the aim point sits a little above it
 
@@ -50,11 +63,21 @@ export class Renderer {
   private fogWash: HTMLCanvasElement | null = null;
   private painter = new MapPainter();
   private now = 0;
+  /** When each hero's ultimate fired (`owner:hero`), for its cast moment on the hero (PLAN-013). */
+  private casts = new Map<string, number>();
+  private talk = new Map<number, Talk>();
+  /** When each enemy hero was last in sight, so coming back into sight gets called out. */
+  private spotted = new Map<number, number>();
+  /** Your heroes that are off the screen, as tabs at the map's edge (tap one to look there). */
+  offscreen: { hero: HeroKind; x: number; y: number }[] = [];
+  /** Speech bubbles placed this frame (they step up rather than overlap). */
+  private bubbles: BubbleRects = [];
 
-  addEvents(evs: GameEvent[], now: number): void {
+  addEvents(evs: GameEvent[], now: number, sim?: Sim): void {
     for (const ev of evs) {
       if (ev.k === 'ult') {
         this.ults.push({ hero: ev.hero, owner: ev.owner, x: ev.x, y: ev.y, r: ev.r, x2: ev.x2, y2: ev.y2, start: now });
+        this.casts.set(`${ev.owner}:${ev.hero}`, now);
         continue;
       }
       // Stack pop-up texts that appear at the same place at the same time, so they don't overlap.
@@ -64,7 +87,17 @@ export class Renderer {
           if (f.ev.k === 'text' && now - f.born < 800 && Math.abs(f.ev.x - ev.x) < 600 && Math.abs(f.ev.y - ev.y) < 400) slot = Math.max(slot, f.slot + 1);
         }
       }
-      this.fx.push({ ev, born: now, slot });
+      const f: Fx = { ev, born: now, slot };
+      if (ev.k === 'hit') {
+        // how the attacker strikes (looked up now: it may be gone by the time the shot lands)
+        const a = sim && ev.from ? sim.get(ev.from) : undefined;
+        const t = sim && ev.to ? sim.get(ev.to) : undefined;
+        const team = teamColors(ev.owner).light;
+        f.style = a ? attackStyle(a.kind, a.hero, a.unit, a.range, team) : { shot: ev.ranged ? 'bolt' : null, color: team, heavy: false };
+        if (a && t && (ev.dmg ?? 0) > 0 && (a.kind === 'hero' || t.kind === 'hero')) f.num = t.owner === 0 ? 'taken' : 'dealt';
+      }
+      if (ev.k === 'death' && ev.id) f.facing = this.facing.get(ev.id) ?? 1;
+      this.fx.push(f);
     }
     if (this.fx.length > 400) this.fx.splice(0, this.fx.length - 400);
   }
@@ -73,6 +106,10 @@ export class Renderer {
     this.fx = [];
     this.ults = [];
     this.lastSeen.clear();
+    this.casts.clear();
+    this.talk.clear();
+    this.spotted.clear();
+    this.offscreen = [];
     this.facing.clear();
     this.anim.clear();
   }
@@ -85,6 +122,8 @@ export class Renderer {
     ctx.fillStyle = batikPattern(ctx, 'cloth', l.dpr);
     ctx.fillRect(0, 0, l.w, l.h);
     this.drawField(ctx, l, sim);
+    this.updateTalk(sim, now);
+    this.bubbles = [];
     ctx.save();
     ctx.beginPath();
     ctx.rect(l.field.x, l.field.y, l.field.w, l.field.h);
@@ -96,6 +135,8 @@ export class Renderer {
     this.drawHealthOverFog(ctx, l, sim);
     this.drawUltBanners(ctx, l, now);
     this.drawCommandTargets(ctx, l, sim, ui, alpha, now);
+    this.drawBubbles(ctx, l, sim, alpha, now);
+    this.drawOffscreen(ctx, l, sim, alpha, now);
     ctx.restore();
     this.drawZoomButton(ctx, l);
     this.drawTop(ctx, l, sim);
@@ -220,6 +261,7 @@ export class Renderer {
       for (const id of this.anim.keys()) if (!live.has(id)) this.anim.delete(id);
     }
     people.sort((a, b) => (a.flying === b.flying ? a.y - b.y || a.id - b.id : a.flying ? 1 : -1));
+    this.drawTargetLines(ctx, l, sim, alpha, now);
     for (const e of people) {
       if (e.kind === 'hero') this.drawHero(ctx, l, sim, e, alpha, now);
       else if (sim.sees(0, e)) this.drawUnit(ctx, l, sim, e, alpha, now);
@@ -384,13 +426,28 @@ export class Renderer {
     return [e.px + (e.x - e.px) * alpha, e.py + (e.y - e.py) * alpha];
   }
 
-  private face(e: Ent): 1 | -1 {
+  /** Which way a piece faces: towards what it is hitting while it fights, else the way it walks. */
+  private face(e: Ent, sim: Sim): 1 | -1 {
     const dx = e.x - e.px;
     let f = this.facing.get(e.id) ?? (e.owner === 1 ? -1 : 1);
-    if (dx > 1) f = 1;
+    const t = e.atkCd > 0 && e.targetId ? sim.get(e.targetId) : undefined;
+    if (t && Math.abs(t.x - e.x) > 20) f = t.x > e.x ? 1 : -1;
+    else if (dx > 1) f = 1;
     else if (dx < -1) f = -1;
     this.facing.set(e.id, f);
     return f;
+  }
+
+  /** During a strike, melee pieces lunge a little towards their target and ranged ones rock back (PLAN-013). */
+  private lunge(e: Ent, sim: Sim, attack: number, g: number): [number, number] {
+    if (attack < 0.3 || attack > 0.85 || !e.targetId) return [0, 0];
+    const t = sim.get(e.targetId);
+    if (!t) return [0, 0];
+    const dx = t.x - e.x;
+    const dy = t.y - e.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const k = Math.sin(((attack - 0.3) / 0.55) * Math.PI) * (e.range > 300 ? -2 : 5) * g;
+    return [(dx / d) * k, (dy / d) * k];
   }
 
   /**
@@ -435,13 +492,13 @@ export class Renderer {
     } else {
       const p = this.pose(e, wx, wy, now);
       const faded = kind === 'decoy' && e.owner !== 0 ? 1 : kind === 'decoy' ? 0.55 : 1;
-      drawTroopFigure(ctx, kind, x, y, TROOP_H * g, e.owner, l.dpr, {
-        facing: this.face(e), ...p, flying: e.flying, wave: e.wave, alpha: (e.deploy > 0 ? 0.5 : 1) * faded,
+      const [lx, ly] = this.lunge(e, sim, p.attack, g);
+      drawTroopFigure(ctx, kind, x + lx, y + ly, TROOP_H * g, e.owner, l.dpr, {
+        facing: this.face(e, sim), ...p, flying: e.flying, wave: e.wave, alpha: (e.deploy > 0 ? 0.5 : 1) * faded,
       });
     }
-    this.marks(ctx, e, x, y - 9 * g, 7 * g);
+    this.marks(ctx, e, x, y - 9 * g, 7 * g, now);
     if (e.hp < e.maxHp) hpBar(ctx, x, y - TROOP_H * g - 4, 16 * g, e.hp / e.maxHp, teamColors(e.owner).light);
-    void sim;
   }
 
   private drawHero(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, e: Ent, alpha: number, now: number): void {
@@ -456,17 +513,23 @@ export class Renderer {
     const g = this.grow(l);
     const ht = HERO_H * g * heroScale(kind);
     const top = y - ht * 1.06 - (fly ? 12 * g : 0) - 4; // clear of the head and the team pennant
+    // the ultimate's cast moment (PLAN-013): rays behind, the hero pops up and flashes
+    const castAt = this.casts.get(`${e.owner}:${kind}`);
+    const ct = castAt === undefined ? 9 : (now - castAt) / 850;
+    const pop = ct < 1 ? 1 + 0.3 * Math.sin(Math.PI * Math.min(1, ct * 1.7)) : 1;
     ctx.save();
-    // ULT ready (yours): a gold ring at the feet; called: a pulsing one.
-    if (mine && e.ultReady) {
-      const pulse = e.ultArmed ? 0.5 + 0.5 * Math.sin(now / 140) : 0.6;
-      ctx.strokeStyle = `rgba(224,176,74,${0.45 + 0.4 * pulse})`;
-      ctx.lineWidth = e.ultArmed ? 3 : 2;
+    if (ct < 1) drawCastRays(ctx, x, y - ht * 0.5, ct, g, teamColors(e.owner).base);
+    // ULT ready (yours): a gold ring at the feet; called: a turning ring with sparks, waiting for its moment
+    if (mine && e.ultReady && e.ultArmed) drawCharge(ctx, x, y + 1, g, now);
+    else if (mine && e.ultReady) {
+      ctx.strokeStyle = 'rgba(224,176,74,0.75)';
+      ctx.lineWidth = 2;
       ctx.beginPath(); ctx.ellipse(x, y + 1, 17 * g, 6.5 * g, 0, 0, Math.PI * 2); ctx.stroke();
     }
     if (e.ultUntil > sim.tick) drawUltAura(ctx, kind, x, y, ht, now);
-    drawHeroFigure(ctx, kind, x, y, HERO_H * g, e.owner, l.dpr, {
-      facing: this.face(e), ...p, flying: fly, transformed: e.transformed,
+    const [lx, ly] = this.lunge(e, sim, p.attack, g);
+    drawHeroFigure(ctx, kind, x + lx, y + ly, HERO_H * g * pop, e.owner, l.dpr, {
+      facing: this.face(e, sim), ...p, hurt: Math.max(p.hurt, ct < 0.3 ? 1 - ct / 0.3 : 0), flying: fly, transformed: e.transformed,
       alpha: mine && e.hidden ? 0.6 : 1,
     });
     // level badge and fury
@@ -477,8 +540,9 @@ export class Renderer {
     label(ctx, String(e.level), x + 13 * g, top + 2.5, INK, 9);
     if (e.fury > 0) label(ctx, '✹', x - 14 * g, top + 2, '#ff7a3d', 11);
     ctx.restore();
-    this.marks(ctx, e, x, y - ht * 0.5, 12 * g);
+    this.marks(ctx, e, x, y - ht * 0.5, 12 * g, now);
     hpBar(ctx, x - 2, top + 2, 22 * g, e.hp / e.maxHp, mine ? PAL.youLight : PAL.foeLight);
+    if (mine && e.ultReady && ct >= 1 && !this.saying(e.id, now)) drawUltBadge(ctx, x, top - 7, now);
   }
 
   /** An enemy hero that slipped into the fog or the jungle: a fading "?" where it was last seen. */
@@ -498,13 +562,10 @@ export class Renderer {
   }
 
   /** Small marks for effects on a unit or hero. */
-  private marks(ctx: CanvasRenderingContext2D, e: Ent, x: number, y: number, r: number): void {
+  private marks(ctx: CanvasRenderingContext2D, e: Ent, x: number, y: number, r: number, now: number): void {
     ctx.save();
-    if (e.slow > 0) {
-      ctx.strokeStyle = '#a8e6ff';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(x, y, r + 2.5, 0, Math.PI * 2); ctx.stroke();
-    }
+    // stun stars, a silenced bubble, poison drops and a frost ring at the feet (PLAN-013)
+    drawStatus(ctx, e, x, y - r * 0.6, r, now);
     if (e.shield > 0) {
       ctx.strokeStyle = '#f2fbff';
       ctx.lineWidth = 2.5;
@@ -523,22 +584,163 @@ export class Renderer {
       ctx.moveTo(x, y - r - 5); ctx.lineTo(x, y + r + 5);
       ctx.stroke();
     }
-    let icons = '';
-    if (e.stun > 0) icons += '✶';
-    if (e.silence > 0) icons += '⊘';
-    if (e.dot > 0) icons += '•';
-    if (e.immune > 0) icons += '◆';
-    if (icons) {
+    if (e.immune > 0) {
       ctx.font = 'bold 10px system-ui';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.lineWidth = 3;
       ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-      ctx.strokeText(icons, x, y - r - 13);
-      ctx.fillStyle = e.dot > 0 && icons === '•' ? '#8be36b' : '#ffe066';
-      ctx.fillText(icons, x, y - r - 13);
+      ctx.strokeText('◆', x, y - r - 13);
+      ctx.fillStyle = '#ffe066';
+      ctx.fillText('◆', x, y - r - 13);
     }
     ctx.restore();
+  }
+
+  // ---------- where heroes attack, and heroes talking back (PLAN-013) ----------
+
+  /** Each visible hero that is fighting: a line to what it is hitting, with a reticle. Yours in gold;
+   *  an enemy hero hitting one of your pieces in red. */
+  private drawTargetLines(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, alpha: number, now: number): void {
+    const g = this.grow(l);
+    for (const h of sim.ents) {
+      if (h.kind !== 'hero' || !h.alive || !h.targetId || h.atkCd <= 0) continue;
+      const mine = h.owner === 0;
+      if (!mine && !sim.sees(0, h)) continue;
+      const t = sim.get(h.targetId);
+      if (!t || !t.alive || t.hp <= 0) continue;
+      if (!mine && t.owner !== 0) continue;
+      if (mine && t.kind !== 'tower' && t.kind !== 'core' && t.kind !== 'camp' && !sim.sees(0, t)) continue;
+      const [hx, hy] = toScreen(l, ...this.pos(h, alpha));
+      const [tx, ty] = toScreen(l, ...this.pos(t, alpha));
+      const big = t.kind === 'tower' || t.kind === 'core' || t.kind === 'camp';
+      const r = big ? Math.max(14, t.r * l.scale) : t.kind === 'hero' ? 12 * g : 9 * g;
+      drawTargetLine(ctx, hx, hy - 12 * g, tx, big ? ty : ty - 10 * g, mine ? '#ffd98a' : '#ff7a5c', r, now);
+    }
+  }
+
+  /** Is a hero saying something right now? */
+  private saying(id: number, now: number): boolean {
+    const m = this.talk.get(id);
+    return !!m && now - m.at < SAY_MS;
+  }
+
+  /** Notice what your heroes are up to and give them a word when something changes (rate-limited). */
+  private updateTalk(sim: Sim, now: number): void {
+    for (const h of sim.heroes(0)) {
+      const sig = `${h.order.type}:${h.order.lane}:${h.order.camp}:${h.order.spot}:${h.order.target}:${h.order.x}:${h.order.y}`;
+      const low = h.alive && h.hp * 100 < h.maxHp * 30;
+      let m = this.talk.get(h.id);
+      if (!m) {
+        m = { sig, waiting: h.waiting, fallback: h.fallback, low, ult: h.ultReady, alive: h.alive, text: '', color: PAL.you, at: -1e9 };
+        this.talk.set(h.id, m);
+        continue;
+      }
+      const memo = m;
+      const say = (text: string, color: string, urgent: boolean) => {
+        if (!urgent && now - memo.at < SAY_GAP_MS) return;
+        memo.text = text; memo.color = color; memo.at = now;
+      };
+      if (h.alive && !m.alive) say('Back in the fight!', PAL.you, true);
+      else if (h.alive) {
+        const foeNear = sim.heroes(1).some((o) => o.alive && sim.sees(0, o) && Math.hypot(o.x - h.x, o.y - h.y) < 900);
+        if (low && !m.low) say(foeNear ? 'Help! I\'m in trouble!' : 'I\'m badly hurt!', PAL.foe, true);
+        else if (h.fallback && !m.fallback) say('Falling back to heal!', PAL.foe, true);
+        else if (h.ultReady && !m.ult) say(`${HEROES[h.hero as HeroKind].ult.name} is ready!`, PAL.gold, true);
+        else if (sig !== m.sig) say(this.orderSpeech(h, sim), PAL.you, true); // a new order always gets an answer
+        else if (h.waiting && !m.waiting) say('Waiting for our troops…', PAL.you, false);
+      }
+      m.sig = sig; m.waiting = h.waiting; m.fallback = h.fallback; m.low = low; m.ult = h.ultReady; m.alive = h.alive;
+    }
+    // an enemy hero coming back into sight: the nearest of your heroes calls it out
+    for (const e of sim.heroes(1)) {
+      if (!e.alive || !sim.sees(0, e)) continue;
+      const last = this.spotted.get(e.id) ?? -1e9;
+      this.spotted.set(e.id, now);
+      if (now - last < 8000) continue;
+      let best: Ent | null = null;
+      let bestD = 1600;
+      for (const h of sim.heroes(0)) {
+        const d = Math.hypot(h.x - e.x, h.y - e.y);
+        if (h.alive && d < bestD) { bestD = d; best = h; }
+      }
+      const m = best ? this.talk.get(best.id) : undefined;
+      if (m && now - m.at > 900) { m.text = `${HEROES[e.hero as HeroKind].name} spotted!`; m.color = PAL.foe; m.at = now; }
+    }
+  }
+
+  /** What a hero says when it takes up an order. */
+  private orderSpeech(h: Ent, sim: Sim): string {
+    const lane = LANE_NAMES[h.order.lane] ?? '';
+    switch (h.order.type) {
+      case 'push': return `Pushing ${lane}!`;
+      case 'gank': return `Ganking ${lane}!`;
+      case 'defend': return `Defending ${lane}!`;
+      case 'farm': return sim.get(h.order.camp)?.kind === 'relic' ? 'Getting the relic!' : 'Clearing the camp!';
+      case 'ward': return 'Placing a ward!';
+      case 'retreat': return 'Heading home!';
+      case 'move': return 'On my way!';
+      case 'attack': {
+        const t = sim.get(h.order.target);
+        return t?.kind === 'hero' ? `After ${HEROES[t.hero as HeroKind].name}!` : 'Attacking!';
+      }
+      default: return 'On it!';
+    }
+  }
+
+  /** Your heroes' speech bubbles above their heads (or by their edge tab when off the screen). */
+  private drawBubbles(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, alpha: number, now: number): void {
+    const g = this.grow(l);
+    // a hero shouts its ultimate's name as it fires (yours, and the enemy's you can see)
+    for (const e of sim.ents) {
+      if (e.kind !== 'hero' || !e.alive || (e.owner !== 0 && !sim.sees(0, e))) continue;
+      const castAt = this.casts.get(`${e.owner}:${e.hero}`);
+      const ct = castAt === undefined ? 9 : (now - castAt) / 850;
+      if (ct >= 1.6) continue;
+      const [x, y] = toScreen(l, ...this.pos(e, alpha));
+      const top = y - HERO_H * g * heroScale(e.hero as HeroKind) * 1.06 - 10;
+      drawBubble(ctx, x, top, `${HEROES[e.hero as HeroKind].ult.name}!`, ct < 1.3 ? 1 : 1 - (ct - 1.3) / 0.3, PAL.gold, l.field.x, l.field.x + l.field.w, this.bubbles);
+    }
+    for (const h of sim.heroes(0)) {
+      const m = this.talk.get(h.id);
+      if (!m || !h.alive || now - m.at >= SAY_MS) continue;
+      const castAt = this.casts.get(`0:${h.hero}`);
+      if (castAt !== undefined && now - castAt < 1400) continue; // the ultimate's shout has the stage
+      const [x, y] = toScreen(l, ...this.pos(h, alpha));
+      const top = y - HERO_H * g * heroScale(h.hero as HeroKind) * 1.06 - 10;
+      if (x < l.field.x || x > l.field.x + l.field.w || top < l.field.y + 20 || y > l.field.y + l.field.h) continue; // drawn at its edge tab
+      const a = now - m.at > SAY_MS - 300 ? (SAY_MS - (now - m.at)) / 300 : 1;
+      drawBubble(ctx, x, top, m.text, a, m.color, l.field.x, l.field.x + l.field.w, this.bubbles);
+    }
+  }
+
+  /** Your heroes off the screen: a tab at the map's edge with the portrait, red when hurt, gold when
+   *  casting; its speech bubble beside it. Tap a tab to look there. */
+  private drawOffscreen(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, alpha: number, now: number): void {
+    this.offscreen = [];
+    const f = l.field;
+    const m = 20;
+    for (const h of sim.heroes(0)) {
+      if (!h.alive) continue;
+      const [x, y0] = toScreen(l, ...this.pos(h, alpha));
+      const y = y0 - 14;
+      if (x >= f.x + 4 && x <= f.x + f.w - 4 && y >= f.y + 4 && y <= f.y + f.h - 4) continue;
+      const tx = Math.max(f.x + m, Math.min(f.x + f.w - m, x));
+      const ty = Math.max(f.y + m, Math.min(f.y + f.h - m - 34, y)); // clear of the zoom button row at the bottom
+      const a = Math.atan2(y - ty, x - tx);
+      const hurtAt = this.anim.get(h.id)?.hurtAt ?? -1e9;
+      const castAt = this.casts.get(`0:${h.hero}`) ?? -1e9;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 120);
+      const ring = now - castAt < 2000 ? PAL.gold : now - hurtAt < 1500 ? (pulse > 0.5 ? PAL.foe : '#ff9a8a') : PAL.you;
+      const kind = h.hero as HeroKind;
+      drawEdgeTab(ctx, tx, ty, a, ring, () => drawPortrait(ctx, kind, tx, ty, 11, 0, l.dpr));
+      this.offscreen.push({ hero: kind, x: tx, y: ty });
+      const t = this.talk.get(h.id);
+      if (t && now - t.at < SAY_MS) {
+        const by = ty < f.y + f.h / 2 ? ty + 46 : ty - 16;
+        drawBubble(ctx, tx, by, t.text, 1, t.color, f.x, f.x + f.w, this.bubbles);
+      }
+    }
   }
 
   private drawOrderLine(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, h: Ent, alpha: number): void {
@@ -577,19 +779,28 @@ export class Renderer {
       ctx.save();
       switch (ev.k) {
         case 'hit': {
-          if (age > 160) break;
+          // PLAN-013: the shot flies from the attacker to the target (or a melee slash lands), then
+          // paper bursts from the hit, heavy hitters thud, and hero fights show the damage
+          const st = f.style;
           const [x1, y1] = toScreen(l, ev.x1, ev.y1);
           const [x2, y2] = toScreen(l, ev.x2, ev.y2);
-          ctx.globalAlpha = 1 - age / 160;
-          if (ev.ranged) {
-            ctx.strokeStyle = ev.owner === 0 ? '#dbe8ff' : ev.owner === 1 ? '#ffd8cc' : '#ffe2a0';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-          } else {
-            // ink slash
-            ctx.strokeStyle = '#fff6d8';
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(x2 - 4, y2 - 4); ctx.lineTo(x2 + 4, y2 + 4); ctx.stroke();
+          const g = this.grow(l);
+          const body = 10 * g; // aim at the body, not the feet
+          const a = Math.atan2(y2 - y1, x2 - x1);
+          const dur = st?.shot ? flightMs(Math.hypot(ev.x2 - ev.x1, ev.y2 - ev.y1)) : 0;
+          if (st?.shot && age < dur) {
+            const t = age / dur;
+            const lob = st.shot === 'stone' || st.shot === 'coin' ? Math.sin(Math.PI * t) * 20 * g : 0;
+            drawShot(ctx, st.shot, x1 + (x2 - x1) * t, y1 - body + (y2 - y1) * t - lob, a, g, st.color, teamColors(ev.owner).base, now);
+            break;
+          }
+          const land = age - dur;
+          if (!st?.shot && land < 220) drawSlash(ctx, x2, y2 - body, a, land / 220, g, st?.color ?? '#fff6d8');
+          if (st?.heavy && land < 320) drawThud(ctx, x2, y2, land / 320, g);
+          if (land < 200) drawImpact(ctx, x2, y2 - body, land / 200, g, st?.color ?? PAL.paperEdge, ev.from ?? 0);
+          if (f.num && land < 750) {
+            const jitter = (((ev.from ?? 0) % 3) - 1) * 6;
+            drawNumber(ctx, x2 + jitter, y2 - body - 12 * g, `-${ev.dmg ?? 0}`, land / 750, f.num === 'taken' ? '#ff8a7a' : '#fff3c4', f.num === 'taken' ? 12 : 11);
           }
           break;
         }
@@ -617,14 +828,25 @@ export class Renderer {
           break;
         }
         case 'death': {
-          if (age > 450) break;
+          // PLAN-013: the paper standee topples backwards and fades; paper scraps fly
           const [x, y] = toScreen(l, ev.x, ev.y);
-          ctx.globalAlpha = 1 - age / 450;
-          ctx.fillStyle = ev.owner === 0 ? PAL.youLight : ev.owner === 1 ? PAL.foeLight : PAL.gold;
-          for (let i = 0; i < (ev.big ? 8 : 4); i++) {
-            const a = (i / (ev.big ? 8 : 4)) * Math.PI * 2;
-            const d = 3 + age / (ev.big ? 18 : 30);
-            ctx.beginPath(); ctx.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, ev.big ? 2.5 : 1.5, 0, Math.PI * 2); ctx.fill();
+          const g = this.grow(l);
+          const team = ev.owner === 0 ? PAL.youLight : ev.owner === 1 ? PAL.foeLight : PAL.gold;
+          if (age < 450) {
+            const n = ev.big ? 3 : 1;
+            for (let k = 0; k < n; k++) drawImpact(ctx, x + (k - 1) * 6 * g, y - 8 * g, age / 450, g * (ev.big ? 1.6 : 1), team, (ev.id ?? 0) + k * 3);
+          }
+          if ((ev.hero || ev.unit) && age < 700) {
+            const t = age / 700;
+            const fall = Math.min(1, t * 1.7);
+            const dir = -(f.facing ?? 1); // falls backwards, away from what it faced
+            ctx.globalAlpha = t < 0.55 ? 1 : 1 - (t - 0.55) / 0.45;
+            ctx.translate(x, y);
+            ctx.rotate(dir * (Math.PI / 2) * fall * fall);
+            ctx.translate(-x, -y);
+            const o = { facing: f.facing ?? 1, walk: 0, attack: 0, hurt: 0.7 * (1 - t) } as const;
+            if (ev.hero) drawHeroFigure(ctx, ev.hero, x, y, HERO_H * g, ev.owner, l.dpr, o);
+            else if (ev.unit) drawTroopFigure(ctx, ev.unit, x, y, TROOP_H * g, ev.owner, l.dpr, o);
           }
           break;
         }
@@ -996,6 +1218,14 @@ export class Renderer {
     ctx.lineWidth = sel ? 3 : 1.5;
     roundRect(ctx, b.x, b.y, b.w, b.h, 9);
     ctx.fill(); ctx.stroke();
+    // PLAN-013: the panel flashes red when its hero is hit
+    const hurtAgo = h ? this.now - (this.anim.get(h.id)?.hurtAt ?? -1e9) : 1e9;
+    if (hurtAgo < 450) {
+      ctx.strokeStyle = `rgba(192,57,43,${0.9 * (1 - hurtAgo / 450)})`;
+      ctx.lineWidth = 3;
+      roundRect(ctx, b.x + 1.5, b.y + 1.5, b.w - 3, b.h - 3, 8);
+      ctx.stroke();
+    }
     // portrait with the power ring
     const pr = p.portrait.w / 2 - 3;
     const pc = { x: p.portrait.x + p.portrait.w / 2, y: p.portrait.y + p.portrait.h / 2 };
@@ -1036,7 +1266,9 @@ export class Renderer {
       ctx.font = '9.5px system-ui';
       ctx.fillStyle = '#5a4630';
       // what the hero is doing, including when it acts on its own (DEC-017)
-      const doing = h.fallback ? 'Healing at home' : h.waiting ? `${orderLabel(h, sim)} · waiting for troops` : orderLabel(h, sim);
+      const foe = h.atkCd > 0 && h.targetId ? sim.get(h.targetId) : undefined;
+      const fighting = foe && foe.alive && foe.kind === 'hero' ? `⚔ vs ${HEROES[foe.hero as HeroKind].name}` : '';
+      const doing = h.fallback ? 'Healing at home' : fighting || (h.waiting ? `${orderLabel(h, sim)} · waiting for troops` : orderLabel(h, sim));
       const order = alive ? `${doing}${h.hidden ? ' · hidden' : ''}` : 'Down';
       ctx.fillText(fit(ctx, order, bw), bx, b.y + 56);
     }

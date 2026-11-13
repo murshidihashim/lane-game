@@ -123,13 +123,15 @@ export class Game {
   }
 
   /** If a hero is off the screen, scroll the map up or down to it (DEC-019). */
-  private lookAtHero(kind: HeroKind): void {
+  private lookAtHero(kind: HeroKind, sideways = false): void {
     const h = this.sim.heroOf(0, kind);
     if (!h || !h.alive) return;
     const l = this.layout;
-    const [, sy] = toScreen(l, h.x, h.y);
+    const [sx, sy] = toScreen(l, h.x, h.y);
     const margin = l.field.h * 0.12;
-    if (sy < l.field.y + margin || sy > l.field.y + l.field.h - margin) this.setView({ zoom: this.view.zoom, cx: this.view.cx, cy: h.y });
+    const offX = sx < l.field.x || sx > l.field.x + l.field.w;
+    if (offX && sideways) this.setView({ zoom: this.view.zoom, cx: h.x, cy: h.y });
+    else if (sy < l.field.y + margin || sy > l.field.y + l.field.h - margin) this.setView({ zoom: this.view.zoom, cx: this.view.cx, cy: h.y });
   }
 
   /** The corner button: see the whole map, and come back to the usual view. Where the whole map
@@ -170,7 +172,7 @@ export class Game {
     for (const c of this.bot.think(this.sim)) this.send(c);
     if (this.autoBot) for (const c of this.autoBot.think(this.sim)) this.send(c);
     this.sim.step();
-    this.renderer.addEvents(this.sim.events, now);
+    this.renderer.addEvents(this.sim.events, now, this.sim);
   }
 
   private send(cmd: Command): void {
@@ -393,6 +395,9 @@ export class Game {
     }
     if (btn?.kind === 'menu-bg') return; // a press on the hint strip
     if (pan?.moved) { this.ui.hover = null; return; } // that was a look around, not a tap
+    // a tap on an off-screen hero's tab at the map's edge: look there (PLAN-013)
+    const tab = tap ? this.renderer.offscreen.find((t) => Math.hypot(t.x - p.x, t.y - p.y) < 20) : undefined;
+    if (tab && !this.ui.command) { this.lookAtHero(tab.hero, true); this.lastTap = null; return; }
     const cmd = this.ui.command;
     if (cmd && inField(this.layout, p.x, p.y)) {
       // Aiming an order: the tap picks the target.

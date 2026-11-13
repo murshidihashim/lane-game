@@ -31,7 +31,10 @@ Write down what you **saw**, not just "it's fine".
       pinch to look closer. Is this better than the smaller whole-map view? Does the pace feel right?
 - [ ] The paper look: paper standees, batik board, indigo menus. Ultimates now look like cut paper
       too. Is everything easy to read on your phone?
-- [ ] Watch the characters: walking, breathing, attacking, flashing when hit. Better than before?
+- [ ] Watch a fight: arrows, stones and bolts flying; slashes; damage numbers; the dashed line to
+      what each hero is hitting; pieces toppling when they die. Can you tell who hits whom?
+- [ ] Watch your heroes talk: answers to orders, "Help!", "ready!", "spotted!". Too chatty, or useful?
+      When a hero is off the screen, does its edge tab help? Does an ultimate's cast moment stand out?
 - [ ] Play 5 or more matches with different species and heroes. Rematch keeps your line-up.
 - [ ] Answer these questions:
   1. Do matches feel fair? Any species or hero still clearly too strong or too weak?

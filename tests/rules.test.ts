@@ -46,6 +46,30 @@ describe('levelling (PLAN-011)', () => {
   });
 });
 
+describe('combat events for the screen (PLAN-013)', () => {
+  test('a hit says who struck whom and for how much; a death says what died', () => {
+    const sim = new Sim({ seed: 3, waves: false });
+    parkHeroes(sim, 0);
+    parkHeroes(sim, 1);
+    const a = sim.summon(0, 'spearman', 2000, 3000, 0);
+    const t = sim.summon(1, 'kerengga', 2000, 3120, 0);
+    a.speed = 0;
+    t.speed = 0;
+    let hit: { from?: number; to?: number; dmg?: number } | undefined;
+    let death: { id?: number; unit?: string } | undefined;
+    for (let i = 0; i < sec(10) && !death; i++) {
+      sim.step();
+      for (const ev of sim.events) {
+        if (ev.k === 'hit' && ev.from === a.id && !hit) hit = ev;
+        if (ev.k === 'death' && ev.id === t.id) death = ev;
+      }
+    }
+    expect(hit?.to).toBe(t.id);
+    expect(hit?.dmg ?? 0).toBeGreaterThan(0);
+    expect(death?.unit).toBe('kerengga');
+  });
+});
+
 describe('map', () => {
   test('the map is the same when turned upside down', () => {
     const [left, mid, right] = LANES;

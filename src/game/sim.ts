@@ -107,11 +107,13 @@ export type Command =
   | { t: 'ult'; player: Player; hero: HeroKind };
 
 export type GameEvent =
-  | { k: 'hit'; x1: number; y1: number; x2: number; y2: number; ranged: boolean; owner: Owner }
+  /** A hit. Drawing data (PLAN-013): who struck (from), who was struck (to), and the damage dealt. */
+  | { k: 'hit'; x1: number; y1: number; x2: number; y2: number; ranged: boolean; owner: Owner; from?: number; to?: number; dmg?: number }
   | { k: 'boom'; x: number; y: number; r: number; owner: Owner }
   | { k: 'line'; x1: number; y1: number; x2: number; y2: number; owner: Owner }
   | { k: 'text'; x: number; y: number; text: string; tone: 'mana' | 'xp' | 'ambush' | 'level' | 'info' | 'ult' }
-  | { k: 'death'; x: number; y: number; owner: Owner; big: boolean }
+  /** Something died. Drawing data (PLAN-013): what it was, so it can topple over on screen. */
+  | { k: 'death'; x: number; y: number; owner: Owner; big: boolean; id?: number; unit?: UnitKind; hero?: HeroKind }
   /** An ultimate fired (DEC-013): where, how big, and a second point for lines (see each kit). */
   | { k: 'ult'; hero: HeroKind; owner: Owner; x: number; y: number; r: number; x2?: number; y2?: number };
 
@@ -1105,7 +1107,7 @@ export class Sim {
     if (st && (st.charge) && !e.usedFirst) { e.usedFirst = true; first = true; }
     const dealt = this.damage(t, dmg, e, {});
     e.atkCd = this.attackInterval(e);
-    this.events.push({ k: 'hit', x1: e.x, y1: e.y, x2: t.x, y2: t.y, ranged: e.range > 300, owner: e.owner });
+    this.events.push({ k: 'hit', x1: e.x, y1: e.y, x2: t.x, y2: t.y, ranged: e.range > 300, owner: e.owner, from: e.id, to: t.id, dmg: dealt });
     if (st) {
       if (first) { this.knockback(t, 200, e.x, e.y); this.stunFor(t, sec(0.5)); }
       if (st.slowOnHit) this.slowFor(t, st.slowOnHit, sec(1));
@@ -1322,9 +1324,9 @@ export class Sim {
       if (camp.kind === 'relic') { this.moveTo(h, camp.x, camp.y, spd); return; } // picked up on touch
       if (within(h.x, h.y, camp.x, camp.y, h.range + h.r + camp.r)) {
         if (h.atkCd <= 0 && h.damage > 0 && h.targets === 'any') {
-          this.damage(camp, h.damage, h, {});
+          const dealt = this.damage(camp, h.damage, h, {});
           h.atkCd = this.attackInterval(h);
-          this.events.push({ k: 'hit', x1: h.x, y1: h.y, x2: camp.x, y2: camp.y, ranged: h.range > 300, owner: p });
+          this.events.push({ k: 'hit', x1: h.x, y1: h.y, x2: camp.x, y2: camp.y, ranged: h.range > 300, owner: p, from: h.id, to: camp.id, dmg: dealt });
         } else if (h.targets !== 'any') {
           this.endFarm(h); // Gergasi can't fight camps
         }
@@ -1528,9 +1530,9 @@ export class Sim {
       return;
     }
     if (within(c.x, c.y, t.x, t.y, c.range + c.r + t.r) && c.atkCd <= 0) {
-      this.damage(t, c.damage, c, {});
+      const dealt = this.damage(t, c.damage, c, {});
       c.atkCd = c.attackTicks;
-      this.events.push({ k: 'hit', x1: c.x, y1: c.y, x2: t.x, y2: t.y, ranged: false, owner: NEUTRAL });
+      this.events.push({ k: 'hit', x1: c.x, y1: c.y, x2: t.x, y2: t.y, ranged: false, owner: NEUTRAL, from: c.id, to: t.id, dmg: dealt });
     }
   }
 
@@ -1706,7 +1708,7 @@ export class Sim {
       switch (e.kind) {
         case 'unit':
           if (e.xpValue > 0) this.shareXp(e, e.xpValue);
-          this.events.push({ k: 'death', x: e.x, y: e.y, owner: e.owner, big: false });
+          this.events.push({ k: 'death', x: e.x, y: e.y, owner: e.owner, big: false, id: e.id, unit: e.unit ?? undefined });
           break;
         case 'hero': {
           this.shareXp(e, XP.hero);
@@ -1727,7 +1729,7 @@ export class Sim {
           e.respawnTotal = e.respawn;
           e.targetId = 0;
           e.ultReady = false;
-          this.events.push({ k: 'death', x: e.x, y: e.y, owner: e.owner, big: true });
+          this.events.push({ k: 'death', x: e.x, y: e.y, owner: e.owner, big: true, id: e.id, hero: e.hero as HeroKind });
           break;
         }
         case 'ward': {

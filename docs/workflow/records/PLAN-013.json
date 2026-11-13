@@ -1,0 +1,113 @@
+{
+  "id": "PLAN-013",
+  "title": "Combat animation and hero feedback",
+  "problem": "Owner: \"enhance all the character's animation, including ulti and where they are attacking, how they are attacking, there's not much visual feedback between heroes back to the player\". Today ranged hits are a faint 1.5 px line for 0.16 s, melee hits a tiny slash, ultimates show only on the map and banner, and heroes say almost nothing to the player.",
+  "scope": [
+    "How they attack: a projectile for every ranged attacker, by style (arrows, sling stones, darts, water jets, spit, magic bolts, tower darts) flying from attacker to target; a paper slash arc for melee hits; an impact burst; heavy hitters thud",
+    "Where they attack: attackers face and lunge towards their target during the strike; each visible hero shows a short target line and reticle while it fights (red on its target; an orange warning when an enemy hero is hitting yours); damage numbers on hits by and on heroes",
+    "Ultimates on the hero: a pulsing charge aura while called, then a cast moment (the hero pops up, paper rays burst behind it, its ultimate's name is shouted) when it fires; a bobbing ULT badge above your hero when ready",
+    "Heroes talk back: short paper speech bubbles from your heroes for new orders, waiting for troops, falling back, low health, ultimate ready and enemy heroes spotted (rate-limited)",
+    "Status you can read: spinning stars for stun, a struck-through bubble for silence, falling drops for poison, a frost ring for slow; the hero panel flashes red when its hero is hurt and says who it is fighting",
+    "Off-screen heroes: an arrow with the portrait at the map's edge, red when hurt and gold when casting; tap it to scroll there",
+    "Deaths: pieces topple over and fade with paper scraps instead of a puff",
+    "Game events carry who hit whom, the damage, and what died (drawing data only; the rules do not change)"
+  ],
+  "exclusions": [
+    "Changes to how combat works, damage or balance",
+    "New hero models or new animation frames for every pose",
+    "Sound"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "Attacks: projectiles by style, melee slash arcs, impacts, lunges and facing the target are visible (sheet and in-match screenshots reviewed)",
+      "result": "PASS",
+      "evidence": "Fight screenshots in a bot match: arrows in flight, slash crescents, impact confetti, heavy thuds, attackers facing and lunging at targets; staged capture of a death toppling. Every ranged style has a drawing in src/ui/combat.ts."
+    },
+    {
+      "id": "T2",
+      "text": "Where heroes attack: target lines and reticles, and damage numbers on hero fights (screenshots)",
+      "result": "PASS",
+      "evidence": "Fight screenshots: gold dashed target lines with reticles from your heroes, damage numbers on hero fights (-64, -148, -75); tests/rules.test.ts checks hits carry attacker, target and damage."
+    },
+    {
+      "id": "T3",
+      "text": "Ultimates: charge aura, cast pop with rays and the shouted name, ULT ready badge (screenshots)",
+      "result": "PASS",
+      "evidence": "Staged capture: cast rays, the hero's pop and flash, the shouted name in a gold bubble; charge ring with sparks while called; ULT badges above ready heroes in match screenshots."
+    },
+    {
+      "id": "T4",
+      "text": "Heroes talk back: speech bubbles for orders and key moments; status badges; panel hurt flash; off-screen arrows that scroll to the hero (phone check)",
+      "result": "PASS",
+      "evidence": "Phone check: Kail answers a Push order (\"Pushing Right!\"); an off-screen hero gets an edge tab and tapping it scrolls to him. Screenshots: falling back, help, ready and spotted bubbles; stacked bubbles; red panel flash on a hurt hero; status badges."
+    },
+    {
+      "id": "T5",
+      "text": "Deaths topple over in paper (screenshots)",
+      "result": "PASS",
+      "evidence": "Staged capture: a spearman's standee topples backwards and fades with paper scraps; tests/rules.test.ts checks deaths say what died."
+    },
+    {
+      "id": "T6",
+      "text": "Speed: a busy frame stays well inside the 16 ms budget on the test browser (measured)",
+      "result": "PASS",
+      "evidence": "Frame drawing time while playing (desktop test browser, iPhone 13 size, 4 s, two runs each): median 5.7-5.8 ms against 5.4-7.6 ms before; 90th percentile 10.3-11.1 ms against 10.4-12.7 ms. No measurable cost."
+    },
+    {
+      "id": "T7",
+      "text": "Game unchanged: verify, determinism, soak, balance targets and phone check pass",
+      "result": "PASS",
+      "evidence": "Rules unchanged: npm run verify 96/96 (determinism included); the 100-match soak gives exactly the same results as before (43/45/12, average 312 s, ultimate at 88 s); the 1,200-match balance check matches the PLAN-011 run number for number (species 47-53%, heroes 40-62%, draws 11%, early 0%); PHONE CHECK OK."
+    },
+    {
+      "id": "T8",
+      "text": "On the owner's phone",
+      "result": "NOT RUN",
+      "evidence": "Not yet tried on the owner's phone."
+    },
+    {
+      "id": "T9",
+      "text": "Owner's verdict",
+      "result": "NOT RUN",
+      "evidence": "Waiting for the owner's verdict."
+    }
+  ],
+  "risks": [
+    "More on screen: bubbles are rate-limited and short; numbers only for hero fights",
+    "Speed: projectiles and bubbles are drawn every frame; measured against the frame budget"
+  ],
+  "cost": "RM0.",
+  "decisions": [],
+  "reports": [
+    "REP-016"
+  ],
+  "changes": {
+    "added": [
+      "src/ui/combat.ts: projectiles by attack style, melee slashes, impacts, thuds, damage numbers, target lines, speech bubbles, status badges, cast rays, charge ring, ULT badge, edge tabs",
+      "Speech bubbles for your heroes and edge tabs for off-screen heroes",
+      "Hit events carry attacker, target and damage; death events say what died (drawing data only)"
+    ],
+    "changed": [
+      "Pieces face their target and lunge on the strike",
+      "Deaths topple over as paper",
+      "Hero panels flash red when hit and show who they fight",
+      "Help text, owner checklist, art-style guide, phone check"
+    ],
+    "fixed": [],
+    "removed": [
+      "The old text status icons over pieces"
+    ]
+  },
+  "userNotes": [
+    "Clearer fights: arrows, stones, darts and bolts fly; melee hits slash; damage numbers; a line shows what each hero is hitting; pieces topple when they die.",
+    "Heroes talk back: speech bubbles answer orders and call out danger, ready ultimates and enemies; ultimates have a cast moment on the hero; off-screen heroes show as tabs at the map's edge."
+  ],
+  "approval": {
+    "status": "approved",
+    "evidence": "enhance all the character's animation, including ulti and where they are attacking, how they are attacking, there's not much visual feedback between heroes back to the playwr",
+    "date": "2026-11-13"
+  },
+  "delivery": "implemented",
+  "release": "unreleased"
+}

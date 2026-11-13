@@ -1,6 +1,6 @@
 # Current state · Lane Game
 
-Updated 2026-11-13 08:32 (Asia/Kuala_Lumpur) by the app steward.
+Updated 2026-11-13 09:10 (Asia/Kuala_Lumpur) by the app steward.
 
 ## Where we are
 - **Stage:** playable prototype. You draft 3 heroes against the bot, then command them and choose
@@ -14,8 +14,9 @@ Updated 2026-11-13 08:32 (Asia/Kuala_Lumpur) by the app steward.
   approved and **implemented**: T1–T4 PASS; T5 (owner's phone) and T6 (owner's verdict) wait.
   Report: REP-012. PLAN-008 (anime look test) was superseded by PLAN-009. PLAN-010 "Full-width
   map and paper ultimate effects" is implemented (REP-013). PLAN-011 "Faster levelling to the
-  ultimate" is implemented (REP-014). PLAN-012 "Ring menu for hero orders" is **implemented**:
-  T1–T5 PASS; T6 and T7 wait. Report: REP-015.
+  ultimate" is implemented (REP-014). PLAN-012 "Ring menu for hero orders" is implemented (REP-015).
+  PLAN-013 "Combat animation and hero feedback" is **implemented**: T1–T7 PASS; T8 and T9 wait.
+  Report: REP-016.
 - **Decided:** DEC-001 to DEC-019. DEC-018 (batik paper-cut diorama) and DEC-019 (full-width map)
   are implemented.
 - **Awaiting the owner:** DEC-020 "Make the map more engaging": five ideas in REP-013 (monsoon and
@@ -37,7 +38,7 @@ Updated 2026-11-13 08:32 (Asia/Kuala_Lumpur) by the app steward.
 | Copy | Address | Build |
 |---|---|---|
 | Live | not published | none |
-| Preview | private preview page "Lane Game" (owner-only; link in the session reply) | PLAN-012, version 11, 2026-11-13 |
+| Preview | private preview page "Lane Game" (owner-only; link in the session reply) | PLAN-013, version 12, 2026-11-13 |
 | Stray copy | a second private page "Lane Game" published by mistake (owner-only) | PLAN-009; owner may delete it |
 | Roster page | private page "Lane Game Heroes" (owner-only) | roster v2; out of date (shows card costs) |
 | Art styles page | private page "Lane Game Art Styles" (owner-only) | sketches of the 6 DEC-018 styles (version 2), 2026-11-12 |
@@ -55,6 +56,7 @@ Updated 2026-11-13 08:32 (Asia/Kuala_Lumpur) by the app steward.
   to read, and is scrolling OK or is a mini-map needed? Art budget for a real artist still unknown.
 - **Map ideas (DEC-020):** owner picks which of the five to build.
 - **Order ring (PLAN-012):** owner tries it on a phone: quick, no wrong picks, map clear?
+- **Combat feedback (PLAN-013):** owner checks fights are readable and the bubbles are not too chatty.
 - **Owner playtest:** checklist in `OWNER-BRIEF.md`. Menu intuitive? Heroes smart but not too
   independent? Pace, zoom, characters, fairness, draft, 3 heroes?
 - **Balance:** measured bot against bot; real players will find other strong picks.
@@ -63,9 +65,9 @@ Updated 2026-11-13 08:32 (Asia/Kuala_Lumpur) by the app steward.
 
 ## Checkpoint
 - **Branch:** ccr-d5847beb-6m9vey.
-- **Commit:** see git log (PLAN-012 commit).
+- **Commit:** see git log (PLAN-013 commit).
 - **Uncommitted:** none after this commit.
-- **Active approvals:** PLAN-001 to PLAN-007 and PLAN-009 to PLAN-012, all implemented.
+- **Active approvals:** PLAN-001 to PLAN-007 and PLAN-009 to PLAN-013, all implemented.
 - **Checks:** verify, soak, balance and phone check all pass.
 - **Blocker:** owner playtest; owner's choice on DEC-020.
 - **Next step:** the owner tries the ring and picks map ideas (DEC-020); then plan the chosen ones.

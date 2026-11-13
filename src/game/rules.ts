@@ -539,3 +539,81 @@ export const ITEMS: Record<ItemId, ItemDef> = {
 
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];
 export const ITEM_SLOTS = 3; // per hero
+
+// ---------------------------------------------------------------------------------------------
+// Strategy and action (PLAN-015, DEC-023): aimed ultimates, warning rings, the dodge dash, Power on
+// cue, combo chains, rallied waves, level-up choices and commander calls (DEC-024).
+
+export const ACTION = {
+  ringTicks: sec(1), // area ultimates land this long after their warning ring appears
+  lockTicks: sec(0.6), // Duel and Coil lock on this long after a ring on the target...
+  lockSlack: 150, // ...and miss if the target got this much further than the reach
+  dashDist: 400,
+  dashTicks: 5,
+  dashCooldown: sec(10),
+  cuePct: 120, // a Power fired on cue is 20% stronger
+  autoDelay: sec(1.5), // a Power left alone fires by itself this long after it is ready
+  comboWindow: sec(2), // spell hits from different heroes this close together chain
+  comboStepPct: 15, // +15% a step
+  comboMax: 2, // steps: +15%, then +30%
+  slamEvery: sec(7), // Gajah Mina slams the ground around it...
+  slamRadius: 380,
+  slamDamage: 260,
+  slamStun: sec(1),
+} as const;
+
+/** Rally the waves: hold a lane's waves at your end, then release them together. */
+export const RALLY = { max: 3, hastePct: 25, dmgPct: 15, buffTicks: sec(8), leash: 500 } as const;
+
+/** Level-up choices: at levels 2 and 3, the hero's own upgrade or a general one. */
+export const UPGRADES = { window: sec(8), quickPct: 75, strongPct: 130 } as const;
+
+/** How an aimed ultimate is aimed (PLAN-015): range 0 means anywhere on the map. */
+export type AimKind = 'enemy' | 'hero' | 'troop' | 'tower' | 'spot' | 'lane';
+export interface UltAim { kind: AimKind; range: number; radius: number; text: string }
+
+export const ULT_AIMS: Partial<Record<HeroKind, UltAim>> = {
+  rimba: { kind: 'enemy', range: 900, radius: 150, text: 'Drag onto an enemy within 900 to mark it now.' },
+  benteng: { kind: 'tower', range: 0, radius: 350, text: 'Drag onto any of your towers to shield it.' },
+  kail: { kind: 'spot', range: 800, radius: 500, text: 'Drag onto a spot within 800: the wave hits there after its warning ring.' },
+  dalang: { kind: 'troop', range: 700, radius: 150, text: 'Drag onto an enemy troop within 700 to take control of it.' },
+  hujan: { kind: 'lane', range: 0, radius: 900, text: 'Drag onto any lane to flood it.' },
+  layang: { kind: 'spot', range: 0, radius: 300, text: 'Drag onto any spot: she lands there after a warning ring.' },
+  pendekar: { kind: 'hero', range: 600, radius: 120, text: 'Drag onto an enemy hero within 600 to challenge it.' },
+  badak: { kind: 'spot', range: 1600, radius: 400, text: 'Drag onto a spot within 1,600: he charges there after a warning ring.' },
+  tedung: { kind: 'hero', range: 500, radius: 120, text: 'Drag onto an enemy hero within 500 to strike it at any health.' },
+  embun: { kind: 'spot', range: 700, radius: 500, text: 'Drag onto a spot within 700: the freeze lands after a warning ring.' },
+  ombak: { kind: 'lane', range: 0, radius: 900, text: 'Drag onto any lane to raise the tide there.' },
+};
+
+export type CallId = 'drum' | 'barricade' | 'eye' | 'remedy' | 'snare' | 'repair';
+export interface CallDef {
+  id: CallId;
+  name: string;
+  cost: number; // Semangat
+  cooldown: number; // ticks
+  aim: 'none' | 'spot' | 'seen' | 'lane' | 'tower'; // seen: a spot your side can see
+  text: string;
+}
+
+/** Commander calls (DEC-024): each player picks 2 before the match. Not cards: no hand, no deck. */
+export const CALLS: Record<CallId, CallDef> = {
+  drum: { id: 'drum', name: 'War Drum', cost: 2, cooldown: sec(60), aim: 'none', text: 'All your troops move 25% faster and hit 15% harder for 8 s.' },
+  barricade: { id: 'barricade', name: 'Bamboo Barricade', cost: 2, cooldown: sec(50), aim: 'lane', text: 'A bamboo wall on a lane you can see: enemy troops must break it (900 health, 12 s).' },
+  eye: { id: 'eye', name: 'Spirit Eye', cost: 1, cooldown: sec(40), aim: 'spot', text: 'See any spot on the map for 8 s, hidden heroes too.' },
+  remedy: { id: 'remedy', name: 'Penawar', cost: 2, cooldown: sec(60), aim: 'none', text: 'Heals all your heroes 25% and clears slows and poison.' },
+  snare: { id: 'snare', name: 'Snare Trap', cost: 1, cooldown: sec(45), aim: 'seen', text: 'A hidden snare on a spot you can see: the first enemy hero to step in is stunned 1.5 s and seen for 4 s.' },
+  repair: { id: 'repair', name: 'Fort Repair', cost: 2, cooldown: sec(60), aim: 'tower', text: 'Restores 500 health to one of your towers or your Pusaka.' },
+};
+
+export const CALL_IDS = Object.keys(CALLS) as CallId[];
+
+export const CALL_RULES = {
+  picks: 2,
+  drumHastePct: 25, drumDmgPct: 15, drumTicks: sec(8),
+  wallHp: 900, wallLife: sec(12), wallRadius: 70,
+  eyeRadius: 700, eyeTicks: sec(8),
+  remedyPct: 25,
+  snareRadius: 130, snareLife: sec(60), snareStun: sec(1.5), snareSeen: sec(4),
+  repairHp: 500,
+} as const;

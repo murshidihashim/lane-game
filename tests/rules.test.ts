@@ -131,7 +131,8 @@ describe('pace (DEC-016)', () => {
 describe('no hand cards (DEC-011)', () => {
   test('a player has no hand or deck: only lane troops, hero orders, items and ultimates', () => {
     const sim = new Sim({ seed: 1 });
-    expect(Object.keys(sim.players[0]).sort()).toEqual(['halfPrice', 'heroIds', 'laneClass', 'mana', 'manaSlow', 'picks', 'species', 'towersDestroyed']);
+    // DEC-024 adds two commander calls picked before the match and PLAN-015 rallied lanes: still no hand, deck or draws.
+    expect(Object.keys(sim.players[0]).sort()).toEqual(['callCd', 'calls', 'halfPrice', 'held', 'heroIds', 'hold', 'laneClass', 'mana', 'manaSlow', 'picks', 'species', 'towersDestroyed']);
   });
 
   test('lane waves are the only troops: full strength at first, stronger each minute', () => {

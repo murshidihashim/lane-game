@@ -1,0 +1,134 @@
+{
+  "id": "PLAN-015",
+  "title": "Strategy and action mechanics",
+  "problem": "Owner approved ideas 1-7 of DEC-023 (REP-018): fights, Powers and ultimates resolve by themselves, so the player's hands rarely decide a fight, and choices have few trade-offs.",
+  "scope": [
+    "Aim your ultimate: hold ULT and drag onto a target or spot; a tap still calls it for the next good moment. 11 ultimates gain an aim (Hunter's Mark, Unbreakable, Riptide, Grand Performance, Flash Flood, Moon Kite, Duel, Stampede, Coil, Dawn Freeze, King Tide); the rest stay one tap",
+    "Warning rings: area ultimates (Riptide, Moon Kite, Stampede, Dawn Freeze) land 1 s after a red ring appears; Duel and Coil lock on 0.6 s after a ring on the target and miss if it gets away; Gajah Mina gets a telegraphed slam",
+    "Dodge dash: flick one of your heroes on the map to dash a short way (every 10 s); the bot dodges rings it can see",
+    "Power on your cue: tap a hero's Power gem to fire it now for +20%; left alone it fires by itself after a short wait",
+    "Combo chains: Power and ultimate damage from different heroes on the same enemy within 2 s chains (+15% a step) with a COMBO stamp",
+    "Rally the waves: hold a lane's waves at your end (up to 3), then release them together with a war-drum boost; the 4th wave releases them",
+    "Level-up choices: at levels 2 and 3 pick the hero's own Power upgrade or a general one (Quick: 25% shorter cooldown; Strong: +30%); auto-pick after 8 s",
+    "Commander calls (DEC-024): pick 2 of 6 before the match; they cost Semangat and have cooldowns",
+    "Bot uses all of it with only what it can see; help text, owner checklist, docs"
+  ],
+  "exclusions": [
+    "Buyback and bounties (idea 8, not chosen)",
+    "Hand-played cards (DEC-011 still stands apart from DEC-024)",
+    "Paid items or random rewards",
+    "New hero kits beyond the aims and upgrades listed"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "Aimed ultimates: a drag aims 11 ultimates at a target or spot; a tap still calls the rest (unit tests and phone check)",
+      "result": "PASS",
+      "evidence": "tests/action.test.ts: 11 ultimates take an aim, each with an aimed kit; Rimba marks a seen enemy in reach and is refused out of reach; Benteng shields a far tower; Hujan floods the lane aimed at; Tedung coils a healthy hero when aimed; a tap still calls; a one-tap ultimate can't be aimed. Phone check: dragging Embun's ULT onto the map aims Dawn Freeze there."
+    },
+    {
+      "id": "T2",
+      "text": "Warning rings: area ultimates and the boss slam land after a visible ring; Duel and Coil miss a target that got away (unit tests)",
+      "result": "PASS",
+      "evidence": "tests/action.test.ts: Dawn Freeze aimed at a spot shows a 1 s ring (radius 500) and freezes everything inside when it lands; Duel locks on after 0.6 s and misses a hero that ran ('Dodged!'); a ring fizzles if its caster falls; Gajah Mina's slam rings, then hurts and stuns a hero left inside. Existing kit tests updated for the rings."
+    },
+    {
+      "id": "T3",
+      "text": "Dodge dash: a flicked hero dashes and can leave a ring before it lands; cooldown 10 s; the bot dodges (unit tests, phone check)",
+      "result": "PASS",
+      "evidence": "tests/action.test.ts: a dash slides about 400 then waits 10 s; no dash while stunned; an enemy who dashes out of a ring escapes it while one who stays is frozen; the bot dashes out of rings in 5-9 of 10 cases (not perfect). Phone check: a quick flick on a hero makes it dash."
+    },
+    {
+      "id": "T4",
+      "text": "Power on your cue: a tapped Power fires at once with +20%; untouched it still fires by itself (unit tests)",
+      "result": "PASS",
+      "evidence": "tests/action.test.ts: Volley on cue does exactly 20% more than when it fires by itself; left alone a ready Power waits 1.5 s, then fires; a cue on cooldown or with nothing to hit does nothing. Phone check: tapping Kail's Power gem fires Hook on cue."
+    },
+    {
+      "id": "T5",
+      "text": "Combo chains: spell damage from two heroes within 2 s gets +15%, three +30%, with a stamp (unit tests, screenshot)",
+      "result": "PASS",
+      "evidence": "tests/action.test.ts: spell hits from a second hero within 2 s do +15%, a third +30% (capped); the same hero twice and basic attacks don't chain; after 2 s the chain breaks. Screenshot shows the COMBO x2 stamp."
+    },
+    {
+      "id": "T6",
+      "text": "Rally the waves: held waves wait at your end, up to 3, and march together on release with a boost; the 4th wave releases them (unit tests)",
+      "result": "PASS",
+      "evidence": "tests/action.test.ts: held waves wait within 500 of their spawn point while other lanes march; released, they march with haste and +15% damage; the 4th wave releases a full rally by itself; the enemy can't see the build-up without vision. Phone check: a chip's HOLD holds the lane and GO releases it."
+    },
+    {
+      "id": "T7",
+      "text": "Level-up choices: picks at levels 2 and 3 change the Power as described; auto-pick after 8 s (unit tests)",
+      "result": "PASS",
+      "evidence": "tests/action.test.ts: at level 2 a choice waits; Quick keeps Volley at 3 targets and shortens the cooldown 25%; Strong adds 30% to the Power; two own upgrades give rank 3; an unanswered choice becomes the own upgrade after 8 s. Phone check: the level badge opens the card and Quick is picked."
+    },
+    {
+      "id": "T8",
+      "text": "Commander calls: picked before the match, cost Semangat, cooldowns, each of the 6 does what it says (unit tests, phone check)",
+      "result": "PASS",
+      "evidence": "tests/action.test.ts (10 tests): 2 calls per player, defaults War Drum and Penawar, no repeats; cost and cooldown, refused when not picked or unaffordable; War Drum, Penawar, Bamboo Barricade (only where you can see; troops must break it; gone after 12 s), Spirit Eye (sees a far hidden hero for 8 s), Snare Trap (stuns and reveals the first enemy hero), Fort Repair (+500, not on a whole tower); the bot uses its calls. Phone check: the 2 calls picked before the match are yours; War Drum fires at once; Spirit Eye goes where you tap."
+    },
+    {
+      "id": "T9",
+      "text": "Fair and stable: determinism, soak (no errors, no stalls) and the 1,200-match balance check inside the PLAN-005 targets",
+      "result": "PASS",
+      "evidence": "npm run verify 131/131 incl. determinism with all new commands; soak 100+20 matches with no errors, 0 stalls in 60 random-order matches, ultimate median 87.35 s; balance 1,200 matches inside PLAN-005 targets: species 43-57%, heroes 43-58%, draws 10%, early 1%. Phone check 40 PASS, three runs in a row. Frame time unchanged against the previous build measured the same way at the same time (median 6.0-6.9 ms vs 6.5-9.2 ms; desktop test browser)."
+    },
+    {
+      "id": "T10",
+      "text": "On the owner's phone",
+      "result": "NOT RUN",
+      "evidence": "Not yet tried on the owner's phone."
+    },
+    {
+      "id": "T11",
+      "text": "Owner's verdict",
+      "result": "NOT RUN",
+      "evidence": "Waiting for the owner's verdict."
+    }
+  ],
+  "risks": [
+    "Too much to do with three heroes: every new action keeps an automatic default; phone test before tuning further",
+    "Balance: aimed ultimates, cues, combos and calls change damage; the 1,200-match balance check must stay inside the PLAN-005 targets",
+    "The bot plays the same rules but less skilfully than a person; it uses only what its side can see",
+    "Screen space on small phones: two call buttons and the Power gems must fit the existing HUD"
+  ],
+  "cost": "RM0.",
+  "decisions": [
+    "DEC-023",
+    "DEC-024"
+  ],
+  "reports": [
+    "REP-019"
+  ],
+  "changes": {
+    "added": [
+      "Aimed ultimates (ULT_AIMS, kit ultAt), warning rings (Sim.casts, kit land), Gajah Mina's slam",
+      "Dodge dash, Power on cue, combo chains, rallied waves, level-up choices (src/game/sim.ts, rules.ts)",
+      "Commander calls (DEC-024): six calls, picked on the species step, two HUD buttons",
+      "src/ui/action.ts (rings, barricades, eyes, snares, combo stamps, dash trails, call icons); tests/action.test.ts (35 tests)",
+      "Bot: dodges rings it can see, cues Powers, makes upgrade choices, rallies waves, uses its calls"
+    ],
+    "changed": [
+      "Riptide, Moon Kite, Stampede and Dawn Freeze land after a 1 s ring; Duel and Coil lock on after 0.6 s",
+      "A ready Power waits 1.5 s for a cue before firing by itself; Power ranks follow the level-up choices",
+      "HUD: Power gems, dash marks, level badges, hold toggles on lane chips, call buttons beside a smaller Shop",
+      "Help text, owner checklist, roster docs, art-style guide, CLAUDE.md, phone check"
+    ],
+    "fixed": [
+      "Tapping a hero's edge tab could open the ring of another hero standing under it"
+    ],
+    "removed": []
+  },
+  "userNotes": [
+    "Your hands decide fights: drag ULT onto the map to aim it; big attacks show warning rings first; flick a hero to dash out of them; tap a glowing Power gem to fire it on cue (+20%); two heroes' Powers and ultimates together make COMBOs.",
+    "Bigger choices: HOLD a lane's waves and send them all with GO; pick an upgrade at levels 2 and 3; choose two commander calls before the match (War Drum, Bamboo Barricade, Spirit Eye, Penawar, Snare Trap, Fort Repair)."
+  ],
+  "approval": {
+    "status": "approved",
+    "evidence": "Aim your ultimate: hold ULT, drag it onto a target or spot, and let go. A tap still fires it automatically. / Warning rings and a dodge dash: big enemy attacks show a red ring about 1 second before they land. Flick a hero to dash out of the way. / Power on your cue: tap a hero's Power to fire it now for +20%. If you don't, it still fires by itself. / Combo chains: two heroes hitting the same enemies within 2 seconds build a combo, with bonus damage and a \"COMBO\" stamp. / 5. Rally the waves: hold up to 3 waves in a lane, then release them as one big push. The enemy can't see them build up unless they've placed a ward there. You can fake one lane and hit another. / 6. Level-up choices: at levels 2 and 3, choose between two upgrades for each hero's Power. / 7. Commander calls: before the match, pick 2 special moves, such as a war drum or a bamboo barricade, that you pay for with Semangat. This needs its own decision, because it adds a new kind of action beyond the \"no cards\" rule. / do this",
+    "date": "2026-11-13"
+  },
+  "delivery": "implemented",
+  "release": "unreleased"
+}

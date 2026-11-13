@@ -2,7 +2,7 @@
 // ultimates fire only once called (DEC-011).
 import { describe, expect, test } from 'vitest';
 import { LANES, pointAt, towerPos } from '../src/game/map';
-import { HERO_IDS, ITEMS, MANA, UNITS, XP, type HeroKind, type UnitKind } from '../src/game/rules';
+import { ACTION, HERO_IDS, ITEMS, MANA, UNITS, XP, type HeroKind, type UnitKind } from '../src/game/rules';
 import { type Ent, Sim } from '../src/game/sim';
 import { heroOnLane, parkHeroes, stepN } from './helpers';
 
@@ -44,6 +44,12 @@ function foeHero(sim: Sim, h: Ent, kind: HeroKind, dx: number, dy: number): Ent 
 }
 
 const said = (sim: Sim, text: string) => sim.events.some((e) => e.k === 'text' && e.text === text);
+/** Step until every warning ring has landed (PLAN-015); true if an ultimate effect showed meanwhile. */
+function land(sim: Sim): boolean {
+  let shown = false;
+  for (let i = 0; i < 40 && sim.casts.length; i++) { sim.step(); if (sim.events.some((e) => e.k === 'ult')) shown = true; }
+  return shown;
+}
 const dist = (a: Ent, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 const castPower = (sim: Sim, h: Ent) => { h.powerCd = 0; sim.step(); };
 
@@ -71,7 +77,8 @@ describe('every hero', () => {
     sim.step();
     expect(h.ultReady).toBe(false);
     expect(said(sim, 'Dawn Freeze')).toBe(true);
-    expect(sim.events.some((e) => e.k === 'ult' && e.hero === 'embun')).toBe(true);
+    expect(sim.casts.some((c) => c.hero === 'embun')).toBe(true); // a warning ring first (PLAN-015)
+    expect(land(sim)).toBe(true);
     h.hp = 0;
     sim.step();
     expect(h.alive).toBe(false);
@@ -175,9 +182,11 @@ describe('hero kits', () => {
 
     const b = arena('kail', 4);
     const crowd = [0, 1, 2, 3].map((i) => foe(b.sim, b.h, 'spearman', -150 + i * 100, -300));
-    const ys = crowd.map((c) => c.y);
     b.sim.step();
     expect(b.h.ultReady).toBe(false);
+    stepN(b.sim, ACTION.ringTicks - 1); // the warning ring (PLAN-015)
+    const ys = crowd.map((c) => c.y);
+    b.sim.step();
     crowd.forEach((c, i) => expect(ys[i] - c.y).toBeGreaterThan(300)); // pushed up, towards their side
   });
 
@@ -294,7 +303,7 @@ describe('hero kits', () => {
     expect(b.sim.zones.some((z) => z.kind === 'flood' && z.lane === 0)).toBe(true);
   });
 
-  test('Layang: flies over melee troops, Dive, Moon Kite crosses instantly', () => {
+  test('Layang: flies over melee troops, Dive, Moon Kite crosses after a warning ring', () => {
     const { sim, h } = arena('layang');
     sim.submit({ t: 'order', player: 0, hero: 'layang', order: 'defend', lane: 0 });
     const melee = foe(sim, h, 'spearman', 0, -120);
@@ -318,8 +327,9 @@ describe('hero kits', () => {
     const b = arena('layang', 4);
     b.sim.submit({ t: 'order', player: 0, hero: 'layang', order: 'gank', lane: 2 });
     b.sim.step();
-    expect(b.h.x).toBeGreaterThan(3000);
     expect(b.h.ultReady).toBe(false);
+    land(b.sim);
+    expect(b.h.x).toBeGreaterThan(3000);
   });
 
   test('Pendekar: Silat Guard parries, Keris Strike silences, Duel shuts others out', () => {
@@ -339,6 +349,7 @@ describe('hero kits', () => {
     const b = arena('pendekar', 4, undefined, ['senja', 'helang']);
     const rival = foeHero(b.sim, b.h, 'helang', 0, -300);
     b.sim.step();
+    land(b.sim);
     expect(b.h.duelWith).toBe(rival.id);
     const archer = b.sim.summon(1, 'archer', b.h.x, b.h.y - 400, 0);
     archer.deploy = 0;
@@ -411,6 +422,7 @@ describe('hero kits', () => {
     b.sim.place(b.h, tower.x, tower.y + 1800);
     b.sim.step();
     expect(b.h.ultReady).toBe(false);
+    land(b.sim);
     expect(dist(b.h, tower)).toBeLessThan(400);
     expect(tower.hp).toBeLessThan(tower.maxHp);
   });
@@ -431,6 +443,7 @@ describe('hero kits', () => {
     const e = foeHero(b.sim, b.h, 'helang', 0, -300);
     e.hp = Math.trunc(e.maxHp * 0.4);
     b.sim.step();
+    land(b.sim);
     expect(e.stun).toBeGreaterThan(0);
   });
 

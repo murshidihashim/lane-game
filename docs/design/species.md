@@ -2,7 +2,7 @@
 
 _Generated from `src/game/rules.ts` by `scripts/heroes-doc.mjs`. Do not edit by hand: change the game data and run the script._
 
-Decisions: DEC-008 (species and lane waves), DEC-009 (hero orders and map rewards), DEC-011 (no hand cards; items), DEC-012 (fog of war). Plans: PLAN-003, PLAN-004. All numbers are first values to tune in play tests.
+Decisions: DEC-008 (species and lane waves), DEC-009 (hero orders and map rewards), DEC-011 (no hand cards; items), DEC-012 (fog of war), DEC-024 (commander calls). Plans: PLAN-003, PLAN-004, PLAN-015. All numbers are first values to tune in play tests.
 
 ## How species work
 
@@ -75,6 +75,25 @@ Slow and heavy: bursting pebbles, a boulder golem and a long-range stone sling.
 Tap a hero (its panel or the hero on the map) to open its orders, pick one, then tap a lit-up target (DEC-017): **Move** (go and hold a spot; it fights what comes within 600), **Attack** (go after an enemy you can see, then back to its job), **Push** or **Gank** a lane, **Defend** a tower, **Farm** a grove, den, Gajah Mina or relic, **Ward** a cairn, **Retreat** home to heal. Farm, Ward and Attack are errands: when done, the hero goes back to its last job. Dragging a portrait onto the map is a quick shortcut.
 
 Heroes think for themselves a little: they walk through their own side, wait outside an enemy tower until their own troops are in its reach, head home to heal below 25% health while pushing (and go back at 80%), and go for enemy heroes in reach first, then the weakest enemy.
+
+## Rally the waves (PLAN-015)
+
+Each wave chip has a HOLD toggle. A held lane keeps its waves at your end of the lane (they fight only what comes within 500); up to 3 waves. Tap GO to release them together: for 8 s they move 25% faster and hit 15% harder. The next wave after 3 releases them by itself. The enemy sees the build-up only with vision there.
+
+## Commander calls (DEC-024)
+
+Before the match pick 2 of 6. In the match they cost Semangat (like items) and then cool down. Not cards: no hand, no deck, nothing random.
+
+| Call | Cost | Cooldown | Aim | What it does |
+|---|---|---|---|---|
+| War Drum | 2 | 60 s | none | All your troops move 25% faster and hit 15% harder for 8 s. |
+| Bamboo Barricade | 2 | 50 s | a lane you can see | A bamboo wall on a lane you can see: enemy troops must break it (900 health, 12 s). |
+| Spirit Eye | 1 | 40 s | any spot | See any spot on the map for 8 s, hidden heroes too. |
+| Penawar | 2 | 60 s | none | Heals all your heroes 25% and clears slows and poison. |
+| Snare Trap | 1 | 45 s | a spot you can see | A hidden snare on a spot you can see: the first enemy hero to step in is stunned 1.5 s and seen for 4 s. |
+| Fort Repair | 2 | 60 s | your tower or Pusaka | Restores 500 health to one of your towers or your Pusaka. |
+
+Gajah Mina also slams the ground every 7 s while fought: a warning ring, then 260 damage and a 1 s stun to everyone still inside (radius 380).
 
 ## Items
 

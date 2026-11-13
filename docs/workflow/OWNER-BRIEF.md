@@ -12,7 +12,7 @@ Everything here should work from a phone.
 1. You'll get a message that a change is ready and the checks are green.
 2. Open the preview on your phone (refresh if it looks old) and follow the checklist.
 
-## 2 · Checklist for PLAN-001 to PLAN-010 (about 30 minutes)
+## 2 · Checklist for PLAN-001 to PLAN-015 (about 30 minutes)
 Write down what you **saw**, not just "it's fine".
 - [ ] It opens in portrait. "How to play", then the species step, make sense.
 - [ ] The draft: you and the bot take turns. Tap heroes to see them on the stage (Trait, Power,
@@ -36,6 +36,10 @@ Write down what you **saw**, not just "it's fine".
 - [ ] Watch your heroes talk: answers to orders, "Help!", "ready!", "spotted!". Too chatty, or useful?
 - [ ] The new hero and troop designs: can you tell each hero apart at a glance by its big shape
   (hat, shield, umbrella, horns, wings)? Do they feel heroic enough, and are faces too small?
+- [ ] Strategy and action (PLAN-015): drag a **ULT ⤴** button onto the map to aim it; dodge a red
+  warning ring by flicking your hero; tap a glowing ✦ gem to fire a Power on cue; watch for COMBO
+  stamps; HOLD a lane's waves and send them with GO; pick an upgrade when a level badge glows; try
+  your two commander calls (beside the Shop). Too much to do with three heroes, or more fun?
       When a hero is off the screen, does its edge tab help? Does an ultimate's cast moment stand out?
 - [ ] Play 5 or more matches with different species and heroes. Rematch keeps your line-up.
 - [ ] Answer these questions:

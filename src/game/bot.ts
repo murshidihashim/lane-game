@@ -1,11 +1,12 @@
 // Rule-based computer opponent. It reads the match state and returns commands, like a player:
-// lane troops, hero orders, items and ultimate calls (DEC-011). It only uses what its side can see
+// lane troops, hero orders, items and ultimate calls (DEC-011), plus the PLAN-015 moves: dodging
+// warning rings, Powers on cue, level-up choices, rallied waves and commander calls (DEC-024). It only uses what its side can see
 // through the fog of war (DEC-012) and its own seeded random numbers, so a match with the same seed
 // and the same human moves replays exactly.
-import { Rng, idiv, within } from './math';
-import { LANES, type LaneId, WARD_SPOTS, nearestS } from './map';
-import { CLASSES, HEROES, MANA, SPECIES, UNITS, type ClassId, type HeroKind, type ItemId } from './rules';
-import type { Command, Ent, Player, Sim } from './sim';
+import { Rng, idiv, isqrt, within } from './math';
+import { CORES, LANES, type LaneId, WARD_SPOTS, nearestS, pointAt, uToS } from './map';
+import { CLASSES, HEROES, MANA, SPECIES, UNITS, type CallId, type ClassId, type HeroKind, type ItemId, sec } from './rules';
+import type { Cast, Command, Ent, Player, Sim } from './sim';
 
 export type BotLevel = 'easy' | 'normal';
 
@@ -36,6 +37,10 @@ export class Bot {
   private nextHeroThink: Partial<Record<HeroKind, number>> = {};
   private lastGank: Partial<Record<HeroKind, number>> = {};
   private lastErrand: Partial<Record<HeroKind, number>> = {};
+  private nextCue: Partial<Record<HeroKind, number>> = {};
+  private picked: Partial<Record<HeroKind, number>> = {};
+  private nextRally = sec(40);
+  private nextCall = sec(20);
 
   constructor(readonly player: Player, seed: number, readonly level: BotLevel = 'normal') {
     this.rng = new Rng((seed ^ (player === 0 ? 0x9e3779b9 : 0x7f4a7c15)) >>> 0);
@@ -65,7 +70,149 @@ export class Bot {
       if (c) out.push(c);
       this.nextShop = sim.tick + (this.level === 'easy' ? 300 + this.rng.int(200) : 60 + this.rng.int(60));
     }
+    // PLAN-015: dodge, cue, choose, rally, call
+    out.push(...this.dodge(sim));
+    for (const kind of sim.players[this.player].picks) {
+      const c = this.cue(sim, kind);
+      if (c) out.push(c);
+      const k = this.pick(sim, kind);
+      if (k) out.push(k);
+    }
+    if (sim.tick >= this.nextRally) {
+      const c = this.rally(sim);
+      if (c) out.push(c);
+      this.nextRally = sim.tick + 40 + this.rng.int(40);
+    }
+    if (sim.tick >= this.nextCall) {
+      const c = this.call(sim);
+      if (c) out.push(c);
+      this.nextCall = sim.tick + 20 + this.rng.int(20);
+    }
     return out;
+  }
+
+  // ---------- PLAN-015: dodging, cues, choices, rallies, commander calls ----------
+
+  /** Does this hero dodge this warning ring? Decided once per ring and hero, like a reflex that sometimes misses. */
+  private willDodge(c: Cast, h: Ent): boolean {
+    const roll = (Math.imul(c.id, 0x9e3779b1) ^ Math.imul(h.id, 0x85ebca6b) ^ Math.imul(this.player + 1, 0xc2b2ae35)) >>> 0;
+    return roll % 100 < (this.level === 'easy' ? 35 : 70);
+  }
+
+  /** Dash out of enemy warning rings (rings are on screen for both sides). */
+  private dodge(sim: Sim): Command[] {
+    const me = this.player;
+    const out: Command[] = [];
+    for (const h of sim.heroes(me)) {
+      if (!h.alive || h.hp <= 0 || h.dashCd > 0 || h.dashLeft > 0 || h.stun > 0 || h.deploy > 0) continue;
+      for (const c of sim.casts) {
+        if (c.owner === me || sim.tick - c.start < 4) continue; // a short reaction time
+        let fx: number;
+        let fy: number;
+        if (c.target) {
+          if (c.target !== h.id) continue;
+          const k = sim.get(c.caster);
+          if (k && sim.sees(me, k)) [fx, fy] = [k.x, k.y];
+          else [fx, fy] = [h.x, h.y + (me === 0 ? -100 : 100)]; // can't see who: run for home
+        } else {
+          if (!within(h.x, h.y, c.x, c.y, c.r + h.r + 30)) continue;
+          [fx, fy] = [c.x, c.y];
+        }
+        if (!this.willDodge(c, h)) continue;
+        let dx = h.x - fx;
+        let dy = h.y - fy;
+        let d = isqrt(dx * dx + dy * dy);
+        if (d < 1) { dx = CORES[me][0] - h.x; dy = CORES[me][1] - h.y; d = Math.max(1, isqrt(dx * dx + dy * dy)); }
+        out.push({ t: 'dash', player: me, hero: h.hero as HeroKind, x: h.x + idiv(dx * 400, d), y: h.y + idiv(dy * 400, d) });
+        break;
+      }
+    }
+    return out;
+  }
+
+  /** Fire a ready Power on cue when an enemy hero it can see is close. */
+  private cue(sim: Sim, kind: HeroKind): Command | null {
+    if (this.level === 'easy' || sim.tick < (this.nextCue[kind] ?? 0)) return null;
+    const me = this.player;
+    const h = sim.heroOf(me, kind);
+    if (!h || !h.alive || h.hp <= 0 || h.powerCd > 0 || h.powerWait <= 0 || h.silence > 0 || h.stun > 0) return null;
+    const near = sim.heroes((1 - me) as Player).some((e) => e.alive && e.hp > 0 && sim.sees(me, e) && within(h.x, h.y, e.x, e.y, h.range + 250));
+    if (!near) return null;
+    this.nextCue[kind] = sim.tick + 10;
+    return { t: 'power', player: me, hero: kind };
+  }
+
+  /** Make a level-up choice: either upgrade, at random. */
+  private pick(sim: Sim, kind: HeroKind): Command | null {
+    const h = sim.heroOf(this.player, kind);
+    const lv = h ? sim.pendingChoice(h) : 0;
+    if (!h || !lv || this.picked[kind] === lv) return null;
+    this.picked[kind] = lv;
+    return { t: 'pick', player: this.player, hero: kind, option: this.rng.int(2) === 0 ? 0 : 1 };
+  }
+
+  /** Now and then hold a quiet lane's waves, then release them together. */
+  private rally(sim: Sim): Command | null {
+    const me = this.player;
+    const pl = sim.players[me];
+    const held = sim.lanes.find((l) => pl.hold[l]);
+    const views = this.lanes(sim);
+    if (held !== undefined) {
+      const v = views.find((x) => x.lane === held);
+      const pressed = v !== undefined && v.threat > v.defence + 40;
+      const ready = pl.held[held] >= 2 && sim.heroes(me).filter((h) => h.alive).length >= 2 && this.rng.int(3) === 0;
+      return pressed || ready ? { t: 'rally', player: me, lane: held, hold: false } : null;
+    }
+    if (this.rng.int(4) !== 0) return null;
+    const lane = sim.lanes[this.rng.int(sim.lanes.length)];
+    const v = views.find((x) => x.lane === lane);
+    if (v && v.threat > v.defence) return null; // don't hold a lane under pressure
+    return { t: 'rally', player: me, lane, hold: true };
+  }
+
+  private call(sim: Sim): Command | null {
+    for (const id of sim.players[this.player].calls) {
+      if (sim.cantCall(this.player, id)) continue;
+      const c = this.callFor(sim, id);
+      if (c) return c;
+    }
+    return null;
+  }
+
+  /** When each commander call is worth it, judged from what the bot can see. */
+  private callFor(sim: Sim, id: CallId): Command | null {
+    const me = this.player;
+    const base = { t: 'call' as const, player: me, call: id };
+    switch (id) {
+      case 'drum':
+        return sim.ents.filter((e) => e.kind === 'unit' && e.alive && e.owner === me && !e.held).length >= 10 ? base : null;
+      case 'remedy':
+        return sim.heroes(me).filter((h) => h.alive && h.hp * 2 < h.maxHp).length >= 2 ? base : null;
+      case 'repair': {
+        const t = sim.ents.find((e) => (e.kind === 'tower' || e.kind === 'core') && e.alive && e.owner === me && e.hp * 10 < e.maxHp * 5);
+        return t ? { ...base, target: t.id } : null;
+      }
+      case 'barricade':
+        for (const v of this.lanes(sim)) {
+          if (v.front < 0 || v.threat <= v.defence) continue;
+          const lane = LANES[v.lane];
+          const [x, y] = pointAt(lane, uToS(lane, me, Math.max(200, v.front - 250)));
+          if (sim.seesPoint(me, x, y)) return { ...base, x, y };
+        }
+        return null;
+      case 'eye': {
+        const dark = WARD_SPOTS.filter(([x, y]) => !sim.seesPoint(me, x, y));
+        if (!dark.length || this.rng.int(6) !== 0) return null;
+        const [x, y] = dark[this.rng.int(dark.length)];
+        return { ...base, x, y };
+      }
+      case 'snare': {
+        const lit = WARD_SPOTS.filter(([x, y]) => sim.seesPoint(me, x, y));
+        if (!lit.length || this.rng.int(4) !== 0) return null;
+        const [x, y] = lit[this.rng.int(lit.length)];
+        return { ...base, x, y };
+      }
+    }
   }
 
   // ---------- items and ultimates (DEC-011) ----------

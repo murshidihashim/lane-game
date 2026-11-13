@@ -3,7 +3,7 @@
 import { dist2, idiv, isqrt, pct, within } from './math';
 import { LANES, LANE_HALF, type LaneId, inJungle, laneDist2, pointAt, uToS } from './map';
 import { CLASSES, HERO_RULES, MANA, type HeroKind, sec } from './rules';
-import type { Ent, Player, Sim } from './sim';
+import type { Cast, Ent, Player, Sim } from './sim';
 
 export interface Kit {
   /** The Power. Called when its cooldown is ready; returns true if it fired. */
@@ -13,6 +13,10 @@ export interface Kit {
    * (that lights the ULT button); with go = true it also fires. Fired only after the player calls it.
    */
   ult?(sim: Sim, h: Ent, go: boolean): boolean;
+  /** An aimed ultimate (PLAN-015; how it is aimed: ULT_AIMS in rules.ts). The aim is already checked. */
+  ultAt?(sim: Sim, h: Ent, aim: { x: number; y: number; target?: Ent }): boolean;
+  /** A ringed ultimate lands (PLAN-015), after the warning ring that sim.castUlt put up. */
+  land?(sim: Sim, h: Ent, c: Cast, t: Ent | undefined): void;
   /** How long the ultimate's effect lasts on the hero, for drawing (ticks). */
   ultLasts?: number;
   /** An always-on Ultimate applied once at level 4. */
@@ -86,6 +90,12 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.ultFx(h, t.x, t.y, 150);
       return true;
     },
+    ultAt(sim, h, aim) {
+      if (!aim.target) return false;
+      sim.markFor(aim.target, me(h), sec(6));
+      sim.ultFx(h, aim.target.x, aim.target.y, 150);
+      return true;
+    },
   },
 
   // ---- Benteng: tower defender ----
@@ -111,6 +121,12 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.ultFx(h, t.x, t.y, 350);
       return true;
     },
+    ultAt(sim, h, aim) {
+      if (!aim.target) return false;
+      sim.shieldFor(aim.target, 1000, sec(8));
+      sim.ultFx(h, aim.target.x, aim.target.y, 350);
+      return true;
+    },
   },
 
   // ---- Kail: hook initiator ----
@@ -130,14 +146,15 @@ export const KITS: Record<HeroKind, Kit> = {
     ult(sim, h, go) {
       if (sim.foes(me(h), h.x, h.y, 600).length < 4) return false;
       if (!go) return true;
-      const lane = sim.laneOf(h);
-      for (const t of sim.foes(me(h), h.x, h.y, 1500)) {
-        if (!inLane(lane, t, 200)) continue;
+      return sim.castUlt(h, { x: h.x, y: h.y, r: 700 }); // PLAN-015: lands after a warning ring
+    },
+    ultAt: (sim, h, aim) => sim.castUlt(h, { x: aim.x, y: aim.y, r: 500 }),
+    land(sim, h, c) {
+      for (const t of sim.foes(me(h), c.x, c.y, c.r)) {
         sim.pushBack(t, 400);
         sim.slowFor(t, 60, sec(3));
       }
-      sim.ultFx(h, h.x, h.y, 700);
-      return true;
+      sim.ultFx(h, c.x, c.y, c.r);
     },
   },
 
@@ -246,6 +263,14 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.ultFx(h, h.x, h.y, 150, t.x, t.y);
       return true;
     },
+    ultAt(sim, h, aim) {
+      const t = aim.target;
+      if (!t || t.charm > 0) return false;
+      sim.charmFor(t, me(h), sec(10));
+      sim.say(t.x, t.y - 120, 'Taken!', 'ult');
+      sim.ultFx(h, h.x, h.y, 150, t.x, t.y);
+      return true;
+    },
   },
 
   // ---- Senja: splash mage ----
@@ -302,6 +327,13 @@ export const KITS: Record<HeroKind, Kit> = {
       sim.addZone({ kind: 'flood', owner: me(h), x: t.x, y: t.y, r: 0, lane, until: sim.tick + sec(6), heal: false });
       return true;
     },
+    ultAt(sim, h, aim) {
+      const lane = sim.laneAt(aim.x, aim.y, 300);
+      if (lane === null) return false;
+      sim.ultFx(h, aim.x, aim.y, 900);
+      sim.addZone({ kind: 'flood', owner: me(h), x: aim.x, y: aim.y, r: 0, lane, until: sim.tick + sec(6), heal: false });
+      return true;
+    },
   },
 
   // ---- Layang: flying diver ----
@@ -321,11 +353,14 @@ export const KITS: Record<HeroKind, Kit> = {
     onTeamGank(sim, h, ganker) {
       if (ganker.id !== h.id) return false;
       sim.updateGankGoal(h);
+      return sim.castUlt(h, { x: h.goalX, y: h.goalY, r: 300 }); // PLAN-015: lands after a warning ring
+    },
+    ultAt: (sim, h, aim) => sim.castUlt(h, { x: aim.x, y: aim.y, r: 300 }),
+    land(sim, h, c) {
       const [ox, oy] = [h.x, h.y];
-      sim.place(h, h.goalX, h.goalY);
-      sim.ultFx(h, h.x, h.y, 300, ox, oy);
-      for (const t of sim.foes(me(h), h.x, h.y, 300)) sim.stunFor(t, sec(1));
-      return true;
+      sim.place(h, c.x, c.y);
+      sim.ultFx(h, h.x, h.y, c.r, ox, oy);
+      for (const t of sim.foes(me(h), h.x, h.y, c.r)) sim.stunFor(t, sec(1));
     },
   },
 
@@ -350,9 +385,16 @@ export const KITS: Record<HeroKind, Kit> = {
       const t = sim.foes(me(h), h.x, h.y, 400, { heroesOnly: true }).find((e) => !e.duelWith);
       if (!t || h.duelWith) return false;
       if (!go) return true;
+      return sim.castUlt(h, { x: t.x, y: t.y, r: 120, target: t, reach: 400 }); // PLAN-015: locks on after a ring
+    },
+    ultAt(sim, h, aim) {
+      if (!aim.target || h.duelWith || aim.target.duelWith) return false;
+      return sim.castUlt(h, { x: aim.target.x, y: aim.target.y, r: 120, target: aim.target, reach: 600 });
+    },
+    land(sim, h, _c, t) {
+      if (!t || h.duelWith || t.duelWith) return;
       sim.startDuel(h, t, sec(4));
       sim.ultFx(h, h.x, h.y, 400, t.x, t.y);
-      return true;
     },
   },
 
@@ -422,14 +464,18 @@ export const KITS: Record<HeroKind, Kit> = {
       const t = sim.towerOf(foe(h), sim.laneOf(h));
       if (!t || !t.alive || !within(h.x, h.y, t.x, t.y, 2000)) return false;
       if (!go) return true;
-      const [ox, oy] = [h.x, h.y];
       const [x, y] = sim.beside(h, t, 10);
-      sim.fx({ k: 'line', x1: h.x, y1: h.y, x2: x, y2: y, owner: h.owner });
-      sim.place(h, x, y);
-      sim.hurt(t, sim.scaled(h, 200), h, false);
-      for (const o of sim.foes(me(h), t.x, t.y, 400)) sim.stunFor(o, sec(1.5));
-      sim.ultFx(h, t.x, t.y, 400, ox, oy);
-      return true;
+      return sim.castUlt(h, { x, y, r: 400 }); // PLAN-015: charges after a warning ring
+    },
+    ultAt: (sim, h, aim) => sim.castUlt(h, { x: aim.x, y: aim.y, r: 400 }),
+    land(sim, h, c) {
+      const [ox, oy] = [h.x, h.y];
+      sim.fx({ k: 'line', x1: h.x, y1: h.y, x2: c.x, y2: c.y, owner: h.owner });
+      sim.place(h, c.x, c.y);
+      const t = nearestTower(sim, foe(h), c.x, c.y, c.r, true);
+      if (t) sim.hurt(t, sim.scaled(h, 200), h, false);
+      for (const o of sim.foes(me(h), c.x, c.y, c.r)) sim.stunFor(o, sec(1.5));
+      sim.ultFx(h, c.x, c.y, c.r, ox, oy);
     },
   },
 
@@ -449,10 +495,14 @@ export const KITS: Record<HeroKind, Kit> = {
       const t = sim.foes(me(h), h.x, h.y, 400, { heroesOnly: true }).find((e) => e.hp * 2 < e.maxHp);
       if (!t) return false;
       if (!go) return true;
+      return sim.castUlt(h, { x: t.x, y: t.y, r: 120, target: t, reach: 400 }); // PLAN-015: strikes after a ring
+    },
+    ultAt: (sim, h, aim) => (aim.target ? sim.castUlt(h, { x: aim.target.x, y: aim.target.y, r: 120, target: aim.target, reach: 500 }) : false),
+    land(sim, h, _c, t) {
+      if (!t) return;
       sim.stunFor(t, sec(2));
       sim.dotFor(t, 6, 0, sec(3), me(h));
       sim.ultFx(h, t.x, t.y, 200, h.x, h.y);
-      return true;
     },
   },
 
@@ -531,9 +581,12 @@ export const KITS: Record<HeroKind, Kit> = {
       const list = sim.foes(me(h), h.x, h.y, 600);
       if (list.length < 5) return false;
       if (!go) return true;
-      for (const t of list) sim.stunFor(t, sec(1.5));
-      sim.ultFx(h, h.x, h.y, 600);
-      return true;
+      return sim.castUlt(h, { x: h.x, y: h.y, r: 600 }); // PLAN-015: freezes after a warning ring
+    },
+    ultAt: (sim, h, aim) => sim.castUlt(h, { x: aim.x, y: aim.y, r: 500 }),
+    land(sim, h, c) {
+      for (const t of sim.foes(me(h), c.x, c.y, c.r)) sim.stunFor(t, sec(1.5));
+      sim.ultFx(h, c.x, c.y, c.r);
     },
   },
 
@@ -566,6 +619,13 @@ export const KITS: Record<HeroKind, Kit> = {
       if (!go) return true;
       sim.ultFx(h, h.x, h.y, 900);
       sim.addZone({ kind: 'tide', owner: me(h), x: h.x, y: h.y, r: 0, lane, until: sim.tick + sec(10), heal: false });
+      return true;
+    },
+    ultAt(sim, h, aim) {
+      const lane = sim.laneAt(aim.x, aim.y, 300);
+      if (lane === null) return false;
+      sim.ultFx(h, aim.x, aim.y, 900);
+      sim.addZone({ kind: 'tide', owner: me(h), x: aim.x, y: aim.y, r: 0, lane, until: sim.tick + sec(10), heal: false });
       return true;
     },
   },

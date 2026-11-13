@@ -6,16 +6,16 @@ import {
   laneDist2, nearestS, pointAt, directionAt, towerPos, uToS,
 } from './map';
 import {
-  BOUNTY, CLASSES, CLASS_IDS, FURY, HEROES, HERO_IDS, HERO_RULES, ITEMS, ITEM_IDS, ITEM_SLOTS, MANA, MATCH, NEUTRALS,
-  RELICS, SPECIES, SPECIES_IDS, STRUCTURES, TICKS_PER_SECOND, UNITS, VISION, WARDS, WAVES, XP,
-  type ClassId, type HeroKind, type ItemDef, type ItemId, type SpeciesId, type Targets, type UnitKind, sec,
+  ACTION, BOUNTY, CALLS, CALL_IDS, CALL_RULES, CLASSES, CLASS_IDS, FURY, HEROES, HERO_IDS, HERO_RULES, ITEMS, ITEM_IDS, ITEM_SLOTS, MANA,
+  MATCH, NEUTRALS, RALLY, RELICS, SPECIES, SPECIES_IDS, STRUCTURES, TICKS_PER_SECOND, ULT_AIMS, UNITS, UPGRADES, VISION, WARDS, WAVES, XP,
+  type CallId, type ClassId, type HeroKind, type ItemDef, type ItemId, type SpeciesId, type Targets, type UnitKind, sec,
 } from './rules';
 import { KITS } from './heroes';
 
 export type Player = 0 | 1;
 export const NEUTRAL = 2;
 export type Owner = Player | typeof NEUTRAL;
-export type EntKind = 'unit' | 'hero' | 'tower' | 'core' | 'camp' | 'ward' | 'relic';
+export type EntKind = 'unit' | 'hero' | 'tower' | 'core' | 'camp' | 'ward' | 'relic' | 'wall';
 export type OrderType = 'push' | 'defend' | 'gank' | 'farm' | 'ward' | 'retreat' | 'move' | 'attack';
 export type CampKind = 'grove' | 'den' | 'boss';
 
@@ -95,6 +95,27 @@ export interface Ent {
   ultUntil: number; // tick when the ultimate's lasting effect ends (for drawing)
   fallback: boolean; // badly hurt while pushing: heading home to heal (DEC-017)
   waiting: boolean; // holding outside an enemy tower until own troops arrive (for the screen)
+  // PLAN-015 (DEC-023): the dodge dash, Power on cue, level-up choices, combos, rallied troops
+  dashCd: number; dashLeft: number; dashVx: number; dashVy: number;
+  powerWait: number; // ticks the Power waits for a cue before firing by itself (PLAN-015)
+  cue: boolean; inPower: boolean; // while a Power runs: fired on cue / any Power
+  upg: [number, number]; // level 2 and level 3 choice: -1 not yet, 0 the hero's own upgrade, 1 the general one
+  choiceAt: number; // tick a pending choice is made for you (0 = none pending)
+  comboBy: number; comboOwner: number; comboTick: number; comboStep: number; // last spell hit on this piece
+  held: boolean; // a rallied troop waiting at its own end of the lane
+  seen: number; // ticks it stays visible whatever (a sprung snare)
+}
+
+/** An ultimate on its way (PLAN-015): a warning ring, then it lands. Public: both sides see it. */
+export interface Cast {
+  id: number;
+  hero: HeroKind | null; // null: Gajah Mina's slam
+  caster: number;
+  owner: Owner;
+  x: number; y: number; r: number;
+  target: number; // a locked-on enemy hero (0 = a spot)
+  reach: number; // for a lock: the caster's reach when it lands
+  start: number; at: number;
 }
 
 /** Everything a player can do (DEC-011): choose lane troops, order heroes, buy items, call ultimates. */
@@ -103,8 +124,15 @@ export type Command =
   /** camp: index into Sim.camps() (groves, dens, boss); target: an entity id (relics); spot: ward spot; x, y: move. */
   | { t: 'order'; player: Player; hero: HeroKind; order: OrderType; lane?: LaneId; camp?: number; target?: number; spot?: number; x?: number; y?: number }
   | { t: 'buy'; player: Player; hero: HeroKind; item: ItemId }
-  /** Call (or cancel) a hero's ultimate. */
-  | { t: 'ult'; player: Player; hero: HeroKind };
+  /** Call (or cancel) a hero's ultimate; with a spot (x, y) or a target, aim it and fire it now (PLAN-015). */
+  | { t: 'ult'; player: Player; hero: HeroKind; x?: number; y?: number; target?: number }
+  /** PLAN-015 (DEC-023): dash a hero towards a point; fire its Power now; hold or release a lane's
+   *  waves; make a level-up choice; use a commander call (DEC-024). */
+  | { t: 'dash'; player: Player; hero: HeroKind; x: number; y: number }
+  | { t: 'power'; player: Player; hero: HeroKind }
+  | { t: 'rally'; player: Player; lane: LaneId; hold: boolean }
+  | { t: 'pick'; player: Player; hero: HeroKind; option: 0 | 1 }
+  | { t: 'call'; player: Player; call: CallId; x?: number; y?: number; target?: number };
 
 export type GameEvent =
   /** A hit. Drawing data (PLAN-013): who struck (from), who was struck (to), and the damage dealt. */
@@ -115,9 +143,13 @@ export type GameEvent =
   /** Something died. Drawing data (PLAN-013): what it was, so it can topple over on screen. */
   | { k: 'death'; x: number; y: number; owner: Owner; big: boolean; id?: number; unit?: UnitKind; hero?: HeroKind }
   /** An ultimate fired (DEC-013): where, how big, and a second point for lines (see each kit). */
-  | { k: 'ult'; hero: HeroKind; owner: Owner; x: number; y: number; r: number; x2?: number; y2?: number };
+  | { k: 'ult'; hero: HeroKind; owner: Owner; x: number; y: number; r: number; x2?: number; y2?: number }
+  /** PLAN-015: a combo step on a piece, a dash, a commander call. Drawing data. */
+  | { k: 'combo'; x: number; y: number; step: number; owner: Owner }
+  | { k: 'dash'; x1: number; y1: number; x2: number; y2: number; owner: Owner; id: number }
+  | { k: 'call'; call: CallId; owner: Player; x: number; y: number };
 
-export type ZoneKind = 'lantern' | 'fog' | 'flood' | 'tide';
+export type ZoneKind = 'lantern' | 'fog' | 'flood' | 'tide' | 'eye' | 'snare';
 
 export interface Zone {
   id: number;
@@ -139,6 +171,10 @@ export interface PlayerState {
   heroIds: Partial<Record<HeroKind, number>>;
   manaSlow: number; // Senja's ultimate: refill halved
   halfPrice: boolean; // Saudagar's ultimate: the next item costs half
+  hold: boolean[]; // per lane: waves are being held back (PLAN-015)
+  held: number[]; // per lane: waves held so far
+  calls: CallId[]; // the two commander calls picked before the match (DEC-024)
+  callCd: number[]; // ticks until each can be used again
 }
 
 export interface Result {
@@ -155,6 +191,8 @@ export interface SimOptions {
   picks?: [HeroKind[], HeroKind[]];
   /** Each player's species. Default: Kampung for both. */
   species?: [SpeciesId, SpeciesId];
+  /** Each player's two commander calls (DEC-024). Default: War Drum and Penawar. */
+  calls?: [CallId[], CallId[]];
 }
 
 export interface FoeQuery {
@@ -166,6 +204,15 @@ export interface FoeQuery {
 
 const NO_ORDER: Order = { type: 'push', lane: 0, camp: 0, spot: 0, x: 0, y: 0, target: 0 };
 export const DEFAULT_PICKS: HeroKind[] = ['rimba', 'benteng', 'kail'];
+export const DEFAULT_CALLS: CallId[] = ['drum', 'remedy'];
+
+/** Two different commander calls picked at random from a seed (the bot's, and tests'). */
+export function randomCalls(seed: number): CallId[] {
+  const rng = new Rng((seed ^ 0x3c6ef372) >>> 0);
+  const a = CALL_IDS[rng.int(CALL_IDS.length)];
+  const rest = CALL_IDS.filter((c) => c !== a);
+  return [a, rest[rng.int(rest.length)]];
+}
 
 /** Draft turn order (DEC-015): player 0, then the bot twice, player 0 twice, the bot (a snake). */
 export const DRAFT_ORDER: readonly Player[] = [0, 1, 1, 0, 0, 1];
@@ -211,11 +258,14 @@ export class Sim {
   result: Result | null = null;
   /** Events from the last step, for drawing only (not part of the rules). */
   events: GameEvent[] = [];
+  /** Ultimates and slams on their way (PLAN-015): warning rings both sides can see. */
+  casts: Cast[] = [];
   private nextId = 1;
   private rng: Rng;
   private queue: Command[] = [];
   private relicCount = 0;
   private firstKill = false;
+  private comboShown = -1;
 
   constructor(opts: SimOptions) {
     this.seed = opts.seed >>> 0;
@@ -231,7 +281,8 @@ export class Sim {
     theirs.forEach((k, i) => {
       if (mine.includes(k)) theirs[i] = HERO_IDS.find((f) => !mine.includes(f) && !theirs.includes(f)) as HeroKind;
     });
-    this.players = [this.newPlayer(mine, species[0]), this.newPlayer(theirs, species[1])];
+    const calls = opts.calls ?? [DEFAULT_CALLS, DEFAULT_CALLS];
+    this.players = [this.newPlayer(mine, species[0], calls[0]), this.newPlayer(theirs, species[1], calls[1])];
     for (const p of [0, 1] as const) {
       for (const id of this.lanes) {
         const lane = LANES[id];
@@ -423,8 +474,54 @@ export class Sim {
       const r = this.visionOf(v);
       if (r > 0 && within(v.x, v.y, e.x, e.y, r)) return true;
     }
-    for (const z of this.zones) if (z.kind === 'lantern' && z.owner === p && within(z.x, z.y, e.x, e.y, z.r)) return true;
+    for (const z of this.zones) if ((z.kind === 'lantern' || z.kind === 'eye') && z.owner === p && within(z.x, z.y, e.x, e.y, z.r)) return true;
     return false;
+  }
+
+  /** Can player p see the ground at (x, y)? (Snares and barricades go only where you can see.) */
+  seesPoint(p: Player, x: number, y: number): boolean {
+    for (const v of this.ents) {
+      if (!v.alive || v.owner !== p) continue;
+      const r = this.visionOf(v);
+      if (r > 0 && within(v.x, v.y, x, y, r)) return true;
+    }
+    for (const z of this.zones) if ((z.kind === 'lantern' || z.kind === 'eye') && z.owner === p && within(z.x, z.y, x, y, z.r)) return true;
+    return false;
+  }
+
+  /** The level whose upgrade choice is waiting for this hero (2 or 3), or 0. */
+  pendingChoice(h: Ent): 0 | 2 | 3 {
+    if (h.kind !== 'hero') return 0;
+    if (h.level >= 2 && h.upg[0] < 0) return 2;
+    if (h.level >= 3 && h.upg[1] < 0) return 3;
+    return 0;
+  }
+
+  /** Power cooldown for this hero now (items and the Quick upgrade). */
+  powerCooldown(h: Ent): number {
+    const base = HEROES[h.hero as HeroKind].powerTicks;
+    return this.itemMul(h, 'cooldownPct', h.upg[0] === 1 ? pct(base, UPGRADES.quickPct) : base);
+  }
+
+  /** Why this commander call can't be used now, or null if it can (aim checked separately). */
+  cantCall(p: Player, call: CallId): 'not picked' | 'cooldown' | 'semangat' | null {
+    const pl = this.players[p];
+    const i = pl.calls.indexOf(call);
+    if (i < 0) return 'not picked';
+    if (pl.callCd[i] > 0) return 'cooldown';
+    if (pl.mana < CALLS[call].cost * MANA.perMana) return 'semangat';
+    return null;
+  }
+
+  /** The lane nearest a point, if the point is on (or close to) one. */
+  laneAt(x: number, y: number, slack = 0): LaneId | null {
+    let best: LaneId | null = null;
+    let bestD = (LANE_HALF + slack) * (LANE_HALF + slack);
+    for (const id of this.lanes) {
+      const d = laneDist2(LANES[id], x, y);
+      if (d <= bestD) { best = id; bestD = d; }
+    }
+    return best;
   }
 
   hash(): number {
@@ -438,8 +535,11 @@ export class Sim {
       v.push(e.id, e.owner, e.alive ? 1 : 0, e.x, e.y, e.hp, e.maxHp, e.atkCd, e.targetId, e.wp, e.deploy, e.slow, e.stun,
         e.silence, e.shield, e.dot, e.charm, e.duel, e.life, e.level, e.heroXp, e.respawn, e.powerCd, e.ultReady ? 1 : 0,
         e.ambushLeft, e.hidden ? 1 : 0, e.order.lane, e.camp, e.bonusPct, e.fury, e.spawnCd, e.streak, e.order.spot,
-        e.order.x, e.order.y, e.order.target, e.ultArmed ? 1 : 0, e.fallback ? 1 : 0, ...e.items.map((i) => ITEM_IDS.indexOf(i)));
+        e.order.x, e.order.y, e.order.target, e.ultArmed ? 1 : 0, e.fallback ? 1 : 0, ...e.items.map((i) => ITEM_IDS.indexOf(i)),
+        e.dashCd, e.dashLeft, e.powerWait, e.upg[0], e.upg[1], e.choiceAt, e.comboStep, e.comboTick, e.held ? 1 : 0, e.seen);
     }
+    for (const pl of this.players) v.push(...pl.held, ...pl.hold.map((b) => (b ? 1 : 0)), ...pl.callCd, ...pl.calls.map((c) => CALL_IDS.indexOf(c)));
+    for (const c of this.casts) v.push(c.id, c.caster, c.x, c.y, c.r, c.target, c.at);
     return hashInts(v);
   }
 
@@ -597,6 +697,7 @@ export class Sim {
     t.owner = by;
     t.charm = ticks;
     t.targetId = 0;
+    t.held = false;
     this.setPathFrom(t, t.lane, nearestS(LANES[t.lane], t.x, t.y));
   }
 
@@ -622,14 +723,35 @@ export class Sim {
     this.events.push({ k: 'ult', hero: h.hero as HeroKind, owner: h.homeOwner, x, y, r, x2, y2 });
   }
 
-  /** Power rank 1-3 from the hero's level. */
+  /**
+   * Power rank 1-3 (PLAN-015): 1, plus one for level 2 and one for level 3 unless the general upgrade
+   * was chosen there instead. While a choice is still open the hero's own upgrade applies.
+   */
   rank(h: Ent): 1 | 2 | 3 {
-    return Math.min(3, h.level) as 1 | 2 | 3;
+    return (1 + (h.level >= 2 && h.upg[0] !== 1 ? 1 : 0) + (h.level >= 3 && h.upg[1] !== 1 ? 1 : 0)) as 1 | 2 | 3;
   }
 
-  /** A base amount scaled by the hero's level (+15% a level). */
+  /** A base amount scaled by the hero's level (+15% a level); a Power on cue or with Strong does more. */
   scaled(h: Ent, base: number): number {
-    return pct(base, 100 + XP.perLevelPercent * (h.level - 1));
+    let v = pct(base, 100 + XP.perLevelPercent * (h.level - 1));
+    if (h.inPower) {
+      if (h.cue) v = pct(v, ACTION.cuePct);
+      if (h.upg[1] === 1) v = pct(v, UPGRADES.strongPct);
+    }
+    return v;
+  }
+
+  /**
+   * Start an ultimate that lands later (PLAN-015): a warning ring at (x, y) of radius r, or locked on
+   * a target hero. Kits call this from ult() / ultAt(); the kit's land() applies it.
+   */
+  castUlt(h: Ent, c: { x: number; y: number; r: number; target?: Ent; reach?: number }): boolean {
+    const ticks = c.target ? ACTION.lockTicks : ACTION.ringTicks;
+    this.casts.push({
+      id: this.nextId++, hero: h.hero, caster: h.id, owner: h.homeOwner, x: Math.trunc(c.x), y: Math.trunc(c.y), r: c.r,
+      target: c.target?.id ?? 0, reach: c.reach ?? 0, start: this.tick, at: this.tick + ticks,
+    });
+    return true;
   }
 
   // ---------- the step ----------
@@ -650,6 +772,15 @@ export class Sim {
 
     if (this.tick >= RELICS.first && (this.tick - RELICS.first) % RELICS.every === 0) this.spawnRelics();
     this.updateZones();
+    this.landCasts();
+    for (const pl of this.players) for (let i = 0; i < pl.callCd.length; i++) if (pl.callCd[i] > 0) pl.callCd[i]--;
+    for (const h of this.ents) {
+      if (h.kind !== 'hero') continue;
+      // Level-up choices (PLAN-015): one is made for you if you don't choose in time.
+      if (!this.pendingChoice(h)) h.choiceAt = 0;
+      else if (h.choiceAt === 0) h.choiceAt = this.tick + UPGRADES.window;
+      else if (this.tick >= h.choiceAt) this.choose(h, 0);
+    }
 
     for (const e of this.ents) {
       this.tickStatus(e);
@@ -664,7 +795,7 @@ export class Sim {
     this.pickUpRelics();
     this.updateHidden();
     this.resolveDeaths();
-    this.ents = this.ents.filter((e) => e.alive || (e.kind !== 'unit' && e.kind !== 'ward' && e.kind !== 'relic'));
+    this.ents = this.ents.filter((e) => e.alive || (e.kind !== 'unit' && e.kind !== 'ward' && e.kind !== 'relic' && e.kind !== 'wall'));
 
     this.tick++;
     if (!this.result) {
@@ -712,10 +843,217 @@ export class Sim {
       case 'ult': {
         const h = this.heroOf(c.player, c.hero);
         if (!h || !h.ultReady) return false;
-        h.ultArmed = !h.ultArmed;
+        if (c.x === undefined && c.target === undefined) { h.ultArmed = !h.ultArmed; return true; }
+        return this.aimUlt(h, c);
+      }
+      case 'dash': return this.dash(c);
+      case 'power': {
+        const h = this.heroOf(c.player, c.hero);
+        if (!h || !h.alive || h.hp <= 0 || h.deploy > 0 || h.stun > 0 || h.silence > 0 || h.powerCd > 0) return false;
+        return this.firePower(h, true);
+      }
+      case 'rally': {
+        if (!this.lanes.includes(c.lane)) return false;
+        if (c.hold) { pl.hold[c.lane] = true; return true; }
+        this.release(c.player, c.lane);
         return true;
       }
+      case 'pick': {
+        const h = this.heroOf(c.player, c.hero);
+        if (!h || !this.pendingChoice(h) || (c.option !== 0 && c.option !== 1)) return false;
+        this.choose(h, c.option);
+        return true;
+      }
+      case 'call': return this.useCall(c);
     }
+  }
+
+  // ---------- PLAN-015 (DEC-023, DEC-024): aims, dashes, cues, rallies, choices, calls ----------
+
+  /** An aimed ultimate: check the aim (an enemy, your tower, a spot or a lane) and fire it now. */
+  private aimUlt(h: Ent, c: Extract<Command, { t: 'ult' }>): boolean {
+    const kind = h.hero as HeroKind;
+    const aim = ULT_AIMS[kind];
+    const kit = KITS[kind];
+    if (!aim || !kit.ultAt || !this.canUlt(h)) return false;
+    const p = h.homeOwner as Player;
+    let x = Math.trunc(c.x ?? h.x);
+    let y = Math.trunc(c.y ?? h.y);
+    let t: Ent | undefined;
+    const reach = (e: { x: number; y: number }, extra = 0) => aim.range === 0 || within(h.x, h.y, e.x, e.y, aim.range + extra);
+    switch (aim.kind) {
+      case 'enemy': case 'hero': case 'troop': {
+        t = c.target !== undefined ? this.get(c.target) : undefined;
+        if (!t || !t.alive || t.hp <= 0 || t.owner === p || t.owner === NEUTRAL || !this.sees(p, t)) return false;
+        if (t.kind !== 'hero' && t.kind !== 'unit') return false;
+        if (aim.kind === 'hero' && t.kind !== 'hero') return false;
+        if (aim.kind === 'troop' && t.kind !== 'unit') return false;
+        if (!reach(t, t.r)) return false;
+        [x, y] = [t.x, t.y];
+        break;
+      }
+      case 'tower': {
+        t = c.target !== undefined ? this.get(c.target) : undefined;
+        if (!t || !t.alive || t.owner !== p || (t.kind !== 'tower' && t.kind !== 'core')) return false;
+        [x, y] = [t.x, t.y];
+        break;
+      }
+      case 'spot':
+        x = clamp(x, FIELD.minX, FIELD.maxX);
+        y = clamp(y, FIELD.minY, FIELD.maxY);
+        if (!reach({ x, y })) return false;
+        break;
+      case 'lane':
+        if (this.laneAt(x, y, 300) === null) return false;
+        break;
+    }
+    if (!kit.ultAt(this, h, { x, y, target: t })) return false;
+    this.ultFired(h);
+    return true;
+  }
+
+  /** Land the ultimates whose warning ring has run out (and Gajah Mina's slams). */
+  private landCasts(): void {
+    if (!this.casts.length) return;
+    const due = this.casts.filter((c) => c.at <= this.tick);
+    if (!due.length) return;
+    this.casts = this.casts.filter((c) => c.at > this.tick);
+    for (const c of due) {
+      const h = this.get(c.caster);
+      if (!h || !h.alive || h.hp <= 0) continue; // the caster fell: it fizzles
+      if (c.hero === null) { this.slamLands(h, c); continue; }
+      const t = c.target ? this.get(c.target) : undefined;
+      if (c.target && (!t || !t.alive || t.hp <= 0 || !within(h.x, h.y, t.x, t.y, c.reach + ACTION.lockSlack + t.r))) {
+        this.say(t ? t.x : c.x, (t ? t.y : c.y) - 130, 'Dodged!', 'ambush');
+        continue;
+      }
+      KITS[c.hero].land?.(this, h, c, t);
+    }
+  }
+
+  private dash(c: Extract<Command, { t: 'dash' }>): boolean {
+    const h = this.heroOf(c.player, c.hero);
+    if (!h || !h.alive || h.hp <= 0 || h.deploy > 0 || h.stun > 0 || h.dashCd > 0 || h.dashLeft > 0) return false;
+    const dx = Math.trunc(c.x) - h.x;
+    const dy = Math.trunc(c.y) - h.y;
+    const d = isqrt(dx * dx + dy * dy);
+    if (d < 20) return false;
+    const dist = Math.min(ACTION.dashDist, d);
+    h.dashLeft = ACTION.dashTicks;
+    h.dashVx = idiv(dx * dist, d * ACTION.dashTicks);
+    h.dashVy = idiv(dy * dist, d * ACTION.dashTicks);
+    h.dashCd = ACTION.dashCooldown;
+    this.events.push({ k: 'dash', x1: h.x, y1: h.y, x2: h.x + h.dashVx * ACTION.dashTicks, y2: h.y + h.dashVy * ACTION.dashTicks, owner: h.homeOwner, id: h.id });
+    return true;
+  }
+
+  /** Fire a hero's Power now: on cue (the player's tap) or by itself. Returns true if it fired. */
+  private firePower(h: Ent, cue: boolean): boolean {
+    const def = HEROES[h.hero as HeroKind];
+    h.inPower = true;
+    h.cue = cue;
+    const fired = KITS[h.hero as HeroKind].power(this, h, this.rank(h));
+    h.inPower = false;
+    h.cue = false;
+    if (!fired) return false;
+    h.powerCd = this.powerCooldown(h);
+    this.say(h.x, h.y - 140, cue ? `${def.power.name} on cue!` : def.power.name, cue ? 'level' : 'info');
+    return true;
+  }
+
+  /** Release a lane's rallied troops (PLAN-015): they march together with a war-drum boost. */
+  private release(p: Player, lane: LaneId): void {
+    const pl = this.players[p];
+    pl.hold[lane] = false;
+    if (pl.held[lane] <= 0) return;
+    pl.held[lane] = 0;
+    let first: Ent | null = null;
+    for (const e of this.ents) {
+      if (e.kind !== 'unit' || !e.alive || !e.held || e.owner !== p || e.lane !== lane) continue;
+      e.held = false;
+      this.hasteFor(e, RALLY.hastePct, RALLY.buffTicks);
+      this.dmgBuffFor(e, RALLY.dmgPct, RALLY.buffTicks);
+      this.setPathFrom(e, lane, nearestS(LANES[lane], e.x, e.y));
+      first ??= e;
+    }
+    if (first) this.say(first.x, first.y - 120, 'Rally!', 'ult');
+  }
+
+  /** Make a level-up choice (PLAN-015): 0 = the hero's own upgrade, 1 = Quick (level 2) or Strong (level 3). */
+  private choose(h: Ent, option: 0 | 1): void {
+    const lv = this.pendingChoice(h);
+    if (!lv) return;
+    h.upg[lv - 2] = option;
+    h.choiceAt = 0;
+    const name = option === 0 ? `${HEROES[h.hero as HeroKind].power.name} upgraded` : lv === 2 ? 'Quick Power' : 'Strong Power';
+    if (h.alive) this.say(h.x, h.y - 170, name, 'level');
+  }
+
+  /** Use a commander call (DEC-024). */
+  private useCall(c: Extract<Command, { t: 'call' }>): boolean {
+    const p = c.player;
+    const def = CALLS[c.call];
+    if (!def || this.cantCall(p, c.call)) return false;
+    const pl = this.players[p];
+    const x = clamp(Math.trunc(c.x ?? 0), FIELD.minX, FIELD.maxX);
+    const y = clamp(Math.trunc(c.y ?? 0), FIELD.minY, FIELD.maxY);
+    const R = CALL_RULES;
+    let ex = CORES[p][0];
+    let ey = CORES[p][1];
+    switch (c.call) {
+      case 'drum':
+        for (const e of this.ents) if (e.kind === 'unit' && e.alive && e.owner === p) { this.hasteFor(e, R.drumHastePct, R.drumTicks); this.dmgBuffFor(e, R.drumDmgPct, R.drumTicks); }
+        break;
+      case 'remedy':
+        for (const h of this.heroes(p)) {
+          if (!h.alive || h.hp <= 0) continue;
+          this.heal(h, pct(h.maxHp, R.remedyPct));
+          h.slow = 0; h.dot = 0;
+        }
+        break;
+      case 'barricade': {
+        if (c.x === undefined || c.y === undefined || !this.seesPoint(p, x, y)) return false;
+        const lane = this.laneAt(x, y);
+        if (lane === null) return false;
+        const w = this.spawn('wall', p, x, y, R.wallRadius);
+        Object.assign(w, { hp: R.wallHp, maxHp: R.wallHp, life: R.wallLife, lane });
+        [ex, ey] = [x, y];
+        break;
+      }
+      case 'eye':
+        if (c.x === undefined || c.y === undefined) return false;
+        this.addZone({ kind: 'eye', owner: p, x, y, r: R.eyeRadius, lane: 0, until: this.tick + R.eyeTicks, heal: false });
+        [ex, ey] = [x, y];
+        break;
+      case 'snare':
+        if (c.x === undefined || c.y === undefined || !this.seesPoint(p, x, y)) return false;
+        this.addZone({ kind: 'snare', owner: p, x, y, r: R.snareRadius, lane: 0, until: this.tick + R.snareLife, heal: false });
+        [ex, ey] = [x, y];
+        break;
+      case 'repair': {
+        const t = c.target !== undefined ? this.get(c.target) : undefined;
+        if (!t || !t.alive || t.owner !== p || (t.kind !== 'tower' && t.kind !== 'core') || t.hp >= t.maxHp) return false;
+        t.hp = Math.min(t.maxHp, t.hp + R.repairHp);
+        [ex, ey] = [t.x, t.y];
+        break;
+      }
+    }
+    pl.mana -= def.cost * MANA.perMana;
+    pl.callCd[pl.calls.indexOf(c.call)] = def.cooldown;
+    this.events.push({ k: 'call', call: c.call, owner: p, x: ex, y: ey });
+    if (c.call !== 'snare') this.say(ex, ey - 140, def.name, 'ult');
+    return true;
+  }
+
+  /** Gajah Mina's slam lands: hurts and stuns everyone in the ring who didn't get out. */
+  private slamLands(b: Ent, c: Cast): void {
+    for (const e of this.ents) {
+      if (!e.alive || e.hp <= 0 || (e.kind !== 'hero' && e.kind !== 'unit') || e.owner === NEUTRAL || e.flying) continue;
+      if (!within(c.x, c.y, e.x, e.y, c.r + e.r)) continue;
+      this.damage(e, ACTION.slamDamage, b, {});
+      this.stunFor(e, ACTION.slamStun);
+    }
+    this.events.push({ k: 'boom', x: c.x, y: c.y, r: c.r, owner: NEUTRAL });
   }
 
   private applyOrder(c: Extract<Command, { t: 'order' }>): boolean {
@@ -784,12 +1122,15 @@ export class Sim {
 
   // ---------- spawning ----------
 
-  private newPlayer(picks: HeroKind[], species: SpeciesId): PlayerState {
+  private newPlayer(picks: HeroKind[], species: SpeciesId, calls: CallId[]): PlayerState {
     const sp = SPECIES[species] ? species : 'kampung';
     const classes = SPECIES[sp].classes;
+    const mine = calls.filter((c, i) => CALLS[c] !== undefined && calls.indexOf(c) === i).slice(0, CALL_RULES.picks);
+    for (const c of DEFAULT_CALLS) if (mine.length < CALL_RULES.picks && !mine.includes(c)) mine.push(c);
     return {
       species: sp, laneClass: [classes[0], classes[1 % classes.length], classes[2 % classes.length]],
       mana: MANA.start, picks, towersDestroyed: 0, heroIds: {}, manaSlow: 0, halfPrice: false,
+      hold: [false, false, false], held: [0, 0, 0], calls: mine, callCd: mine.map(() => 0),
     };
   }
 
@@ -807,6 +1148,8 @@ export class Sim {
       ambushLeft: 0, hidden: false, grace: 0, veil: 0, gankBonus: 0, bonusPct: 0, blockCd: 0, transformed: false,
       order: NO_ORDER, prevOrder: NO_ORDER, goalX: x, goalY: y, camp: 0, campKind: 'grove', respawnTotal: 0, spot: 0, relic: 0,
       wave: false, spawnCd: 0, usedFirst: false, fury: 0, streak: 0, items: [], ultArmed: false, ultUntil: 0, fallback: false, waiting: false,
+      dashCd: 0, dashLeft: 0, dashVx: 0, dashVy: 0, powerWait: 0, cue: false, inPower: false, upg: [-1, -1], choiceAt: 0,
+      comboBy: 0, comboOwner: -1, comboTick: 0, comboStep: 0, held: false, seen: 0,
     };
     this.ents.push(e);
     return e;
@@ -860,7 +1203,12 @@ export class Sim {
     for (const id of this.lanes) {
       const lane = LANES[id];
       for (const p of [0, 1] as const) {
-        const cls = CLASSES[this.players[p].laneClass[id]];
+        const pl = this.players[p];
+        // Rally the waves (PLAN-015): a held lane keeps its waves at home; the 4th releases them all.
+        let hold = pl.hold[id];
+        if (hold && pl.held[id] >= RALLY.max) { pl.held[id]++; hold = false; }
+        else if (hold) pl.held[id]++;
+        const cls = CLASSES[pl.laneClass[id]];
         const kind = cls.unit;
         const count = cls.wave;
         const s = uToS(lane, p, WAVES.spawnU);
@@ -875,7 +1223,11 @@ export class Sim {
           e.damage = pct(e.damage, strength);
           e.wave = true;
           e.xpValue = idiv(WAVES.waveXp, count);
+          e.held = hold;
+          e.goalX = e.x;
+          e.goalY = e.y;
         }
+        if (pl.hold[id] && !hold) this.release(p, id);
       }
     }
   }
@@ -963,6 +1315,15 @@ export class Sim {
           case 'lantern':
             if (z.heal && e.owner === z.owner && this.tick % 20 === 0 && within(z.x, z.y, e.x, e.y, 600)) this.heal(e, pct(e.maxHp, 2));
             break;
+          case 'snare':
+            // Snare Trap (DEC-024): the first enemy hero on foot to step in is caught.
+            if (z.until > this.tick && enemy && e.kind === 'hero' && !e.flying && within(z.x, z.y, e.x, e.y, z.r + e.r)) {
+              this.stunFor(e, CALL_RULES.snareStun);
+              e.seen = Math.max(e.seen, CALL_RULES.snareSeen);
+              z.until = this.tick;
+              this.say(e.x, e.y - 130, 'Snared!', 'ambush');
+            }
+            break;
         }
       }
     }
@@ -1024,6 +1385,7 @@ export class Sim {
     if (t.kind === 'hero' && t.hidden) return false;
     if (t.kind === 'camp' || t.kind === 'relic') return false;
     if (t.kind === 'ward' && by.kind !== 'hero') return false; // only heroes clear wards
+    if (t.kind === 'wall' && by.kind !== 'unit' && by.kind !== 'hero') return false; // towers ignore barricades
     if (by.targets === 'buildings' && t.kind !== 'tower' && t.kind !== 'core') return false;
     if (t.flying && !this.canHitAir(by)) return false;
     if (t.duelWith && by.id !== t.duelWith) return false;
@@ -1162,6 +1524,14 @@ export class Sim {
         a.xpValue = 2;
       }
     }
+    if (e.held) {
+      // A rallied troop (PLAN-015) waits at its end of the lane and only fights what comes near.
+      let w = this.currentTarget(e, RALLY.leash);
+      if (!w) { const n = this.acquire(e, RALLY.leash, e.goalX, e.goalY); if (n) { w = n; e.targetId = n.id; } }
+      if (w) this.engage(e, w, spd);
+      else this.moveTo(e, e.goalX, e.goalY, spd);
+      return;
+    }
     let t = this.currentTarget(e, e.sight + 200);
     if (!t || (this.tick + e.id) % 4 === 0) {
       const n = this.acquire(e, e.sight);
@@ -1263,9 +1633,19 @@ export class Sim {
       return;
     }
     if (h.deploy > 0) { h.deploy--; return; }
+    if (h.dashCd > 0) h.dashCd--;
+    if (h.dashLeft > 0) {
+      // the dodge dash (PLAN-015): a quick slide, nothing else meanwhile
+      h.dashLeft--;
+      h.x = clamp(h.x + h.dashVx, FIELD.minX, FIELD.maxX);
+      h.y = clamp(h.y + h.dashVy, FIELD.minY, FIELD.maxY);
+      if (h.dashLeft === 0 && h.order.type === 'push') this.setPathFrom(h, h.order.lane, nearestS(LANES[h.order.lane], h.x, h.y));
+      return;
+    }
     if (h.hp <= 0 || h.stun > 0) return;
     if (h.atkCd > 0) h.atkCd--;
-    if (h.powerCd > 0) h.powerCd--;
+    if (h.powerCd > 0 && --h.powerCd === 0) h.powerWait = ACTION.autoDelay;
+    else if (h.powerWait > 0) h.powerWait--;
     const def = HEROES[h.hero as HeroKind];
     const kit = KITS[h.hero as HeroKind];
     kit.tick?.(this, h);
@@ -1289,15 +1669,14 @@ export class Sim {
       return;
     }
 
-    // Powers fire by themselves (DEC-007); the ultimate fires once called, at a good moment (DEC-011).
+    // Powers fire by themselves (DEC-007), a moment after they are ready so the player can fire them
+    // on cue first (PLAN-015); the ultimate fires once called, at a good moment (DEC-011).
     // Silence stops both.
     if (h.silence <= 0) {
       if (h.ultArmed && this.canUlt(h) && kit.ult && kit.ult(this, h, true)) this.ultFired(h);
-      if (h.powerCd <= 0 && kit.power(this, h, this.rank(h))) {
-        h.powerCd = this.itemMul(h, 'cooldownPct', def.powerTicks);
-        this.say(h.x, h.y - 140, def.power.name, 'info');
-      }
+      if (h.powerCd <= 0 && h.powerWait <= 0) this.firePower(h, false);
     }
+    void def;
     if (!h.alive || h.hp <= 0 || h.stun > 0) return;
 
     // A duel overrides orders: fight the duel partner.
@@ -1527,7 +1906,14 @@ export class Sim {
     const t = c.lastHitId ? this.get(c.lastHitId) : undefined;
     if (!t || !t.alive || t.hp <= 0 || !within(c.x, c.y, t.x, t.y, 900)) {
       if (c.hp < c.maxHp && this.tick - c.lastHitTick > NEUTRALS.resetAfter) { c.hp = c.maxHp; c.lastHitId = 0; }
+      if (c.campKind === 'boss') c.spawnCd = ACTION.slamEvery; // the first slam comes a while into a fight
       return;
+    }
+    // Gajah Mina slams the ground every few seconds once fought: a warning ring, then a stun (PLAN-015).
+    if (c.campKind === 'boss' && c.spawnCd > 0) c.spawnCd--;
+    else if (c.campKind === 'boss' && !this.casts.some((k) => k.caster === c.id)) {
+      c.spawnCd = ACTION.slamEvery;
+      this.casts.push({ id: this.nextId++, hero: null, caster: c.id, owner: NEUTRAL, x: c.x, y: c.y, r: ACTION.slamRadius, target: 0, reach: 0, start: this.tick, at: this.tick + ACTION.ringTicks });
     }
     if (within(c.x, c.y, t.x, t.y, c.range + c.r + t.r) && c.atkCd <= 0) {
       const dealt = this.damage(t, c.damage, c, {});
@@ -1563,6 +1949,22 @@ export class Sim {
       if (st.armorRanged && src && src.range >= 300) dmg = pct(dmg, st.armorRanged);
     }
     if (t.mark > 0 && srcOwner === t.markBy) dmg = pct(dmg, 150);
+    // Combo chains (PLAN-015): spell hits on a piece from different heroes of one side, close together.
+    if (opts.spell && src && src.kind === 'hero' && (t.kind === 'hero' || t.kind === 'unit')) {
+      const side = src.homeOwner;
+      const fresh = t.comboOwner === side && this.tick - t.comboTick <= ACTION.comboWindow;
+      if (fresh && t.comboBy !== src.id) {
+        t.comboStep = Math.min(ACTION.comboMax, t.comboStep + 1);
+        if (this.comboShown !== this.tick * 2 + (side as number)) {
+          this.comboShown = this.tick * 2 + (side as number);
+          this.events.push({ k: 'combo', x: t.x, y: t.y, step: t.comboStep, owner: side });
+        }
+      } else if (!fresh) t.comboStep = 0;
+      t.comboBy = src.id;
+      t.comboOwner = side;
+      t.comboTick = this.tick;
+      if (t.comboStep > 0) dmg = pct(dmg, 100 + ACTION.comboStepPct * t.comboStep);
+    }
     if (t.kind === 'hero') {
       const kit = KITS[t.hero as HeroKind];
       if (kit.incoming) dmg = kit.incoming(this, t, dmg, src, !!opts.spell, !!opts.pure);
@@ -1650,8 +2052,9 @@ export class Sim {
             if (within(h.x, h.y, e.x, e.y, revealR)) spotted = true;
           }
           for (const z of this.zones) {
-            if (z.kind === 'lantern' && z.owner !== h.owner && within(z.x, z.y, h.x, h.y, z.r)) trueSight = true;
+            if ((z.kind === 'lantern' || z.kind === 'eye') && z.owner !== h.owner && within(z.x, z.y, h.x, h.y, z.r)) trueSight = true;
           }
+          if (h.seen > 0) trueSight = true;
           for (const w of this.ents) {
             if (w.kind === 'ward' && w.alive && w.owner !== h.owner && within(w.x, w.y, h.x, h.y, WARDS.radius)) trueSight = true;
           }
@@ -1662,6 +2065,7 @@ export class Sim {
           if (h.hero === 'rimba' && wasHidden && h.grace > 0) { h.grace--; hidden = true; } else hidden = false;
         } else if (hidden && h.hero === 'rimba') h.grace = sec(2);
       }
+      if (h.seen > 0) h.seen--;
       h.hidden = hidden;
       if (hidden) h.ambushLeft = HERO_RULES.ambushWindow;
       else if (h.ambushLeft > 0) h.ambushLeft--;

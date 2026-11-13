@@ -105,6 +105,20 @@ Order colours and species colours are unchanged; see the code (`ORDER_COLORS` an
    There are no blurred shadows or gradients in effects, so they stay cheap every frame.
 10. **No borrowed looks.** No shapes, icons, frames or colours copied from other games.
 
+## Strategy and action pieces (PLAN-015)
+
+Code: `src/ui/action.ts` and `src/ui/render.ts`.
+
+- **Warning rings** are paper rings with a crisp shadow and a white edge, dashed and turning, filling
+  in as the moment comes: red for the enemy, gold for yours, burnt orange for Gajah Mina. Enemy
+  rings carry a paper warning flag. They show through the fog: both sides must see them.
+- **Combo stamps** are red-ink chops ("COMBO ×2") pressed onto the board with a gold inner line.
+- **Dashes** leave three paper speed strips in team colour.
+- **Bamboo barricades** are short paper fences of green bamboo with team-coloured lashings.
+- **Commander calls** are paper discs beside the Shop with a small cut-paper icon (drum, bamboo,
+  eye, leaf and bowl, snare, mallet), a purple cost bead and a cooldown sweep.
+- **Power gems** are gold paper diamonds on each hero panel; they glow while the Power waits for a cue.
+
 ## Characters (PLAN-014)
 
 Dota 2 is the quality bar; the designs are ours. Each hero's source is listed in

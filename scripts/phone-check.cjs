@@ -1,4 +1,4 @@
-// PLAN-001 T1/T5, PLAN-002, PLAN-003, PLAN-004 T5, PLAN-005 T3/T5: opens the built game at phone size and plays it.
+// PLAN-001 T1/T5, PLAN-002, PLAN-003, PLAN-004 T5, PLAN-005 T3/T5, PLAN-015: opens the built game at phone size and plays it.
 // Needs Playwright with Chromium available on the machine (not a project dependency).
 // Usage: npm run build && node scripts/phone-check.cjs [screenshot-folder]
 const { chromium, devices } = require('playwright');
@@ -33,6 +33,9 @@ async function page(browser, query) {
     // (or the next free hero if the bot took one).
     await p.waitForSelector('#species.show');
     await p.click('#species-batu');
+    // commander calls (DEC-024): tap two; a third replaces the older one
+    await p.click('#call-eye');
+    await p.click('#call-snare');
     await p.screenshot({ path: `${out}/1b-species.png` });
     await p.click('#species-go');
     await p.waitForSelector('#draft.show');
@@ -58,6 +61,9 @@ async function page(browser, query) {
     if (JSON.stringify(lineup.mine) !== JSON.stringify(d.mine) || JSON.stringify(lineup.bot) !== JSON.stringify(d.bot) || lineup.mine.length !== 3 || lineup.bot.length !== 3 || overlap) {
       fail('the match line-ups do not match the draft: ' + JSON.stringify({ lineup, draft: d }));
     } else console.log('PASS draft (you 3, bot 3, turns) and versus screen start a match with the drafted line-ups:', JSON.stringify(lineup));
+    const myCalls = await p.evaluate(() => window.__game.sim.players[0].calls);
+    if (JSON.stringify(myCalls) !== '["eye","snare"]') fail('the commander calls picked before the match are not the match\'s: ' + JSON.stringify(myCalls));
+    else console.log('PASS the two commander calls picked before the match are yours in it:', JSON.stringify(myCalls));
     const sp = await p.evaluate(() => ({ species: window.__game.sim.players[0].species, lanes: window.__game.sim.players[0].laneClass }));
     if (sp.species !== 'batu' || !sp.lanes.every((c) => ['kerikil', 'golem', 'lontar'].includes(c))) fail('species pick did not give Batu lanes: ' + JSON.stringify(sp));
     else console.log('PASS species pick starts the match as Batu, lanes', JSON.stringify(sp.lanes));
@@ -297,16 +303,16 @@ async function page(browser, query) {
     if (!(v.scale / v.home > 1.5)) fail('pinch did not zoom in: ' + (v.scale / v.home));
     else console.log(`PASS a two-finger pinch zooms in (${(v.scale / v.home).toFixed(2)}x the full-width view)`);
     // a hero off the screen gets a tab at the map's edge; tapping it looks there (PLAN-013)
-    await p.evaluate(() => { const g = window.__game; const h = g.sim.heroOf(0, 'kail'); g.setView({ zoom: g.base.homeScale / g.base.baseScale, cx: 1950, cy: h.y < 3470 ? 6440 : 500 }); });
+    await p.evaluate(() => { const g = window.__game; const h = g.sim.heroOf(0, 'kail'); g.sim.place(h, h.x, h.y < 3470 ? Math.min(h.y, 1800) : Math.max(h.y, 5200)); g.setView({ zoom: g.base.homeScale / g.base.baseScale, cx: 1950, cy: h.y < 3470 ? 6440 : 500 }); });
     await p.waitForTimeout(200);
     const kt = (await p.evaluate(() => window.__game.renderer.offscreen)).find((t) => t.hero === 'kail');
-    if (!kt) fail('no edge tab for Kail when he is off the screen');
+    if (!kt) fail('no edge tab for Kail when he is off the screen: ' + JSON.stringify(await p.evaluate(() => { const g = window.__game; const h = g.sim.heroOf(0, 'kail'); return { alive: h.alive, x: h.x, y: h.y, vy: g.layout.vy, tabs: g.renderer.offscreen }; })));
     else {
       await p.screenshot({ path: `${out}/8-edge-tab.png` });
       await p.mouse.click(kt.x, kt.y);
       await p.waitForTimeout(200);
       const onScreen = await p.evaluate(() => { const g = window.__game; const h = g.sim.heroOf(0, 'kail'); const L = g.layout; const y = L.field.y + (h.y - L.vy) * L.scale; return y > L.field.y && y < L.field.y + L.field.h; });
-      if (!onScreen) fail('tapping Kail\'s edge tab did not bring him into view');
+      if (!onScreen) fail('tapping Kail\'s edge tab did not bring him into view: ' + JSON.stringify({ tab: kt, now: await p.evaluate(() => { const g = window.__game; const h = g.sim.heroOf(0, 'kail'); return { x: h.x, y: h.y, alive: h.alive, vy: g.layout.vy, scale: g.layout.scale, ring: g.ui.ring, heroes: g.sim.heroes(0).map((e) => [e.hero, e.x, e.y]) }; }) }));
       else console.log('PASS an off-screen hero has a tab at the map\'s edge; tapping it scrolls to him');
     }
     if (errors.length) fail('page errors: ' + errors.join(' | '));
@@ -343,6 +349,98 @@ async function page(browser, query) {
     if (JSON.stringify(lanes) !== '[0,2]') fail('2-lane mode lanes: ' + JSON.stringify(lanes));
     else console.log('PASS ?lanes=2 starts a match with only the side lanes');
     await p.screenshot({ path: `${out}/7-two-lanes.png` });
+    if (errors.length) fail('page errors: ' + errors.join(' | '));
+  }
+  // 4. Strategy and action (PLAN-015, DEC-024): drag ULT to aim, its warning ring, flick to dash, the
+  //    Power gem, hold and release a lane, a level-up choice, and commander calls.
+  {
+    const { p, errors } = await page(browser, '?seed=9&nohelp=1&picks=embun,kail,pendekar&calls=drum,eye');
+    await p.waitForFunction(() => window.__game && window.__game.sim.tick > 40, null, { timeout: 30_000 });
+    const mid = (r) => [r.x + r.w / 2, r.y + r.h / 2];
+    const lay = () => p.evaluate(() => { const l = window.__game.layout; return { heroes: l.heroes, holds: l.holds, calls: l.calls, field: l.field }; });
+    const heroAt = (k) => p.evaluate((kind) => { const g = window.__game; const h = g.sim.heroOf(0, kind); const L = g.layout; return [L.field.x + (h.x - L.vx) * L.scale, L.field.y + (h.y - L.vy) * L.scale]; }, k);
+    await p.evaluate(() => {
+      const g = window.__game; const sim = g.sim;
+      g.setRunning(false);
+      for (let i = 0; i < 400; i++) sim.step();
+      const e = sim.heroOf(0, 'embun'); sim.giveXp(e, 999); e.ultArmed = false; e.ultReady = true;
+      g.setView({ zoom: g.base.homeScale / g.base.baseScale, cx: e.x, cy: e.y - 150 });
+      g.setRunning(true);
+    });
+    let L = await lay();
+    // a. drag Embun's ULT button up onto the map: Dawn Freeze is aimed there, behind a warning ring
+    const [ux, uy] = mid(L.heroes[0].ult);
+    const [ex, ey] = await heroAt('embun');
+    await p.mouse.move(ux, uy); await p.mouse.down();
+    for (let k = 1; k <= 8; k++) await p.mouse.move(ux + (ex - ux) * k / 8, uy + (ey - 140 - uy) * k / 8);
+    await p.waitForTimeout(120);
+    await p.screenshot({ path: `${out}/9a-ult-aim.png` });
+    await p.mouse.up();
+    await p.waitForTimeout(120);
+    await p.screenshot({ path: `${out}/9b-warning-ring.png` });
+    const aimed = await p.evaluate(() => ({ ready: window.__game.sim.heroOf(0, 'embun').ultReady, ring: window.__game.sim.casts.some((c) => c.hero === 'embun') || window.__game.sim.events.some((e) => e.k === 'ult') }));
+    if (aimed.ready) fail('dragging ULT onto the map did not aim and fire the ultimate');
+    else console.log('PASS dragging ULT onto the map aims Dawn Freeze there (warning ring first)');
+    // b. flick Kail on the map: he dashes
+    await p.evaluate(() => { const g = window.__game; const h = g.sim.heroOf(0, 'kail'); g.setView({ zoom: g.base.homeScale / g.base.baseScale, cx: h.x, cy: h.y - 100 }); });
+    await p.waitForTimeout(60);
+    const [kx, ky] = await heroAt('kail');
+    // a finger's flick is quick: send its touch events in one go (a slow test machine can't stretch it)
+    const flickMs = await p.evaluate(([x, y]) => {
+      const cv = document.querySelector('canvas');
+      const r = cv.getBoundingClientRect();
+      const ev = (type, dx) => cv.dispatchEvent(new PointerEvent(type, { pointerId: 7, pointerType: 'touch', isPrimary: true, bubbles: true, clientX: r.left + x + dx, clientY: r.top + y }));
+      const t0 = performance.now();
+      ev('pointerdown', 0); ev('pointermove', 20); ev('pointermove', 45); ev('pointermove', 70); ev('pointerup', 70);
+      return Math.round(performance.now() - t0);
+    }, [kx, ky - 16]);
+    await p.waitForTimeout(150);
+    const dashed = await p.evaluate(() => window.__game.sim.heroes(0).filter((h) => h.dashCd > 0).map((h) => h.hero));
+    if (!dashed.length) fail(`a flick on a hero did not make it dash (${flickMs} ms)`);
+    else console.log(`PASS a quick flick on a hero makes it dash (${dashed.join(', ')}, ${flickMs} ms)`);
+    // c. the Power gem: Kail's Hook on cue
+    await p.evaluate(() => { const sim = window.__game.sim; const h = sim.heroOf(0, 'kail'); sim.summon(1, 'shieldbearer', h.x, h.y - 450, 1); h.powerCd = 0; h.powerWait = 60; });
+    L = await lay();
+    await p.mouse.click(...mid(L.heroes[1].power));
+    await p.waitForTimeout(150);
+    const hooked = await p.evaluate(() => window.__game.sim.heroOf(0, 'kail').powerCd);
+    if (!(hooked > 0)) fail('tapping the Power gem did not fire Kail\'s Hook');
+    else console.log('PASS tapping a hero\'s Power gem fires the Power on cue');
+    // d. hold and release the left lane
+    await p.mouse.click(...mid(L.holds[0]));
+    await p.waitForTimeout(120);
+    const held = await p.evaluate(() => window.__game.sim.players[0].hold[0]);
+    await p.screenshot({ path: `${out}/9c-hold.png` });
+    await p.mouse.click(...mid(L.holds[0]));
+    await p.waitForTimeout(120);
+    const released = await p.evaluate(() => !window.__game.sim.players[0].hold[0]);
+    if (!held || !released) fail('the left chip\'s hold toggle did not hold and release the lane: ' + JSON.stringify({ held, released }));
+    else console.log('PASS a wave chip\'s HOLD toggle holds that lane\'s waves, and GO releases them');
+    // e. a level-up choice: tap the badge, then Quick
+    await p.evaluate(() => { const h = window.__game.sim.heroOf(0, 'pendekar'); h.level = Math.max(2, h.level); h.upg = [-1, -1]; h.choiceAt = 0; });
+    await p.waitForTimeout(150);
+    await p.mouse.click(...mid(L.heroes[2].badge));
+    await p.waitForTimeout(120);
+    await p.screenshot({ path: `${out}/9d-choice.png` });
+    const card = await p.evaluate(() => { const g = window.__game; const l = g.layout; const h = 92; const box = { x: l.col.x + 8, y: l.waves[0].y - 8 - h, w: l.col.w - 16, h }; const ow = (box.w - 18) / 2; return [box.x + 12 + ow + ow / 2, box.y + 26 + (h - 32) / 2]; });
+    await p.mouse.click(card[0], card[1]);
+    await p.waitForTimeout(150);
+    const upg = await p.evaluate(() => window.__game.sim.heroOf(0, 'pendekar').upg[0]);
+    if (upg !== 1) fail('the upgrade card did not give Pendekar the Quick upgrade: ' + upg);
+    else console.log('PASS the level badge opens the upgrade card; tapping Quick picks it');
+    // f. commander calls: War Drum at once; Spirit Eye on a tapped spot
+    await p.evaluate(() => { window.__game.sim.players[0].mana = 12 * 160; });
+    await p.mouse.click(...mid(L.calls[0]));
+    await p.waitForTimeout(120);
+    await p.mouse.click(...mid(L.calls[1]));
+    await p.waitForTimeout(80);
+    await p.screenshot({ path: `${out}/9e-call-aim.png` });
+    await p.mouse.click(L.field.x + L.field.w / 2, L.field.y + 80);
+    await p.waitForTimeout(150);
+    const calls = await p.evaluate(() => ({ cd: window.__game.sim.players[0].callCd, eye: window.__game.sim.zones.some((z) => z.kind === 'eye' && z.owner === 0) }));
+    await p.screenshot({ path: `${out}/9f-calls.png` });
+    if (!(calls.cd[0] > 0) || !calls.eye) fail('commander calls did not work: ' + JSON.stringify(calls));
+    else console.log('PASS commander calls: War Drum fires at once; Spirit Eye goes where you tap');
     if (errors.length) fail('page errors: ' + errors.join(' | '));
   }
   await browser.close();

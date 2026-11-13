@@ -1,10 +1,10 @@
 // Runs a match in the browser: fixed-step simulation, the bot, input, drawing and menus.
 import { Bot, type BotLevel } from '../game/bot';
 import { LANE_NAMES, type LaneId } from '../game/map';
-import { CLASSES, HEROES, ITEMS, MANA, SPECIES, TICKS_PER_SECOND, type HeroKind, type ItemId, type SpeciesId } from '../game/rules';
-import { type Command, DEFAULT_PICKS, Sim, randomPicks, randomSpecies } from '../game/sim';
-import { type Layout, type View, applyView, clampView, computeLayout, homeView, homeZoom, inField, inRect, maxZoom, overviewView, ringCenter, ringSlotAt, toScreen, toWorld } from './layout';
-import { COMMAND_ORDERS, type CommandAction, commandTargets, orderLabel, resolveCommand } from './placement';
+import { CALLS, CLASSES, HEROES, ITEMS, MANA, SPECIES, TICKS_PER_SECOND, ULT_AIMS, type CallId, type HeroKind, type ItemId, type SpeciesId } from '../game/rules';
+import { type Command, DEFAULT_CALLS, DEFAULT_PICKS, Sim, randomCalls, randomPicks, randomSpecies } from '../game/sim';
+import { type Layout, type View, applyView, choiceCard, clampView, computeLayout, homeView, homeZoom, inField, inRect, maxZoom, overviewView, ringCenter, ringSlotAt, toScreen, toWorld } from './layout';
+import { COMMAND_ORDERS, type CommandAction, callAimAt, commandTargets, orderLabel, resolveCommand, ultAimAt, upgradeTexts } from './placement';
 import { DRAG_LIFT, Renderer, type UiState } from './render';
 
 export interface Settings {
@@ -18,6 +18,8 @@ const TAP_SLOP = 10;
 const ZOOM_IN = 1.8; // double-tap zoom, relative to the usual full-width view (DEC-016, DEC-019)
 const DOUBLE_TAP_MS = 320;
 const HOLD_MS = 160; // holding your hero on the map this long opens its order ring; a quicker drag scrolls (DEC-021)
+const FLICK_UP_MS = 500; // a press on your hero that moves away and lets go this fast is a flick: it dashes (PLAN-015)
+const FLICK_PX = 30; // ...if the finger moved at least this far
 
 export class Game {
   sim!: Sim;
@@ -28,6 +30,8 @@ export class Game {
   botPicks: HeroKind[] | null = null;
   /** Your creep species for the next match (DEC-008). */
   species: SpeciesId = 'kampung';
+  /** Your two commander calls for the next match (DEC-024). */
+  calls: CallId[] = [...DEFAULT_CALLS];
   /** Every accepted command with its tick: seed + this log replays the match exactly. */
   log: { tick: number; cmd: Command }[] = [];
   private bot!: Bot;
@@ -44,9 +48,14 @@ export class Game {
   private lastTap: { x: number; y: number; at: number } | null = null;
   private ctx: CanvasRenderingContext2D;
   private renderer = new Renderer();
-  private ui: UiState = { ring: null, command: null, aim: null, hover: null, toast: null };
-  /** What the finger that is down is doing: choosing on the order ring, or aiming an order it slid out to. */
-  private gesture: 'ring' | 'aim' | null = null;
+  private ui: UiState = { ring: null, command: null, aim: null, hover: null, toast: null, ultAim: null, callAim: null, choice: null };
+  /**
+   * What the finger that is down is doing: choosing on the order ring, aiming an order it slid out to,
+   * pressing a ULT button or a call button (a drag onto the map aims it, PLAN-015), or flicking a hero.
+   */
+  private gesture: 'ring' | 'aim' | 'ult' | 'call' | null = null;
+  private press: { hero?: HeroKind; call?: CallId } = {};
+  private flick: { hero: HeroKind; x: number; y: number; at: number } | null = null;
   private acc = 0;
   private last = 0;
   private running = false;
@@ -78,14 +87,16 @@ export class Game {
       seed: s, lanes: this.settings.lanes,
       picks: [mine, botPicks],
       species: [auto ? randomSpecies(s ^ 0x7654321) : this.species, randomSpecies(s)],
+      calls: [auto ? randomCalls(s ^ 0x13579bd) : this.calls, randomCalls(s)],
     });
     this.bot = new Bot(1, s, this.settings.bot);
     this.autoBot = this.opts.autoplay ? new Bot(0, s ^ 0x5bd1e995, 'normal') : null;
     this.log = [];
     this.renderer.reset();
     if (this.base) this.setView(homeView(this.base));
-    this.ui = { ring: null, command: null, aim: null, hover: null, toast: null };
+    this.ui = { ring: null, command: null, aim: null, hover: null, toast: null, ultAim: null, callAim: null, choice: null };
     this.gesture = null;
+    this.flick = null;
     this.acc = 0;
     this.resultShown = false;
   }
@@ -191,12 +202,12 @@ export class Game {
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
-  /** The hero whose panel (outside its ULT button and item slots) is at a point. */
+  /** The hero whose panel (outside its buttons) is at a point. */
   private heroAt(x: number, y: number): HeroKind | null {
     const kinds = this.sim.players[0].picks;
     for (let i = 0; i < kinds.length; i++) {
       const p = this.layout.heroes[i];
-      if (inRect(p.box, x, y) && !inRect(p.ult, x, y) && !p.items.some((r) => inRect(r, x, y))) return kinds[i];
+      if (inRect(p.box, x, y) && !inRect(p.ult, x, y) && !inRect(p.power, x, y) && !inRect(p.badge, x, y) && !p.items.some((r) => inRect(r, x, y))) return kinds[i];
     }
     return null;
   }
@@ -204,19 +215,35 @@ export class Game {
   /** What a tap on the HUD buttons does (handled on release), or null. */
   private buttonAt(x: number, y: number):
     | { kind: 'gear' } | { kind: 'zoom' } | { kind: 'wave'; lane: LaneId } | { kind: 'ult'; hero: HeroKind } | { kind: 'shop'; hero: HeroKind | null }
-    | { kind: 'menu-cancel' } | { kind: 'menu-bg' } | null {
+    | { kind: 'menu-cancel' } | { kind: 'menu-bg' } | { kind: 'hold'; lane: LaneId } | { kind: 'power'; hero: HeroKind } | { kind: 'badge'; hero: HeroKind }
+    | { kind: 'call'; call: CallId } | { kind: 'choose'; hero: HeroKind; option: 0 | 1 } | { kind: 'choice-bg' } | null {
     const l = this.layout;
-    // While aiming an order, its hint strip with Cancel takes the lane chips' place (DEC-021).
-    if (this.ui.command && inRect(l.menu.hint, x, y)) return inRect(l.menu.cancel, x, y) ? { kind: 'menu-cancel' } : { kind: 'menu-bg' };
+    // The level-up choice card, while open (PLAN-015).
+    if (this.ui.choice) {
+      const card = choiceCard(l);
+      if (inRect(card.box, x, y)) {
+        const i = card.opts.findIndex((r) => inRect(r, x, y));
+        return i >= 0 ? { kind: 'choose', hero: this.ui.choice, option: i as 0 | 1 } : { kind: 'choice-bg' };
+      }
+    }
+    // While aiming an order or a call, its hint strip with Cancel takes the lane chips' place (DEC-021).
+    if ((this.ui.command || this.ui.callAim) && inRect(l.menu.hint, x, y)) return inRect(l.menu.cancel, x, y) ? { kind: 'menu-cancel' } : { kind: 'menu-bg' };
     if (inRect(l.gear, x, y)) return { kind: 'gear' };
     if (inRect(l.zoomBtn, x, y)) return { kind: 'zoom' };
+    const hd = l.holds.findIndex((r) => inRect(r, x, y));
+    if (hd >= 0) return { kind: 'hold', lane: hd as LaneId };
     const w = l.waves.findIndex((r) => inRect(r, x, y));
     if (w >= 0) return { kind: 'wave', lane: w as LaneId };
     if (inRect(l.shop, x, y)) return { kind: 'shop', hero: this.ui.command?.hero ?? null };
+    const c = l.calls.findIndex((r) => inRect(r, x, y));
+    const calls = this.sim.players[0].calls;
+    if (c >= 0 && calls[c]) return { kind: 'call', call: calls[c] };
     const kinds = this.sim.players[0].picks;
     for (let i = 0; i < kinds.length; i++) {
       const p = l.heroes[i];
       if (inRect(p.ult, x, y)) return { kind: 'ult', hero: kinds[i] };
+      if (inRect(p.power, x, y)) return { kind: 'power', hero: kinds[i] };
+      if (inRect(p.badge, x, y)) return { kind: 'badge', hero: kinds[i] };
       if (p.items.some((r) => inRect(r, x, y))) return { kind: 'shop', hero: kinds[i] };
     }
     return null;
@@ -246,15 +273,24 @@ export class Game {
       }
       this.ui.ring = null;
     }
-    if (this.buttonAt(p.x, p.y)) return; // handled on release
+    const pressed = this.buttonAt(p.x, p.y);
+    if (pressed) {
+      // A ULT or call button can also be dragged onto the map to aim it (PLAN-015); a tap is handled on release.
+      if (pressed.kind === 'ult' && ULT_AIMS[pressed.hero]) { this.gesture = 'ult'; this.press = { hero: pressed.hero }; }
+      if (pressed.kind === 'call' && CALLS[pressed.call].aim !== 'none') { this.gesture = 'call'; this.press = { call: pressed.call }; }
+      return;
+    }
+    if (this.ui.choice) this.ui.choice = null; // a press elsewhere closes the upgrade card
     // Press a hero's panel: its order ring opens just above it (DEC-021).
     const hero = this.heroAt(p.x, p.y);
     if (hero) { this.openRing(hero, p.x, p.y, false); return; }
     const inF = inField(this.layout, p.x, p.y);
     if (inF) this.pan = { x: p.x, y: p.y, cx: this.view.cx, cy: this.view.cy, moved: false };
     // Press your hero on the map: its ring opens round the finger after a short hold (or a tap).
-    const onMap = inF && !this.ui.command ? this.heroOnMapAt(p.x, p.y) : null;
-    if (onMap) { this.openRing(onMap, p.x, p.y, true); return; }
+    // an off-screen hero's tab at the map's edge is on top: a press there is for the tab, not a hero under it
+    const onTab = this.renderer.offscreen.some((t) => Math.hypot(t.x - p.x, t.y - p.y) < 20);
+    const onMap = inF && !onTab && !this.ui.command && !this.ui.callAim ? this.heroOnMapAt(p.x, p.y) : null;
+    if (onMap) { this.openRing(onMap, p.x, p.y, true); this.flick = { hero: onMap, x: p.x, y: p.y, at: performance.now() }; return; }
     this.ui.hover = p;
   }
 
@@ -309,10 +345,13 @@ export class Game {
       return;
     }
     const moved = (d: { x: number; y: number }) => this.down !== null && Math.hypot(d.x - this.down.x, d.y - this.down.y) > TAP_SLOP;
+    // Dragging a ULT or call button out onto the map: aiming (PLAN-015).
+    if (this.gesture === 'ult' && this.press.hero && moved(p)) { this.ui.ultAim = { hero: this.press.hero, x: p.x, y: p.y }; return; }
+    if (this.gesture === 'call' && this.press.call && moved(p)) { this.ui.callAim = { call: this.press.call, x: p.x, y: p.y, drag: true }; return; }
     const ring = this.ui.ring;
     if (this.gesture === 'ring' && ring) {
       if (ring.pending) {
-        // moved before the hold: it was a scroll of the map after all
+        // moved before the hold: a scroll of the map, or (let go quickly) a flick that dashes the hero (PLAN-015)
         if (!moved(p)) return;
         this.ui.ring = null;
         this.gesture = null;
@@ -358,6 +397,29 @@ export class Game {
     const gesture = this.gesture;
     this.gesture = null;
     const tap = !wasDown || Math.hypot(p.x - wasDown.x, p.y - wasDown.y) <= TAP_SLOP;
+    const flick = this.flick;
+    this.flick = null;
+    // PLAN-015: let go after dragging ULT or a call onto the map: aim there
+    if (gesture === 'ult' && this.ui.ultAim) {
+      const hero = this.ui.ultAim.hero;
+      this.ui.ultAim = null;
+      const r = ultAimAt(this.layout, this.sim, hero, p.x, p.y - DRAG_LIFT);
+      if (r.cmd && this.ultBlocked(hero)) return;
+      if (r.cmd) { this.send(r.cmd); this.toast(`${HEROES[hero].ult.name}!`); } else this.toast(`${HEROES[hero].ult.name}: ${r.why}`);
+      return;
+    }
+    if (gesture === 'call' && this.ui.callAim?.drag) {
+      const call = this.ui.callAim.call;
+      this.ui.callAim = null;
+      this.aimCall(call, p.x, p.y - DRAG_LIFT);
+      return;
+    }
+    if (flick && pan?.moved && performance.now() - flick.at <= FLICK_UP_MS && Math.hypot(p.x - flick.x, p.y - flick.y) >= FLICK_PX) {
+      // a quick flick on your hero, not a scroll: put the map back and dash
+      this.setView({ zoom: this.view.zoom, cx: pan.cx, cy: pan.cy });
+      this.dash(flick.hero, flick.x, flick.y, p.x, p.y);
+      return;
+    }
     const ring = this.ui.ring;
     if (gesture === 'ring' && ring) {
       // Letting go on the order ring (DEC-021).
@@ -390,14 +452,21 @@ export class Game {
       else if (btn.kind === 'wave') this.cycleWave(btn.lane);
       else if (btn.kind === 'ult') this.callUlt(btn.hero);
       else if (btn.kind === 'shop') document.dispatchEvent(new CustomEvent('open-shop', { detail: btn.hero ?? this.sim.players[0].picks[0] }));
-      else if (btn.kind === 'menu-cancel') this.ui.command = null;
+      else if (btn.kind === 'menu-cancel') { this.ui.command = null; this.ui.callAim = null; }
+      else if (btn.kind === 'hold') this.toggleHold(btn.lane);
+      else if (btn.kind === 'power') this.cuePower(btn.hero);
+      else if (btn.kind === 'badge') this.openChoice(btn.hero);
+      else if (btn.kind === 'call') this.useCall(btn.call);
+      else if (btn.kind === 'choose') this.choose(btn.hero, btn.option);
       return;
     }
-    if (btn?.kind === 'menu-bg') return; // a press on the hint strip
+    if (btn?.kind === 'menu-bg' || btn?.kind === 'choice-bg') return; // a press on the hint strip or the card
     if (pan?.moved) { this.ui.hover = null; return; } // that was a look around, not a tap
     // a tap on an off-screen hero's tab at the map's edge: look there (PLAN-013)
     const tab = tap ? this.renderer.offscreen.find((t) => Math.hypot(t.x - p.x, t.y - p.y) < 20) : undefined;
     if (tab && !this.ui.command) { this.lookAtHero(tab.hero, true); this.lastTap = null; return; }
+    const ca = this.ui.callAim;
+    if (ca && inField(this.layout, p.x, p.y)) { this.aimCall(ca.call, p.x, p.y); return; } // aiming a call: the tap picks the spot
     const cmd = this.ui.command;
     if (cmd && inField(this.layout, p.x, p.y)) {
       // Aiming an order: the tap picks the target.
@@ -455,6 +524,98 @@ export class Game {
     }, 80);
   }
 
+  // ---------- PLAN-015 (DEC-023, DEC-024) ----------
+
+  /** Why an aimed ultimate can't go now (it shows a message), or false. */
+  private ultBlocked(kind: HeroKind): boolean {
+    const h = this.sim.heroOf(0, kind);
+    const name = HEROES[kind].ult.name;
+    if (!h || !h.alive) { this.toast(`${HEROES[kind].name} is down`); return true; }
+    if (!h.ultReady) { this.toast(h.level < 4 ? `${name}: unlocks at level 4` : `${name}: used this life`); return true; }
+    if (h.stun > 0 || h.silence > 0) { this.toast(`${name}: not while ${h.stun > 0 ? 'stunned' : 'silenced'}`); return true; }
+    return false;
+  }
+
+  /** A flick on your hero: dash the way the finger went (screen direction, turned into a map point far enough away). */
+  private dash(kind: HeroKind, x0: number, y0: number, x1: number, y1: number): void {
+    const h = this.sim.heroOf(0, kind);
+    if (!h || !h.alive) return;
+    if (h.dashCd > 0) { this.toast(`Dash ready in ${Math.ceil(h.dashCd / TICKS_PER_SECOND)}s`); return; }
+    if (h.stun > 0) { this.toast('Can\u2019t dash while stunned'); return; }
+    const d = Math.hypot(x1 - x0, y1 - y0) || 1;
+    const x = Math.round(h.x + ((x1 - x0) / d) * 1000);
+    const y = Math.round(h.y + ((y1 - y0) / d) * 1000);
+    this.send({ t: 'dash', player: 0, hero: kind, x, y });
+  }
+
+  /** The Power gem: fire it now, 20% stronger, if it is ready. */
+  private cuePower(kind: HeroKind): void {
+    const h = this.sim.heroOf(0, kind);
+    const def = HEROES[kind];
+    if (!h || !h.alive) { this.toast(`${def.name} is down`); return; }
+    if (h.powerCd > 0) { this.toast(`${def.power.name}: ready in ${Math.ceil(h.powerCd / TICKS_PER_SECOND)}s`); return; }
+    if (h.silence > 0 || h.stun > 0) { this.toast(`${def.power.name}: not while ${h.stun > 0 ? 'stunned' : 'silenced'}`); return; }
+    this.send({ t: 'power', player: 0, hero: kind });
+    this.toast(`${def.power.name} on cue! +20%`);
+  }
+
+  /** A chip's hold toggle: hold that lane's waves at home, or release them all together. */
+  private toggleHold(lane: LaneId): void {
+    if (!this.sim.lanes.includes(lane)) { this.toast('No middle lane in 2-lane mode'); return; }
+    const pl = this.sim.players[0];
+    const name = LANE_NAMES[lane];
+    if (pl.hold[lane]) {
+      this.send({ t: 'rally', player: 0, lane, hold: false });
+      this.toast(pl.held[lane] > 0 ? `${name}: Rally! ${pl.held[lane]} waves march together` : `${name}: waves march again`);
+    } else {
+      this.send({ t: 'rally', player: 0, lane, hold: true });
+      this.toast(`${name}: holding waves at home (up to 3)`);
+    }
+  }
+
+  /** The level badge: open the upgrade card if a choice waits. */
+  private openChoice(kind: HeroKind): void {
+    const h = this.sim.heroOf(0, kind);
+    if (!h) return;
+    if (this.sim.pendingChoice(h)) { this.ui.choice = kind; this.ui.ring = null; return; }
+    const ups = h.upg.map((u, i) => (u < 0 ? '' : u === 0 ? `Lv${i + 2} ${HEROES[kind].power.name}` : i === 0 ? 'Lv2 Quick' : 'Lv3 Strong')).filter(Boolean);
+    this.toast(ups.length ? `${HEROES[kind].name}: ${ups.join(', ')}` : `${HEROES[kind].name}: upgrades at levels 2 and 3`);
+  }
+
+  private choose(kind: HeroKind, option: 0 | 1): void {
+    const h = this.sim.heroOf(0, kind);
+    const lv = h ? this.sim.pendingChoice(h) : 0;
+    this.ui.choice = null;
+    if (!h || !lv) return;
+    this.send({ t: 'pick', player: 0, hero: kind, option });
+    this.toast(upgradeTexts(kind, h, lv)[option]);
+  }
+
+  /** A commander call button: fire it now, or start aiming it (tap a spot, a lane or a tower). */
+  private useCall(call: CallId): void {
+    const def = CALLS[call];
+    const why = this.sim.cantCall(0, call);
+    const i = this.sim.players[0].calls.indexOf(call);
+    if (why === 'cooldown') { this.toast(`${def.name}: ready in ${Math.ceil(this.sim.players[0].callCd[i] / TICKS_PER_SECOND)}s`); return; }
+    if (why === 'semangat') { this.toast(`${def.name}: needs ${def.cost} ${MANA.name}`); return; }
+    if (why) return;
+    if (def.aim === 'none') { this.send({ t: 'call', player: 0, call }); this.toast(`${def.name}!`); return; }
+    this.ui.command = null;
+    this.ui.ring = null;
+    this.ui.callAim = { call, x: 0, y: 0, drag: false };
+  }
+
+  private aimCall(call: CallId, sx: number, sy: number): void {
+    const def = CALLS[call];
+    const why = this.sim.cantCall(0, call);
+    if (why) { this.ui.callAim = null; this.toast(why === 'semangat' ? `${def.name}: needs ${def.cost} ${MANA.name}` : `${def.name}: not ready`); return; }
+    const r = callAimAt(this.layout, this.sim, call, sx, sy);
+    if (!r.cmd) { this.toast(`${def.name}: ${r.why}`); return; } // still aiming (a tap) or dropped (a drag)
+    this.send(r.cmd);
+    this.ui.callAim = null;
+    this.toast(`${def.name}!`);
+  }
+
   /** ULT button: call the ultimate (the hero fires it at the next good moment), or cancel the call. */
   private callUlt(kind: HeroKind): void {
     const h = this.sim.heroOf(0, kind);
@@ -493,6 +654,9 @@ export class Game {
     if (this.gesture === 'ring' && this.ui.ring && !this.ui.ring.sticky) this.ui.ring = null;
     this.gesture = null;
     this.ui.aim = null;
+    this.ui.ultAim = null;
+    if (this.ui.callAim?.drag) this.ui.callAim = null;
+    this.flick = null;
     this.down = null;
     this.pan = null;
   }

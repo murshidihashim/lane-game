@@ -1,7 +1,8 @@
 import { Bot } from '../src/game/bot';
 import { CORES, LANES, type LaneId, pointAt, uToS } from '../src/game/map';
 import { HERO_RULES, type HeroKind, type SpeciesId } from '../src/game/rules';
-import { type Command, type Ent, type Order, type Player, Sim, randomPicks, randomSpecies } from '../src/game/sim';
+import { type Command, type Ent, type Order, type Player, Sim, randomCalls, randomPicks, randomSpecies } from '../src/game/sim';
+import type { CallId } from '../src/game/rules';
 
 export type Picks = [HeroKind[], HeroKind[]];
 
@@ -16,9 +17,14 @@ export function speciesFor(seed: number): [SpeciesId, SpeciesId] {
   return [randomSpecies(seed ^ 0x7171), randomSpecies(seed ^ 0xc5c5)];
 }
 
+/** Random commander calls for both sides, from the match seed (DEC-024). */
+export function callsFor(seed: number): [CallId[], CallId[]] {
+  return [randomCalls(seed ^ 0x2929), randomCalls(seed ^ 0x9292)];
+}
+
 /** Run a full bot-vs-bot match. Returns the sim, the command log and the picks. */
 export function botMatch(seed: number, lanes: 2 | 3 = 3, onTick?: (s: Sim) => void, picks: Picks = picksFor(seed)): { sim: Sim; log: { tick: number; cmd: Command }[]; picks: Picks } {
-  const sim = new Sim({ seed, lanes, picks, species: speciesFor(seed) });
+  const sim = new Sim({ seed, lanes, picks, species: speciesFor(seed), calls: callsFor(seed) });
   const bots = [new Bot(0, seed ^ 0x5bd1e995), new Bot(1, seed)];
   const log: { tick: number; cmd: Command }[] = [];
   while (!sim.result) {
@@ -31,7 +37,7 @@ export function botMatch(seed: number, lanes: 2 | 3 = 3, onTick?: (s: Sim) => vo
 
 /** Replay a command log on a fresh sim (no bots): must reproduce the match exactly. */
 export function replay(seed: number, lanes: 2 | 3, log: { tick: number; cmd: Command }[], picks: Picks = picksFor(seed)): Sim {
-  const sim = new Sim({ seed, lanes, picks, species: speciesFor(seed) });
+  const sim = new Sim({ seed, lanes, picks, species: speciesFor(seed), calls: callsFor(seed) });
   let i = 0;
   while (!sim.result) {
     while (i < log.length && log[i].tick === sim.tick) sim.submit(log[i++].cmd);

@@ -2,11 +2,11 @@
 
 A short, real-time one-on-one strategy battle for phones. You pick one of 5 species and draft 3 of
 20 folk-tale heroes against the bot, then command: choose which troop class marches in each of three lanes, send your
-heroes to move, push, gank, defend, farm and ward, buy them items, and call their ultimates. There
-are no hand-played cards. A MOBA-style map with a jungle and fog of war rewards exploring. Matches
+heroes to move, push, gank, defend, farm and ward, buy them items, aim their ultimates, dash them out of
+warning rings, rally your waves and use two commander calls. There are no hand-played cards. A MOBA-style map with a jungle and fog of war rewards exploring. Matches
 last about 5 minutes. Portrait, one thumb. The look is a batik paper-cut diorama: paper standees on a batik-printed board.
 
-**Status:** playable prototype (PLAN-014: heroic hero and troop designs; PLAN-013: clearer fights, heroes that talk back),
+**Status:** playable prototype (PLAN-015: aimed ultimates, warning rings, dashes, cues, combos, rallies, upgrades and commander calls; PLAN-014: heroic designs),
 waiting for the owner's playtest. Check balance with `npm run balance`.
 
 Run it: `npm install`, then `npm run dev` (local) or `npm run build` (one self-contained page in

@@ -48,10 +48,13 @@ Short progress notes use STATUS, FINDING, NEXT. Plain English; the owner reads o
   Tuning numbers and hero card text live in `src/game/rules.ts`; hero kits in `src/game/heroes.ts`.
   Every hero needs a kit test in `tests/heroes.test.ts`; every troop class needs a test in
   `tests/species.test.ts`; map rewards are tested in `tests/map.test.ts`, fog of war in `tests/fog.test.ts`,
-  items and levelling in `tests/rules.test.ts`, hero AI and the Attack order in `tests/ai.test.ts`; the soak
+  items and levelling in `tests/rules.test.ts`, hero AI and the Attack order in `tests/ai.test.ts`, aims,
+  rings, dashes, cues, combos, rallies, upgrades and commander calls in `tests/action.test.ts` (PLAN-015); the soak
   checks that heroes never stall and that the ultimate comes in time (PLAN-011).
-- No hand-played cards (DEC-011): players act only through lane troops, hero orders, items and
-  ultimate calls. Fog of war (DEC-012): the bot must use `Sim.sees`, never hidden information.
+- No hand-played cards (DEC-011): players act only through lane troops (and rallies), hero orders
+  (and dashes, Power cues, upgrade choices), items, ultimate calls and aims (PLAN-015), and the two
+  commander calls picked before the match (DEC-024). Fog of war (DEC-012): the bot must use
+  `Sim.sees`, never hidden information; warning rings are public.
 - The batik paper art style (DEC-018; `docs/design/art-style.md`, `src/ui/art.ts`): new pieces follow its rules.
 - Original names, art, map and screen layout only. Never use "Clash", "Royale", "Legends",
   "Elixir", "Lord" or "Turtle" (see `docs/research/research-report.md`, legal section).

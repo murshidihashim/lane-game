@@ -1,11 +1,11 @@
 // Entry point: reads test settings from the URL, wires the menus and starts the game.
 // URL options (for testing): ?lanes=2|3 &speed=1|1.5|2 &bot=easy|normal &seed=123 &autoplay=1 &nohelp=1
 //   &picks=kail,seri,rimba (your three heroes; with nohelp the species and draft screens are skipped)
-//   &species=batu &fast=1 (short bot thinking and versus screen, for automated checks)
+//   &species=batu &calls=eye,snare (two commander calls) &fast=1 (short bot thinking and versus screen, for automated checks)
 import type { BotLevel } from './game/bot';
 import { LANES } from './game/map';
-import { HEROES, HERO_RULES, ITEMS, ITEM_IDS, ITEM_SLOTS, MANA, SPECIES, TICKS_PER_SECOND, type HeroKind, type SpeciesId } from './game/rules';
-import { DEFAULT_PICKS } from './game/sim';
+import { CALLS, HEROES, HERO_RULES, ITEMS, ITEM_IDS, ITEM_SLOTS, MANA, SPECIES, TICKS_PER_SECOND, type CallId, type HeroKind, type SpeciesId } from './game/rules';
+import { DEFAULT_CALLS, DEFAULT_PICKS } from './game/sim';
 import { type DraftSnapshot, PickFlow } from './ui/draft';
 import { Game, type Settings } from './ui/game';
 
@@ -60,6 +60,23 @@ const game = new Game($('game') as HTMLCanvasElement, loadSettings(), {
 
 const PICKS_STORE = 'lane-game-picks';
 const SPECIES_STORE = 'lane-game-species';
+const CALLS_STORE = 'lane-game-calls';
+
+/** Your two commander calls (DEC-024) from the URL (&calls=eye,snare) or the last match, else the defaults. */
+function loadCalls(): CallId[] {
+  let list: string[] = (params.get('calls') ?? '').split(',');
+  if (!list.some((k) => k in CALLS)) {
+    try {
+      const saved: unknown = JSON.parse(localStorage.getItem(CALLS_STORE) ?? '[]');
+      list = Array.isArray(saved) ? saved.filter((k): k is string => typeof k === 'string') : [];
+    } catch {
+      list = []; // ignore: defaults below
+    }
+  }
+  const out = [...new Set(list.filter((k): k is CallId => k in CALLS))].slice(0, 2);
+  for (const k of DEFAULT_CALLS) if (out.length < 2 && !out.includes(k)) out.push(k);
+  return out;
+}
 
 function loadSpecies(): SpeciesId {
   const fromUrl = params.get('species');
@@ -95,9 +112,11 @@ const flow = new PickFlow({
     game.picks = [...l.mine];
     game.botPicks = [...l.bot];
     game.species = l.species;
+    game.calls = [...l.calls];
     try {
       localStorage.setItem(PICKS_STORE, JSON.stringify(l.mine));
       localStorage.setItem(SPECIES_STORE, l.species);
+      localStorage.setItem(CALLS_STORE, JSON.stringify(l.calls));
     } catch { /* not critical */ }
     game.newMatch();
     const pl = game.sim.players;
@@ -108,11 +127,12 @@ const flow = new PickFlow({
 
 function openDraft(): void {
   game.setRunning(false);
-  flow.open(game.species, game.picks);
+  flow.open(game.species, game.picks, game.calls);
 }
 
 game.picks = loadPicks();
 game.species = loadSpecies();
+game.calls = loadCalls();
 game.newMatch();
 
 function refreshSettings(): void {

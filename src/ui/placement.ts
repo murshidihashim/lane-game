@@ -1,7 +1,7 @@
 // Which hero orders the map offers (DEC-009, DEC-011). A drop anywhere else is a Move order.
 // The UI may use fractions here; commands sent to the rules are always whole numbers.
 import { CORES, LANES, LANE_HALF, WARD_SPOTS, type LaneId, laneDist2, pointAt, towerPos } from '../game/map';
-import { HEROES, UNITS, type HeroKind } from '../game/rules';
+import { CALLS, HEROES, ULT_AIMS, UNITS, UPGRADES, type CallId, type HeroKind } from '../game/rules';
 import type { Command, Ent, OrderType, Sim } from '../game/sim';
 import { type Layout, inField, toScreen, toWorld } from './layout';
 
@@ -155,4 +155,102 @@ export function resolveCommand(l: Layout, sim: Sim, kind: HeroKind, action: Comm
     if (d < bestD) { bestD = d; pick = t; }
   }
   return pick ? pick.cmd : null;
+}
+
+// ---------- PLAN-015: aiming an ultimate, and commander calls (DEC-024) ----------
+
+/** What letting go at a screen point would aim at: the snapped world point, the target, and the command or why not. */
+export interface AimResult { x: number; y: number; ent?: Ent; cmd: Command | null; why: string }
+
+/** Pieces an aimed ultimate can target (an enemy you can see, or one of your towers), for highlighting. */
+export function ultAimTargets(sim: Sim, kind: HeroKind): Ent[] {
+  const aim = ULT_AIMS[kind];
+  const h = sim.heroOf(0, kind);
+  if (!aim || !h) return [];
+  if (aim.kind === 'tower') return sim.ents.filter((e) => e.alive && e.owner === 0 && (e.kind === 'tower' || e.kind === 'core'));
+  if (aim.kind !== 'enemy' && aim.kind !== 'hero' && aim.kind !== 'troop') return [];
+  return sim.ents.filter((e) => e.alive && e.hp > 0 && e.owner === 1 && sim.sees(0, e)
+    && (aim.kind === 'hero' ? e.kind === 'hero' : aim.kind === 'troop' ? e.kind === 'unit' : e.kind === 'hero' || e.kind === 'unit'));
+}
+
+/** Aim one of your hero's ultimates at a screen point (ULT_AIMS). */
+export function ultAimAt(l: Layout, sim: Sim, kind: HeroKind, sx: number, sy: number): AimResult {
+  const aim = ULT_AIMS[kind];
+  const h = sim.heroOf(0, kind);
+  const [wx, wy] = toWorld(l, sx, sy);
+  const none = (why: string): AimResult => ({ x: wx, y: wy, cmd: null, why });
+  if (!aim || !h || !h.alive) return none('Not now');
+  if (!inField(l, sx, sy)) return none('Let go on the map to aim');
+  const reach = (x: number, y: number, extra = 0) => aim.range === 0 || Math.hypot(x - h.x, y - h.y) <= aim.range + extra;
+  switch (aim.kind) {
+    case 'enemy': case 'hero': case 'troop': case 'tower': {
+      let best: Ent | undefined;
+      let bestD = 42 * 42;
+      for (const e of ultAimTargets(sim, kind)) {
+        const [x, y] = toScreen(l, e.x, e.y);
+        const d = (x - sx) ** 2 + (y - 10 - sy) ** 2;
+        if (d < bestD) { bestD = d; best = e; }
+      }
+      if (!best) return none(aim.kind === 'tower' ? 'Let go on one of your towers' : aim.kind === 'hero' ? 'Let go on an enemy hero' : aim.kind === 'troop' ? 'Let go on an enemy troop' : 'Let go on an enemy');
+      if (aim.kind !== 'tower' && !reach(best.x, best.y, best.r)) return { x: best.x, y: best.y, ent: best, cmd: null, why: 'Out of reach' };
+      return { x: best.x, y: best.y, ent: best, cmd: { t: 'ult', player: 0, hero: kind, target: best.id }, why: '' };
+    }
+    case 'spot': {
+      let [x, y] = [wx, wy];
+      const d = Math.hypot(x - h.x, y - h.y);
+      if (aim.range > 0 && d > aim.range) { x = h.x + ((x - h.x) * aim.range) / d; y = h.y + ((y - h.y) * aim.range) / d; } // as far as it reaches
+      x = Math.round(x);
+      y = Math.round(y);
+      return { x, y, cmd: { t: 'ult', player: 0, hero: kind, x, y }, why: '' };
+    }
+    case 'lane': {
+      if (sim.laneAt(Math.round(wx), Math.round(wy), 300) === null) return none('Let go on a lane');
+      return { x: wx, y: wy, cmd: { t: 'ult', player: 0, hero: kind, x: Math.round(wx), y: Math.round(wy) }, why: '' };
+    }
+  }
+}
+
+/** Aim a commander call at a screen point (CALLS[call].aim). */
+export function callAimAt(l: Layout, sim: Sim, call: CallId, sx: number, sy: number): AimResult {
+  const def = CALLS[call];
+  const [wx, wy] = toWorld(l, sx, sy);
+  const x = Math.round(wx);
+  const y = Math.round(wy);
+  const none = (why: string): AimResult => ({ x, y, cmd: null, why });
+  if (!inField(l, sx, sy)) return none('Let go on the map');
+  switch (def.aim) {
+    case 'none': return { x, y, cmd: { t: 'call', player: 0, call }, why: '' };
+    case 'spot': return { x, y, cmd: { t: 'call', player: 0, call, x, y }, why: '' };
+    case 'seen':
+      if (!sim.seesPoint(0, x, y)) return none('Only where you can see');
+      return { x, y, cmd: { t: 'call', player: 0, call, x, y }, why: '' };
+    case 'lane':
+      if (sim.laneAt(x, y) === null) return none('Put it on a lane');
+      if (!sim.seesPoint(0, x, y)) return none('Only where you can see');
+      return { x, y, cmd: { t: 'call', player: 0, call, x, y }, why: '' };
+    case 'tower': {
+      let best: Ent | undefined;
+      let bestD = 46 * 46;
+      for (const e of sim.ents) {
+        if (!e.alive || e.owner !== 0 || (e.kind !== 'tower' && e.kind !== 'core')) continue;
+        const [ex, ey] = toScreen(l, e.x, e.y);
+        const d = (ex - sx) ** 2 + (ey - sy) ** 2;
+        if (d < bestD) { bestD = d; best = e; }
+      }
+      if (!best) return none('Tap one of your towers');
+      if (best.hp >= best.maxHp) return { x: best.x, y: best.y, ent: best, cmd: null, why: 'That tower is not hurt' };
+      return { x: best.x, y: best.y, ent: best, cmd: { t: 'call', player: 0, call, target: best.id }, why: '' };
+    }
+  }
+}
+
+/** The hero's own upgrade text for a level-up choice: the "Lv 2: ..." or "Lv 3: ..." part of its Power text. */
+export function upgradeTexts(kind: HeroKind, h: Ent, level: 2 | 3): [string, string] {
+  const text = HEROES[kind].power.text;
+  const lv2 = /Lv 2: ([^]*?)(?: Lv 3:|$)/.exec(text)?.[1]?.trim() ?? 'stronger';
+  const lv3 = /Lv 3: ([^]*)$/.exec(text)?.[1]?.trim() ?? 'stronger';
+  // with Quick taken at level 2, the level-3 own upgrade is the one level 2 would have given
+  const own = level === 2 || h.upg[0] === 1 ? lv2 : lv3;
+  const general = level === 2 ? `Quick: the Power comes back ${100 - UPGRADES.quickPct}% sooner` : `Strong: the Power does ${UPGRADES.strongPct - 100}% more`;
+  return [`${HEROES[kind].power.name}: ${own}`, general];
 }

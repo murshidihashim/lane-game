@@ -4,12 +4,16 @@ import { FIELD } from '../game/map';
 
 export interface Rect { x: number; y: number; w: number; h: number }
 
-/** One hero's panel (DEC-011): drag the portrait to order, tap ULT to call the ultimate, tap a slot to shop. */
+/** One hero's panel (DEC-011): drag the portrait to order, tap ULT to call the ultimate (or drag it
+ *  onto the map to aim it, PLAN-015), tap a slot to shop, tap the Power gem to fire it on cue, and
+ *  tap the level badge to choose an upgrade. */
 export interface HeroPanel {
   box: Rect;
   portrait: Rect;
   ult: Rect;
   items: Rect[];
+  power: Rect; // the Power gem (PLAN-015)
+  badge: Rect; // the level badge; it glows when an upgrade choice waits (PLAN-015)
 }
 
 /** Hero orders (DEC-021): the ring of orders round the thumb, and while aiming an order, a hint
@@ -34,6 +38,8 @@ export interface Layout {
   vx: number; vy: number; // world point at the field's top-left corner (the camera, DEC-016)
   zoomBtn: Rect; // the zoom button in the field's corner
   waves: Rect[]; // the lane wave chips (left, middle, right)
+  holds: Rect[]; // each chip's hold / release toggle (rally the waves, PLAN-015)
+  calls: Rect[]; // the two commander call buttons (DEC-024)
   heroes: HeroPanel[]; // one per hero (DEC-014: three)
   mana: Rect;
   shop: Rect;
@@ -67,6 +73,7 @@ export function computeLayout(w: number, h: number, dpr: number): Layout {
   const waveY = hudY + PAD;
   const chipW = (cw - 16 - 12) / 3;
   const waves: Rect[] = [0, 1, 2].map((i) => ({ x: cx + 8 + i * (chipW + 6), y: waveY, w: chipW, h: WAVE_H - 6 }));
+  const holds: Rect[] = waves.map((r) => ({ x: r.x + r.w - 25, y: r.y + 2, w: 23, h: r.h - 4 }));
 
   // Three compact hero panels side by side: portrait and name, health, order, items, ULT.
   const panelY = waveY + WAVE_H;
@@ -78,7 +85,11 @@ export function computeLayout(w: number, h: number, dpr: number): Layout {
     const slot = Math.min(24, (box.w - 10 - 8) / 3);
     const items: Rect[] = [0, 1, 2].map((k) => ({ x: box.x + 5 + k * (slot + 4), y: box.y + 62, w: slot, h: slot }));
     const ult: Rect = { x: box.x + 5, y: box.y + box.h - 25, w: box.w - 10, h: 21 };
-    return { box, portrait, ult, items };
+    const gemX = items[2].x + items[2].w + 3;
+    const gemW = Math.max(18, box.x + box.w - 3 - gemX);
+    const power: Rect = { x: gemX, y: items[0].y - 2, w: gemW, h: slot + 4 };
+    const badge: Rect = { x: portrait.x + portrait.w + 2, y: box.y + 21, w: box.w - portrait.w - 10, h: 15 };
+    return { box, portrait, ult, items, power, badge };
   };
   const heroes: HeroPanel[] = [panel(0), panel(1), panel(2)];
 
@@ -91,11 +102,27 @@ export function computeLayout(w: number, h: number, dpr: number): Layout {
   };
 
   const bottomY = panelY + PANEL_H;
-  const shop: Rect = { x: cx + cw - 8 - 104, y: bottomY + 2, w: 104, h: BOTTOM_H - 8 };
-  const mana: Rect = { x: cx + 8, y: bottomY + 2, w: cw - 16 - 104 - 10, h: BOTTOM_H - 8 };
+  const shopW = cw < 360 ? 78 : 92;
+  const shop: Rect = { x: cx + cw - 8 - shopW, y: bottomY + 2, w: shopW, h: BOTTOM_H - 8 };
+  // two commander call buttons between Semangat and the Shop (DEC-024)
+  const callW = BOTTOM_H - 6;
+  const calls: Rect[] = [0, 1].map((i) => ({ x: shop.x - 6 - (2 - i) * (callW + 5), y: bottomY + 1, w: callW, h: callW }));
+  const mana: Rect = { x: cx + 8, y: bottomY + 2, w: calls[0].x - 8 - (cx + 8), h: BOTTOM_H - 8 };
   const vx = (FIELD.minX + FIELD.maxX) / 2 - field.w / (2 * scale);
   const vy = (FIELD.minY + FIELD.maxY) / 2 - field.h / (2 * scale);
-  return { w, h, dpr, col, top, towers, gear, field, scale, baseScale: scale, homeScale, vx, vy, zoomBtn, waves, heroes, mana, shop, menu };
+  return { w, h, dpr, col, top, towers, gear, field, scale, baseScale: scale, homeScale, vx, vy, zoomBtn, waves, holds, calls, heroes, mana, shop, menu };
+}
+
+/** The level-up choice card (PLAN-015): just above the lane chips, two options side by side. */
+export function choiceCard(l: Layout): { box: Rect; opts: [Rect, Rect] } {
+  const h = 92;
+  const box: Rect = { x: l.col.x + 8, y: l.waves[0].y - 8 - h, w: l.col.w - 16, h };
+  const ow = (box.w - 18) / 2;
+  const opts: [Rect, Rect] = [
+    { x: box.x + 6, y: box.y + 26, w: ow, h: h - 32 },
+    { x: box.x + 12 + ow, y: box.y + 26, w: ow, h: h - 32 },
+  ];
+  return { box, opts };
 }
 
 /**

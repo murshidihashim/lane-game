@@ -618,7 +618,7 @@
         "7. Commander calls: pick 2 of about 6 commander abilities before the match (e.g. War Drum, Bamboo Barricade, Spirit Eye); they cost Semangat and have long cooldowns. Not cards, but a new kind of action that needs its own decision against DEC-011",
         "8. Buyback and bounties: pay Semangat to bring a fallen hero back at once; a hero on a kill streak carries a bounty for whoever ends it"
       ],
-      "choice": "Not chosen yet. Suggested start: an action pack (1 and 2), then a strategy pack (5 and 6).",
+      "choice": "Build ideas 1-7 (the owner's choice): aim your ultimate; warning rings and a dodge dash; Power on your cue; combo chains; rally the waves; level-up choices; commander calls. Idea 8 (buyback and bounties) is not chosen.",
       "rationale": "Today fights, Powers and ultimates resolve by themselves, so the player's hands rarely decide a fight, and choices have few trade-offs. The research (REP-001) found that real-time card and MOBA hybrids failed by adding mental load, and that the genre leader cut cooldown abilities, so every idea keeps an automatic default and adds a few big moments rather than constant micro. Details, effort and risks: REP-018.",
       "impact": {
         "user": "More moments where timing, aim and choices decide a fight; every new action stays optional.",
@@ -628,13 +628,44 @@
       "cost": "RM0 (code-built).",
       "owner": "Murshidi",
       "approval": {
-        "status": "awaiting approval"
+        "status": "approved",
+        "evidence": "Aim your ultimate: hold ULT, drag it onto a target or spot, and let go. A tap still fires it automatically. / Warning rings and a dodge dash: big enemy attacks show a red ring about 1 second before they land. Flick a hero to dash out of the way. / Power on your cue: tap a hero's Power to fire it now for +20%. If you don't, it still fires by itself. / Combo chains: two heroes hitting the same enemies within 2 seconds build a combo, with bonus damage and a \"COMBO\" stamp. / 5. Rally the waves: hold up to 3 waves in a lane, then release them as one big push. The enemy can't see them build up unless they've placed a ward there. You can fake one lane and hit another. / 6. Level-up choices: at levels 2 and 3, choose between two upgrades for each hero's Power. / 7. Commander calls: before the match, pick 2 special moves, such as a war drum or a bamboo barricade, that you pay for with Semangat. This needs its own decision, because it adds a new kind of action beyond the \"no cards\" rule. / do this",
+        "date": "2026-11-13"
       },
-      "delivery": "not started",
+      "delivery": "implemented",
       "reports": [
-        "REP-018"
+        "REP-018",
+        "REP-019"
       ],
       "reviewTrigger": "The owner picks one or more, or a phone playtest shows matches already feel active enough."
+    },
+    {
+      "id": "DEC-024",
+      "title": "Commander calls (amends DEC-011)",
+      "question": "May players use commander calls, a fifth kind of action besides lane troops, hero orders, items and ultimate calls?",
+      "options": [
+        "Keep DEC-011 as it is: players act only through lane troops, hero orders, items and ultimate calls",
+        "Add commander calls: before the match each player picks 2 of 6; in the match they cost Semangat and have long cooldowns. No hand, no deck, no draws (chosen)"
+      ],
+      "choice": "Commander calls are allowed as a fifth kind of action. Each player picks 2 of 6 before the match (War Drum, Bamboo Barricade, Spirit Eye, Penawar, Snare Trap, Fort Repair). They cost Semangat, so they compete with items, and each has a long cooldown. They are not cards: no hand, no deck, no draws, nothing random. DEC-011 otherwise stands.",
+      "rationale": "The owner chose idea 7 of DEC-023, which REP-018 said needs its own decision against DEC-011. Picking calls before the match and paying with the same Semangat as items keeps one resource and a small number of buttons.",
+      "impact": {
+        "user": "Two extra buttons in a match and a choice before it.",
+        "technical": "New command, player state and bot use in src/game; a picker before the match and two buttons in the HUD.",
+        "data": "None."
+      },
+      "cost": "RM0 (code-built).",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "approved",
+        "evidence": "Aim your ultimate: hold ULT, drag it onto a target or spot, and let go. A tap still fires it automatically. / Warning rings and a dodge dash: big enemy attacks show a red ring about 1 second before they land. Flick a hero to dash out of the way. / Power on your cue: tap a hero's Power to fire it now for +20%. If you don't, it still fires by itself. / Combo chains: two heroes hitting the same enemies within 2 seconds build a combo, with bonus damage and a \"COMBO\" stamp. / 5. Rally the waves: hold up to 3 waves in a lane, then release them as one big push. The enemy can't see them build up unless they've placed a ward there. You can fake one lane and hit another. / 6. Level-up choices: at levels 2 and 3, choose between two upgrades for each hero's Power. / 7. Commander calls: before the match, pick 2 special moves, such as a war drum or a bamboo barricade, that you pay for with Semangat. This needs its own decision, because it adds a new kind of action beyond the \"no cards\" rule. / do this",
+        "date": "2026-11-13"
+      },
+      "delivery": "implemented",
+      "reports": [
+        "REP-019"
+      ],
+      "reviewTrigger": "Calls feel like cards, crowd the screen, or one call wins most matches."
     }
   ],
   "history": [
@@ -1569,6 +1600,102 @@
     {
       "at": "2026-11-13 13:19",
       "text": "DEC-023 proposed: eight mechanics for strategy and action (REP-018); awaiting the owner's choice."
+    },
+    {
+      "at": "2026-11-13 16:21",
+      "text": "DEC-024 proposed: Commander calls (amends DEC-011)."
+    },
+    {
+      "at": "2026-11-13 16:21",
+      "text": "PLAN-015 proposed: Strategy and action mechanics."
+    },
+    {
+      "at": "2026-11-13 16:23",
+      "text": "Owner approved DEC-023: \"Aim your ultimate: hold ULT, drag it onto a target or spot, and let go. A tap still fires it automatically. / Warning rings and a dodge dash: big enemy attacks show a red ring about 1 second before they land. Flick a hero to dash out of the way. / Power on your cue: tap a hero's Power to fire it now for +20%. If you don't, it still fires by itself. / Combo chains: two heroes hitting the same enemies within 2 seconds build a combo, with bonus damage and a \"COMBO\" stamp. / 5. Rally the waves: hold up to 3 waves in a lane, then release them as one big push. The enemy can't see them build up unless they've placed a ward there. You can fake one lane and hit another. / 6. Level-up choices: at levels 2 and 3, choose between two upgrades for each hero's Power. / 7. Commander calls: before the match, pick 2 special moves, such as a war drum or a bamboo barricade, that you pay for with Semangat. This needs its own decision, because it adds a new kind of action beyond the \"no cards\" rule. / do this\"."
+    },
+    {
+      "at": "2026-11-13 16:23",
+      "text": "Owner approved DEC-024: \"Aim your ultimate: hold ULT, drag it onto a target or spot, and let go. A tap still fires it automatically. / Warning rings and a dodge dash: big enemy attacks show a red ring about 1 second before they land. Flick a hero to dash out of the way. / Power on your cue: tap a hero's Power to fire it now for +20%. If you don't, it still fires by itself. / Combo chains: two heroes hitting the same enemies within 2 seconds build a combo, with bonus damage and a \"COMBO\" stamp. / 5. Rally the waves: hold up to 3 waves in a lane, then release them as one big push. The enemy can't see them build up unless they've placed a ward there. You can fake one lane and hit another. / 6. Level-up choices: at levels 2 and 3, choose between two upgrades for each hero's Power. / 7. Commander calls: before the match, pick 2 special moves, such as a war drum or a bamboo barricade, that you pay for with Semangat. This needs its own decision, because it adds a new kind of action beyond the \"no cards\" rule. / do this\"."
+    },
+    {
+      "at": "2026-11-13 16:23",
+      "text": "Owner approved PLAN-015: \"Aim your ultimate: hold ULT, drag it onto a target or spot, and let go. A tap still fires it automatically. / Warning rings and a dodge dash: big enemy attacks show a red ring about 1 second before they land. Flick a hero to dash out of the way. / Power on your cue: tap a hero's Power to fire it now for +20%. If you don't, it still fires by itself. / Combo chains: two heroes hitting the same enemies within 2 seconds build a combo, with bonus damage and a \"COMBO\" stamp. / 5. Rally the waves: hold up to 3 waves in a lane, then release them as one big push. The enemy can't see them build up unless they've placed a ward there. You can fake one lane and hit another. / 6. Level-up choices: at levels 2 and 3, choose between two upgrades for each hero's Power. / 7. Commander calls: before the match, pick 2 special moves, such as a war drum or a bamboo barricade, that you pay for with Semangat. This needs its own decision, because it adds a new kind of action beyond the \"no cards\" rule. / do this\"."
+    },
+    {
+      "at": "2026-11-13 16:23",
+      "text": "PLAN-015 delivery: in progress."
+    },
+    {
+      "at": "2026-11-13 16:23",
+      "text": "DEC-023 delivery: in progress."
+    },
+    {
+      "at": "2026-11-13 16:23",
+      "text": "DEC-024 delivery: in progress."
+    },
+    {
+      "at": "2026-11-13 17:15",
+      "text": "PLAN-015 T1: PASS (tests/action.test.ts: 11 ultimates take an aim, each with an aimed kit; Rimba marks a seen enemy in reach and is refused out of reach; Benteng shields a far tower; Hujan floods the lane aimed at; Tedung coils a healthy hero when aimed; a tap still calls; a one-tap ultimate can't be aimed. Phone check: dragging Embun's ULT onto the map aims Dawn Freeze there.)."
+    },
+    {
+      "at": "2026-11-13 17:15",
+      "text": "PLAN-015 T2: PASS (tests/action.test.ts: Dawn Freeze aimed at a spot shows a 1 s ring (radius 500) and freezes everything inside when it lands; Duel locks on after 0.6 s and misses a hero that ran ('Dodged!'); a ring fizzles if its caster falls; Gajah Mina's slam rings, then hurts and stuns a hero left inside. Existing kit tests updated for the rings.)."
+    },
+    {
+      "at": "2026-11-13 17:15",
+      "text": "PLAN-015 T3: PASS (tests/action.test.ts: a dash slides about 400 then waits 10 s; no dash while stunned; an enemy who dashes out of a ring escapes it while one who stays is frozen; the bot dashes out of rings in 5-9 of 10 cases (not perfect). Phone check: a quick flick on a hero makes it dash.)."
+    },
+    {
+      "at": "2026-11-13 17:15",
+      "text": "PLAN-015 T4: PASS (tests/action.test.ts: Volley on cue does exactly 20% more than when it fires by itself; left alone a ready Power waits 1.5 s, then fires; a cue on cooldown or with nothing to hit does nothing. Phone check: tapping Kail's Power gem fires Hook on cue.)."
+    },
+    {
+      "at": "2026-11-13 17:15",
+      "text": "PLAN-015 T5: PASS (tests/action.test.ts: spell hits from a second hero within 2 s do +15%, a third +30% (capped); the same hero twice and basic attacks don't chain; after 2 s the chain breaks. Screenshot shows the COMBO x2 stamp.)."
+    },
+    {
+      "at": "2026-11-13 17:15",
+      "text": "PLAN-015 T6: PASS (tests/action.test.ts: held waves wait within 500 of their spawn point while other lanes march; released, they march with haste and +15% damage; the 4th wave releases a full rally by itself; the enemy can't see the build-up without vision. Phone check: a chip's HOLD holds the lane and GO releases it.)."
+    },
+    {
+      "at": "2026-11-13 17:15",
+      "text": "PLAN-015 T7: PASS (tests/action.test.ts: at level 2 a choice waits; Quick keeps Volley at 3 targets and shortens the cooldown 25%; Strong adds 30% to the Power; two own upgrades give rank 3; an unanswered choice becomes the own upgrade after 8 s. Phone check: the level badge opens the card and Quick is picked.)."
+    },
+    {
+      "at": "2026-11-13 17:15",
+      "text": "PLAN-015 T8: PASS (tests/action.test.ts (10 tests): 2 calls per player, defaults War Drum and Penawar, no repeats; cost and cooldown, refused when not picked or unaffordable; War Drum, Penawar, Bamboo Barricade (only where you can see; troops must break it; gone after 12 s), Spirit Eye (sees a far hidden hero for 8 s), Snare Trap (stuns and reveals the first enemy hero), Fort Repair (+500, not on a whole tower); the bot uses its calls. Phone check: the 2 calls picked before the match are yours; War Drum fires at once; Spirit Eye goes where you tap.)."
+    },
+    {
+      "at": "2026-11-13 17:15",
+      "text": "PLAN-015 T9: PASS (npm run verify 131/131 incl. determinism with all new commands; soak 100+20 matches with no errors, 0 stalls in 60 random-order matches, ultimate median 87.35 s; balance 1,200 matches inside PLAN-005 targets: species 43-57%, heroes 43-58%, draws 10%, early 1%. Phone check 40 PASS, three runs in a row. Frame time unchanged against the previous build measured the same way at the same time (median 6.0-6.9 ms vs 6.5-9.2 ms; desktop test browser).)."
+    },
+    {
+      "at": "2026-11-13 17:15",
+      "text": "PLAN-015 T10: NOT RUN (Not yet tried on the owner's phone.)."
+    },
+    {
+      "at": "2026-11-13 17:15",
+      "text": "PLAN-015 T11: NOT RUN (Waiting for the owner's verdict.)."
+    },
+    {
+      "at": "2026-11-13 17:15",
+      "text": "REP-019 written: PLAN-015: strategy and action mechanics."
+    },
+    {
+      "at": "2026-11-13 17:16",
+      "text": "PLAN-015 delivery: implemented."
+    },
+    {
+      "at": "2026-11-13 17:16",
+      "text": "DEC-023 delivery: implemented."
+    },
+    {
+      "at": "2026-11-13 17:16",
+      "text": "DEC-024 delivery: implemented."
+    },
+    {
+      "at": "2026-11-13 17:16",
+      "text": "PLAN-015 implemented: aimed ultimates, warning rings, dash, Power on cue, combos, rallies, upgrade choices, commander calls (DEC-023, DEC-024); T1-T9 PASS, T10-T11 wait; REP-019."
     }
   ]
 }

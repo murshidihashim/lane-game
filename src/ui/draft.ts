@@ -1,14 +1,14 @@
 // Hero selection (DEC-014, DEC-015): choose your people (species), then a draft against the bot
 // on a lamp-lit paper-theatre stage, then a versus screen before the match. Batik paper look (DEC-018):
 // indigo batik cloth, oil-lamp light, songket gold, paper labels. Screens only; the rules see just the final line-ups.
-import { CLASSES, HEROES, HERO_IDS, HERO_RULES, SPECIES, SPECIES_IDS, type HeroKind, type SpeciesId } from '../game/rules';
+import { CALLS, CALL_IDS, CLASSES, HEROES, HERO_IDS, HERO_RULES, SPECIES, SPECIES_IDS, type CallId, type HeroKind, type SpeciesId } from '../game/rules';
 import { DRAFT_ORDER, type Player, botDraftPick } from '../game/sim';
 import { PAL, SPECIES_COLORS, batikPattern } from './art';
 import { drawHeroFigure, drawPortrait, drawTroopFigure, heroScale } from './figures';
 import { ORDER_COLORS } from './render';
 
 /** What the draft decided. */
-export interface Lineups { species: SpeciesId; mine: HeroKind[]; bot: HeroKind[] }
+export interface Lineups { species: SpeciesId; mine: HeroKind[]; bot: HeroKind[]; calls: CallId[] }
 
 /** What the versus screen shows: the match as it will actually be played. */
 export interface VersusInfo { mine: HeroKind[]; bot: HeroKind[]; mySpecies: SpeciesId; botSpecies: SpeciesId }
@@ -100,6 +100,7 @@ function songketBand(ctx: CanvasRenderingContext2D, x: number, y: number, w: num
 export class PickFlow {
   private step: DraftSnapshot['step'] = 'closed';
   private species: SpeciesId = 'kampung';
+  private calls: CallId[] = ['drum', 'remedy']; // commander calls (DEC-024)
   private mine: HeroKind[] = [];
   private bot: HeroKind[] = [];
   private turn = 0;
@@ -128,6 +129,7 @@ export class PickFlow {
     this.loadMs = opts.fast ? 300 : 2200;
     this.lockedMs = opts.fast ? 40 : 650;
     this.buildSpecies();
+    this.buildCalls();
     this.buildSlots();
     this.buildRoster();
     el('species-grid').addEventListener('click', (ev) => {
@@ -136,7 +138,18 @@ export class PickFlow {
       this.species = b.dataset.species as SpeciesId;
       this.refreshSpecies();
     });
-    el('species-go').addEventListener('click', () => this.startDraft());
+    el('calls-grid').addEventListener('click', (ev) => {
+      const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-call]');
+      if (!b) return;
+      const id = b.dataset.call as CallId;
+      // two at a time: tapping a third replaces the older one
+      this.calls = this.calls.includes(id) ? this.calls.filter((c) => c !== id) : [...this.calls, id].slice(-2);
+      this.refreshCalls();
+    });
+    el('species-go').addEventListener('click', () => {
+      if (this.calls.length < 2) { el('calls-help').textContent = 'Pick two commander calls first.'; return; }
+      this.startDraft();
+    });
     el('draft-roster').addEventListener('click', (ev) => {
       const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-hero]');
       if (!b) return;
@@ -166,9 +179,11 @@ export class PickFlow {
   }
 
   /** Open the species step (then the draft). `recent` heroes are suggested first in the draft. */
-  open(species: SpeciesId, recent: readonly HeroKind[] = []): void {
+  open(species: SpeciesId, recent: readonly HeroKind[] = [], calls: readonly CallId[] = this.calls): void {
     this.cancelTimers();
     this.species = species;
+    this.calls = [...calls].slice(0, 2);
+    this.refreshCalls();
     this.highlighted = recent[0] ?? HERO_IDS[0];
     this.step = 'species';
     this.refreshSpecies();
@@ -177,7 +192,33 @@ export class PickFlow {
     this.speciesEl.classList.add('show');
   }
 
-  // ---------- species ----------
+  // ---------- species and commander calls ----------
+
+  private buildCalls(): void {
+    el('calls-grid').replaceChildren(...CALL_IDS.map((id) => {
+      const d = CALLS[id];
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'call';
+      b.id = `call-${id}`;
+      b.dataset.call = id;
+      const nm = document.createElement('span');
+      nm.className = 'nm';
+      nm.textContent = d.name;
+      const cost = document.createElement('span');
+      cost.className = 'cost';
+      cost.textContent = `${d.cost} Semangat · every ${Math.round(d.cooldown / 20)} s`;
+      const tx = document.createElement('span');
+      tx.textContent = d.text;
+      b.append(nm, cost, tx);
+      return b;
+    }));
+  }
+
+  private refreshCalls(): void {
+    for (const b of el('calls-grid').querySelectorAll<HTMLButtonElement>('[data-call]')) b.classList.toggle('sel', this.calls.includes(b.dataset.call as CallId));
+    el('calls-help').textContent = this.calls.length < 2 ? 'Pick two commander calls (tap two).' : `Your calls: ${this.calls.map((c) => CALLS[c].name).join(' and ')}.`;
+  }
 
   private buildSpecies(): void {
     el('species-grid').replaceChildren(...SPECIES_IDS.map((id) => {
@@ -401,7 +442,7 @@ export class PickFlow {
   // ---------- versus ----------
 
   private showVersus(): void {
-    this.versus = this.opts.onLocked({ species: this.species, mine: [...this.mine], bot: [...this.bot] });
+    this.versus = this.opts.onLocked({ species: this.species, mine: [...this.mine], bot: [...this.bot], calls: [...this.calls] });
     this.step = 'versus';
     this.versusAt = performance.now();
     this.draftEl.classList.remove('show');

@@ -2,13 +2,14 @@
 // never changes the rules. The painted map is cached (see art.ts); characters come from figures.ts,
 // ultimate effects from ultfx.ts; the fog of war (DEC-012) is drawn over everything you can't see.
 import { CORES, FIELD, LANES, LANE_HALF, LANE_NAMES, pointAt } from '../game/map';
-import { CLASSES, HEROES, ITEMS, ITEM_SLOTS, MANA, MATCH, TICKS_PER_SECOND, UNITS, WARDS, type HeroKind, type ItemId } from '../game/rules';
+import { CALLS, CALL_RULES, CLASSES, HEROES, ITEMS, ITEM_SLOTS, MANA, MATCH, RALLY, TICKS_PER_SECOND, ULT_AIMS, UNITS, WARDS, type CallId, type HeroKind, type ItemId } from '../game/rules';
+import { callIcon, drawCallButton, drawCallZone, drawCasts, drawComboStamp, drawDashTrail, drawWall } from './action';
 import { type AttackStyle, type BubbleRects, attackStyle, drawBubble, drawCastRays, drawCharge, drawEdgeTab, drawImpact, drawNumber, drawShot, drawSlash, drawStatus, drawTargetLine, drawThud, drawUltBadge, flightMs } from './combat';
 import type { Ent, GameEvent, Sim } from '../game/sim';
 import { MapPainter, PAL, SPECIES_COLORS, batikPattern, glyph, kubu, pusaka, songket, teamColors, type Glyph } from './art';
 import { drawHeroFigure, drawPortrait, drawTroopFigure, heroScale } from './figures';
-import { type HeroPanel, type Layout, type Rect, ringSlot, toScreen } from './layout';
-import { COMMAND_ORDERS, type CommandAction, commandTargets, orderLabel, orderTargets } from './placement';
+import { type HeroPanel, type Layout, type Rect, choiceCard, ringSlot, toScreen } from './layout';
+import { COMMAND_ORDERS, type CommandAction, callAimAt, commandTargets, orderLabel, orderTargets, ultAimAt, ultAimTargets, upgradeTexts } from './placement';
 import { ULT_BANNER_MS, ULT_BURST_MS, type UltFx, drawUltAura, drawUltBanner, drawUltBurst } from './ultfx';
 
 /** Ring colour of a hero = its best order. */
@@ -33,6 +34,12 @@ export interface UiState {
   aim: { x: number; y: number } | null;
   hover: { x: number; y: number } | null;
   toast: { text: string; until: number } | null;
+  /** PLAN-015: an ultimate being aimed by dragging its ULT button onto the map (the finger's point). */
+  ultAim: { hero: HeroKind; x: number; y: number } | null;
+  /** A commander call being aimed (DEC-024): a tap picks the spot; while dragging, the finger's point. */
+  callAim: { call: CallId; x: number; y: number; drag: boolean } | null;
+  /** The level-up choice card that is open (PLAN-015). */
+  choice: HeroKind | null;
 }
 
 interface Fx {
@@ -132,15 +139,19 @@ export class Renderer {
     this.drawFx(ctx, l, now);
     this.drawUltBursts(ctx, l, now);
     this.drawFog(ctx, l);
+    drawCasts(ctx, l, sim, alpha, now); // warning rings show through the fog: both sides see them (PLAN-015)
     this.drawHealthOverFog(ctx, l, sim);
     this.drawUltBanners(ctx, l, now);
     this.drawCommandTargets(ctx, l, sim, ui, alpha, now);
     this.drawBubbles(ctx, l, sim, alpha, now);
     this.drawOffscreen(ctx, l, sim, alpha, now);
+    this.drawUltAim(ctx, l, sim, ui, alpha, now);
+    this.drawCallAim(ctx, l, sim, ui, now);
     ctx.restore();
     this.drawZoomButton(ctx, l);
     this.drawTop(ctx, l, sim);
     this.drawHud(ctx, l, sim, ui);
+    this.drawChoiceCard(ctx, l, sim, ui);
     this.drawAimHint(ctx, l, ui);
     this.drawRing(ctx, l, sim, ui, now);
     // messages sit above the lane chips, or at the top of the map while a ring is open (so they never cover it)
@@ -198,7 +209,9 @@ export class Renderer {
   private fxSeen(ev: GameEvent): boolean {
     switch (ev.k) {
       case 'hit': case 'line': return ev.owner === 0 || this.seen(ev.x2, ev.y2) || this.seen(ev.x1, ev.y1);
-      case 'boom': case 'death': case 'text': return ('owner' in ev && ev.owner === 0) || this.seen(ev.x, ev.y);
+      case 'boom': case 'death': case 'text': case 'combo': return ('owner' in ev && ev.owner === 0) || this.seen(ev.x, ev.y);
+      case 'dash': return ev.owner === 0 || this.seen(ev.x1, ev.y1) || this.seen(ev.x2, ev.y2);
+      case 'call': return ev.owner === 0 || this.seen(ev.x, ev.y);
       default: return true;
     }
   }
@@ -255,7 +268,7 @@ export class Renderer {
     for (const e of sim.ents) if (e.kind === 'tower' || e.kind === 'core') this.drawStructure(ctx, l, sim, e);
     for (const e of sim.ents) if (e.kind === 'hero' && e.owner === 0 && e.alive) this.drawOrderLine(ctx, l, sim, e, alpha);
     // Characters, back to front (higher on screen first), fliers on top.
-    const people = sim.ents.filter((e) => (e.kind === 'unit' || e.kind === 'hero') && e.alive);
+    const people = sim.ents.filter((e) => (e.kind === 'unit' || e.kind === 'hero' || e.kind === 'wall') && e.alive);
     if (this.anim.size > people.length + 200) {
       const live = new Set(people.map((e) => e.id));
       for (const id of this.anim.keys()) if (!live.has(id)) this.anim.delete(id);
@@ -264,6 +277,7 @@ export class Renderer {
     this.drawTargetLines(ctx, l, sim, alpha, now);
     for (const e of people) {
       if (e.kind === 'hero') this.drawHero(ctx, l, sim, e, alpha, now);
+      else if (e.kind === 'wall') { if (sim.sees(0, e)) drawWall(ctx, l, e, teamColors(e.owner).base, this.grow(l)); }
       else if (sim.sees(0, e)) this.drawUnit(ctx, l, sim, e, alpha, now);
     }
     this.drawGhosts(ctx, l, sim, now);
@@ -272,6 +286,11 @@ export class Renderer {
 
   private drawZones(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim): void {
     for (const z of sim.zones) {
+      // Spirit Eyes (yours, or one in your sight) and your own snares (DEC-024)
+      if (z.kind === 'eye' || z.kind === 'snare') {
+        if (z.owner === 0 || (z.kind === 'eye' && this.seen(z.x, z.y))) drawCallZone(ctx, l, z, sim.tick, this.now);
+        continue;
+      }
       const left = (z.until - sim.tick) / TICKS_PER_SECOND;
       const fade = Math.min(1, left / 1.5);
       ctx.save();
@@ -850,6 +869,29 @@ export class Renderer {
           }
           break;
         }
+        case 'combo': {
+          const [x, y] = toScreen(l, ev.x, ev.y);
+          drawComboStamp(ctx, x, y - 10 * this.grow(l), ev.step, age / 1100, ev.owner === 0);
+          break;
+        }
+        case 'dash': {
+          if (age > 400) break;
+          const [x1, y1] = toScreen(l, ev.x1, ev.y1);
+          const [x2, y2] = toScreen(l, ev.x2, ev.y2);
+          drawDashTrail(ctx, x1, y1, x2, y2, age / 400, teamColors(ev.owner).light);
+          break;
+        }
+        case 'call': {
+          if (age > 900) break;
+          const [x, y] = toScreen(l, ev.x, ev.y);
+          const t = age / 900;
+          ctx.globalAlpha = 1 - t;
+          ctx.strokeStyle = ev.owner === 0 ? PAL.gold : PAL.foeLight;
+          ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(x, y, 14 + 50 * t, 0, Math.PI * 2); ctx.stroke();
+          callIcon(ctx, ev.call, x, y - 18 - 14 * t, 14, ev.owner === 0 ? PAL.gold : PAL.foeLight);
+          break;
+        }
         case 'text': {
           const [x, y] = toScreen(l, ev.x, ev.y);
           ctx.globalAlpha = 1 - age / 1100;
@@ -965,9 +1007,37 @@ export class Renderer {
   /** While aiming an order: the hint and Cancel, in the lane-chip row (nothing covers the map). */
   private drawAimHint(ctx: CanvasRenderingContext2D, l: Layout, ui: UiState): void {
     const cmd = ui.command;
-    if (!cmd) return;
+    const ca = ui.callAim;
+    if (!cmd && !ca) return;
     const m = l.menu;
     const r = m.hint;
+    if (ca && !cmd) {
+      // aiming a commander call (DEC-024): the same strip, with the call's icon
+      const def = CALLS[ca.call];
+      const how = { none: '', spot: 'tap any spot on the map', seen: 'tap a spot you can see', lane: 'tap a lane you can see', tower: 'tap a hurt tower of yours' }[def.aim];
+      ctx.save();
+      cardShadow(ctx, r.x, r.y, r.w, r.h, 8);
+      ctx.fillStyle = 'rgba(27,39,66,0.97)';
+      ctx.strokeStyle = PAL.gold;
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, r.x, r.y, r.w, r.h, 8);
+      ctx.fill(); ctx.stroke();
+      callIcon(ctx, ca.call, r.x + 14, r.y + r.h / 2, 8, PAL.gold);
+      ctx.fillStyle = PAL.parchment;
+      ctx.font = 'bold 12px system-ui';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(fit(ctx, `${def.name}: ${how}`, m.cancel.x - r.x - 34), r.x + 28, r.y + r.h / 2 + 0.5);
+      const c = m.cancel;
+      ctx.fillStyle = PAL.wood;
+      ctx.strokeStyle = PAL.paperEdge;
+      roundRect(ctx, c.x + 2, c.y + 2, c.w - 4, c.h - 4, 7);
+      ctx.fill(); ctx.stroke();
+      label(ctx, 'Cancel', c.x + c.w / 2, c.y + c.h / 2 + 0.5, PAL.parchment, 12);
+      ctx.restore();
+      return;
+    }
+    if (!cmd) return;
     const o = COMMAND_ORDERS.find((x) => x.id === cmd.action);
     ctx.save();
     cardShadow(ctx, r.x, r.y, r.w, r.h, 8);
@@ -988,6 +1058,146 @@ export class Renderer {
     roundRect(ctx, c.x + 2, c.y + 2, c.w - 4, c.h - 4, 7);
     ctx.fill(); ctx.stroke();
     label(ctx, 'Cancel', c.x + c.w / 2, c.y + c.h / 2 + 0.5, PAL.parchment, 12);
+    ctx.restore();
+  }
+
+  // ---------- PLAN-015: aiming ultimates and calls, the upgrade card ----------
+
+  /** Dragging ULT onto the map: the hero's reach, the targets, the area it will hit, and what letting go does. */
+  private drawUltAim(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState, alpha: number, now: number): void {
+    const a = ui.ultAim;
+    const aim = a ? ULT_AIMS[a.hero] : undefined;
+    const h = a ? sim.heroOf(0, a.hero) : undefined;
+    if (!a || !aim || !h || !h.alive) return;
+    const pulse = 0.5 + 0.5 * Math.sin(now / 160);
+    ctx.save();
+    ctx.fillStyle = 'rgba(20,12,6,0.22)';
+    ctx.fillRect(l.field.x, l.field.y, l.field.w, l.field.h);
+    const [hx, hy] = toScreen(l, ...this.pos(h, alpha));
+    if (aim.range > 0) {
+      ctx.strokeStyle = 'rgba(224,176,74,0.75)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 5]);
+      ctx.beginPath(); ctx.arc(hx, hy, aim.range * l.scale, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    if (aim.kind === 'lane') {
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = LANE_HALF * 2 * l.scale;
+      ctx.strokeStyle = `rgba(58,160,181,${0.22 + 0.1 * pulse})`;
+      for (const id of sim.lanes) { this.lanePath(ctx, l, id); ctx.stroke(); }
+    }
+    for (const e of ultAimTargets(sim, a.hero)) {
+      const [x, y] = toScreen(l, e.x, e.y);
+      const inReach = aim.kind === 'tower' || aim.range === 0 || Math.hypot(e.x - h.x, e.y - h.y) <= aim.range + e.r;
+      const r = e.kind === 'tower' || e.kind === 'core' ? Math.max(16, e.r * l.scale * 1.2) : 13 * this.grow(l);
+      const cy = e.kind === 'unit' || e.kind === 'hero' ? y - 10 * this.grow(l) : y;
+      ctx.strokeStyle = !inReach ? 'rgba(160,150,140,0.6)' : aim.kind === 'tower' ? PAL.gold : `rgba(229,83,75,${0.65 + 0.35 * pulse})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(x, cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    const res = ultAimAt(l, sim, a.hero, a.x, a.y - DRAG_LIFT);
+    const [px, py] = toScreen(l, res.x, res.y);
+    ctx.strokeStyle = PAL.gold;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(hx, hy - 12); ctx.lineTo(px, py); ctx.stroke();
+    ctx.setLineDash([]);
+    if (aim.kind === 'spot' || (aim.kind === 'lane' && res.cmd)) {
+      ctx.fillStyle = res.cmd ? 'rgba(224,176,74,0.18)' : 'rgba(160,150,140,0.15)';
+      ctx.strokeStyle = res.cmd ? PAL.gold : '#a09a90';
+      ctx.lineWidth = 2.5;
+      const rr = (aim.kind === 'lane' ? 220 : aim.radius) * l.scale;
+      ctx.beginPath(); ctx.arc(px, py, rr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+    if (res.ent) {
+      ctx.strokeStyle = res.cmd ? PAL.gold : '#a09a90';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath(); ctx.arc(px, py - (res.ent.kind === 'hero' || res.ent.kind === 'unit' ? 10 * this.grow(l) : 0), 17 * this.grow(l), 0, Math.PI * 2); ctx.stroke();
+    }
+    drawPortrait(ctx, a.hero, a.x, a.y - DRAG_LIFT - 22, 12, 0, l.dpr);
+    const tx = Math.max(l.col.x + 96, Math.min(l.col.x + l.col.w - 96, a.x)); // keep the label on screen
+    pill(ctx, res.cmd ? `${HEROES[a.hero].ult.name}: let go to fire` : res.why, tx, a.y - DRAG_LIFT + 18, !!res.cmd);
+    ctx.restore();
+  }
+
+  /** Aiming a commander call: what it can go on, and (while dragging) where it would land. */
+  private drawCallAim(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState, now: number): void {
+    const ca = ui.callAim;
+    if (!ca) return;
+    const def = CALLS[ca.call];
+    const pulse = 0.5 + 0.5 * Math.sin(now / 160);
+    ctx.save();
+    ctx.fillStyle = 'rgba(20,12,6,0.18)';
+    ctx.fillRect(l.field.x, l.field.y, l.field.w, l.field.h);
+    if (def.aim === 'lane') {
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = LANE_HALF * 2 * l.scale;
+      ctx.strokeStyle = `rgba(143,176,74,${0.22 + 0.1 * pulse})`;
+      for (const id of sim.lanes) { this.lanePath(ctx, l, id); ctx.stroke(); }
+    }
+    if (def.aim === 'tower') {
+      for (const e of sim.ents) {
+        if (!e.alive || e.owner !== 0 || (e.kind !== 'tower' && e.kind !== 'core')) continue;
+        const [x, y] = toScreen(l, e.x, e.y);
+        ctx.strokeStyle = e.hp < e.maxHp ? PAL.gold : 'rgba(160,150,140,0.6)';
+        ctx.lineWidth = 2.5 + (e.hp < e.maxHp ? pulse : 0);
+        ctx.beginPath(); ctx.arc(x, y, Math.max(16, e.r * l.scale * 1.2), 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+    if (ca.drag) {
+      const res = callAimAt(l, sim, ca.call, ca.x, ca.y - DRAG_LIFT);
+      const [px, py] = toScreen(l, res.x, res.y);
+      const rr = ca.call === 'eye' ? CALL_RULES.eyeRadius : ca.call === 'snare' ? CALL_RULES.snareRadius * 2 : ca.call === 'barricade' ? CALL_RULES.wallRadius * 2 : 120;
+      ctx.fillStyle = res.cmd ? 'rgba(224,176,74,0.18)' : 'rgba(160,150,140,0.15)';
+      ctx.strokeStyle = res.cmd ? PAL.gold : '#a09a90';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(px, py, Math.max(10, rr * l.scale), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      callIcon(ctx, ca.call, px, py, 10, res.cmd ? PAL.gold : '#a09a90');
+      const tx = Math.max(l.col.x + 96, Math.min(l.col.x + l.col.w - 96, ca.x));
+      pill(ctx, res.cmd ? `${def.name}: let go here` : res.why, tx, ca.y - DRAG_LIFT + 18, !!res.cmd);
+    }
+    ctx.restore();
+  }
+
+  /** The level-up choice card (PLAN-015): the hero's own upgrade or the general one; made for you if you wait. */
+  private drawChoiceCard(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState): void {
+    const kind = ui.choice;
+    const h = kind ? sim.heroOf(0, kind) : undefined;
+    const lv = h ? sim.pendingChoice(h) : 0;
+    if (!kind || !h || !lv) return;
+    const card = choiceCard(l);
+    const b = card.box;
+    const texts = upgradeTexts(kind, h, lv);
+    const secs = Math.max(0, Math.ceil((h.choiceAt - sim.tick) / TICKS_PER_SECOND));
+    ctx.save();
+    cardShadow(ctx, b.x, b.y, b.w, b.h, 10);
+    ctx.fillStyle = 'rgba(27,39,66,0.97)';
+    ctx.strokeStyle = PAL.gold;
+    ctx.lineWidth = 2;
+    roundRect(ctx, b.x, b.y, b.w, b.h, 10);
+    ctx.fill(); ctx.stroke();
+    drawPortrait(ctx, kind, b.x + 15, b.y + 13, 10, 0, l.dpr);
+    ctx.fillStyle = PAL.parchment;
+    ctx.font = 'bold 12px Georgia, serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(fit(ctx, `${HEROES[kind].name} · level ${lv} upgrade — pick one (${secs}s)`, b.w - 36), b.x + 30, b.y + 13);
+    card.opts.forEach((r, i) => {
+      ctx.fillStyle = i === 0 ? PAL.parchment : '#efe0bb';
+      ctx.strokeStyle = i === 0 ? PAL.goldDark : PAL.woodLight;
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, r.x, r.y, r.w, r.h, 8);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = PAL.maroon;
+      ctx.font = 'bold 10px system-ui';
+      ctx.fillText(i === 0 ? '▲ OWN UPGRADE' + (secs <= 3 ? ' (auto)' : '') : lv === 2 ? '⏱ QUICK' : '✦ STRONG', r.x + 7, r.y + 10);
+      ctx.fillStyle = INK;
+      ctx.font = '11px Georgia, serif';
+      wrap(ctx, texts[i], r.x + 7, r.y + 25, r.w - 12, 13, 3);
+    });
     ctx.restore();
   }
 
@@ -1148,9 +1358,31 @@ export class Renderer {
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.font = 'bold 9px system-ui';
-      ctx.fillText(`${['LEFT', 'MID', 'RIGHT'][lane]} ×${cls.wave}  ▸`, r.x + 28, r.y + 7.5);
+      const holding = active && pl.hold[lane];
+      ctx.fillText(holding ? `${['LEFT', 'MID', 'RIGHT'][lane]} held ${pl.held[lane]}/${RALLY.max}` : `${['LEFT', 'MID', 'RIGHT'][lane]} ×${cls.wave}  ▸`, r.x + 28, r.y + 7.5);
       ctx.font = 'bold 11px Georgia, serif';
-      ctx.fillText(fit(ctx, active ? cls.name : 'no lane', r.w - 31), r.x + 28, r.y + r.h - 7);
+      ctx.fillText(fit(ctx, active ? cls.name : 'no lane', r.w - 31 - 26), r.x + 28, r.y + r.h - 7);
+      // the hold / release toggle (rally the waves, PLAN-015)
+      if (active) {
+        const t = l.holds[lane];
+        ctx.fillStyle = holding ? PAL.gold : '#e6d6b2';
+        ctx.strokeStyle = holding ? INK : PAL.woodLight;
+        ctx.lineWidth = 1.2;
+        roundRect(ctx, t.x, t.y, t.w, t.h, 5);
+        ctx.fill(); ctx.stroke();
+        if (holding && pl.held[lane] > 0) {
+          ctx.strokeStyle = `rgba(184,38,28,${0.5 + 0.5 * Math.sin(this.now / 200)})`;
+          ctx.lineWidth = 2;
+          roundRect(ctx, t.x - 1.5, t.y - 1.5, t.w + 3, t.h + 3, 6);
+          ctx.stroke();
+        }
+        ctx.fillStyle = holding ? PAL.maroon : '#7b4a22';
+        ctx.font = 'bold 8px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(holding ? 'GO' : 'HOLD', t.x + t.w / 2, t.y + t.h / 2 + 4);
+        ctx.font = 'bold 9px system-ui';
+        ctx.fillText(holding ? '▶' : '❚❚', t.x + t.w / 2, t.y + t.h / 2 - 4);
+      }
       ctx.restore();
     });
 
@@ -1186,6 +1418,16 @@ export class Renderer {
     ctx.fillRect(bx, m.y + m.h / 2 + 5, bw * (pl.mana >= MANA.max ? 1 : value - Math.floor(value)), 4);
     ctx.restore();
 
+    // the two commander calls (DEC-024)
+    pl.calls.forEach((id, i) => {
+      const r = l.calls[i];
+      if (!r) return;
+      const def = CALLS[id];
+      const cd = pl.callCd[i] / Math.max(1, def.cooldown);
+      const can = !sim.cantCall(0, id);
+      drawCallButton(ctx, r.x + r.w / 2, r.y + r.h / 2, r.w / 2 - 2, id, def.cost, cd, can, ui.callAim?.call === id, this.now);
+    });
+
     const s = l.shop;
     const canBuy = pl.picks.some((k) => (Object.keys(ITEMS) as ItemId[]).some((it) => !sim.cantBuy(0, k, it)));
     ctx.save();
@@ -1201,8 +1443,8 @@ export class Renderer {
       roundRect(ctx, s.x - 2, s.y - 2, s.w + 4, s.h + 4, 11);
       ctx.stroke();
     }
-    label(ctx, 'Shop', s.x + s.w / 2 + 8, s.y + s.h / 2 + 1, canBuy ? INK : PAL.parchment, 15);
-    bag(ctx, s.x + 22, s.y + s.h / 2, canBuy ? INK : PAL.parchment);
+    label(ctx, 'Shop', s.x + s.w / 2 + 10, s.y + s.h / 2 + 1, canBuy ? INK : PAL.parchment, 14);
+    bag(ctx, s.x + 18, s.y + s.h / 2, canBuy ? INK : PAL.parchment);
     ctx.restore();
   }
 
@@ -1252,9 +1494,31 @@ export class Renderer {
     ctx.fillStyle = INK;
     ctx.font = 'bold 12px Georgia, serif';
     ctx.fillText(fit(ctx, def.name, tw), tx, b.y + 13);
-    ctx.font = 'bold 9.5px system-ui';
-    ctx.fillStyle = PAL.maroon;
-    ctx.fillText(h ? `Lv${h.level}${h.fury > 0 ? ' ✹' : ''}` : '', tx, b.y + 28);
+    // the level badge: it glows while an upgrade choice waits (PLAN-015); the dash's readiness beside it
+    const pick = h ? sim.pendingChoice(h) : 0;
+    if (h && pick) {
+      const r = p.badge;
+      const glow = 0.5 + 0.5 * Math.sin(this.now / 180);
+      ctx.fillStyle = PAL.gold;
+      roundRect(ctx, r.x, r.y, r.w, r.h, 5);
+      ctx.fill();
+      ctx.strokeStyle = `rgba(184,38,28,${0.5 + 0.5 * glow})`;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+      ctx.fillStyle = INK;
+      ctx.font = 'bold 9px system-ui';
+      ctx.fillText(fit(ctx, `▲ Lv${pick}: pick upgrade`, r.w - 6), r.x + 4, r.y + r.h / 2 + 0.5);
+    } else {
+      ctx.font = 'bold 9.5px system-ui';
+      ctx.fillStyle = PAL.maroon;
+      ctx.fillText(h ? `Lv${h.level}${h.fury > 0 ? ' ✹' : ''}` : '', tx, b.y + 28);
+      if (h && h.alive) {
+        const lw = ctx.measureText(`Lv${h.level}${h.fury > 0 ? ' ✹' : ''}`).width;
+        ctx.font = 'bold 9px system-ui';
+        ctx.fillStyle = h.dashCd > 0 ? '#9a8a74' : '#2f6a9a';
+        ctx.fillText(h.dashCd > 0 ? `» ${Math.ceil(h.dashCd / TICKS_PER_SECOND)}s` : '» dash', tx + lw + 6, b.y + 28);
+      }
+    }
     if (h) {
       const f = alive ? h.hp / h.maxHp : 0;
       const bx = b.x + 5;
@@ -1294,8 +1558,46 @@ export class Renderer {
       }
       ctx.restore();
     });
+    // the Power gem (PLAN-015): tap to fire it now, 20% stronger
+    this.drawPowerGem(ctx, h, kind, p.power);
     // the ULT button (DEC-011)
     this.drawUltButton(ctx, sim, kind, h, p.ult);
+    ctx.restore();
+  }
+
+  private drawPowerGem(ctx: CanvasRenderingContext2D, h: Ent | undefined, kind: HeroKind, r: Rect): void {
+    const def = HEROES[kind];
+    const cx = r.x + r.w / 2;
+    const cy = r.y + r.h / 2 - 2;
+    const rr = Math.min(r.w, r.h) / 2 - 1;
+    const ready = !!h && h.alive && h.powerCd <= 0;
+    const waiting = ready && (h?.powerWait ?? 0) > 0; // the window to fire it on cue
+    ctx.save();
+    const diamond = (k: number) => { ctx.beginPath(); ctx.moveTo(cx, cy - k); ctx.lineTo(cx + k * 0.8, cy); ctx.lineTo(cx, cy + k); ctx.lineTo(cx - k * 0.8, cy); ctx.closePath(); };
+    ctx.fillStyle = 'rgba(5,8,20,0.4)';
+    ctx.translate(1, 1.5); diamond(rr + 1.5); ctx.fill(); ctx.translate(-1, -1.5);
+    ctx.fillStyle = PAL.paperEdge;
+    diamond(rr + 1.5); ctx.fill();
+    ctx.fillStyle = ready ? (waiting ? PAL.gold : '#e8c86a') : '#8a7a68';
+    diamond(rr); ctx.fill();
+    if (h && h.alive && !ready) {
+      const f = Math.min(1, h.powerCd / Math.max(1, def.powerTicks));
+      ctx.save();
+      diamond(rr); ctx.clip();
+      ctx.fillStyle = 'rgba(17,26,47,0.45)';
+      ctx.fillRect(cx - rr, cy - rr, rr * 2, rr * 2 * f);
+      ctx.restore();
+    }
+    if (waiting) {
+      ctx.strokeStyle = `rgba(255,248,214,${0.5 + 0.5 * Math.sin(this.now / 120)})`;
+      ctx.lineWidth = 2.5;
+      diamond(rr + 4); ctx.stroke();
+    }
+    label(ctx, '✦', cx, cy, ready ? INK : '#e2cf9f', 11);
+    ctx.font = 'bold 7px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = ready ? PAL.maroon : '#e2cf9f';
+    ctx.fillText(ready ? 'CUE' : h && h.alive ? `${Math.ceil(h.powerCd / TICKS_PER_SECOND)}s` : '', cx, r.y + r.h + 4);
     ctx.restore();
   }
 
@@ -1323,7 +1625,8 @@ export class Renderer {
       roundRect(ctx, r.x - 3, r.y - 3, r.w + 6, r.h + 6, 10);
       ctx.stroke();
     }
-    const text = { locked: 'ULT Lv4', on: 'ULT ON', ready: 'ULT', now: 'ULT NOW', called: 'CALLED', used: 'USED', down: 'ULT' }[state];
+    const aimable = !!ULT_AIMS[kind] && (state === 'ready' || state === 'now');
+    const text = { locked: 'ULT Lv4', on: 'ULT ON', ready: aimable ? 'ULT ⤴' : 'ULT', now: aimable ? 'ULT NOW ⤴' : 'ULT NOW', called: 'CALLED', used: 'USED', down: 'ULT' }[state];
     const color = state === 'called' ? PAL.gold : state === 'locked' || state === 'used' || state === 'down' ? '#e2cf9f' : INK;
     label(ctx, text, r.x + r.w / 2, r.y + r.h / 2 + 0.5, color, state === 'now' || state === 'called' ? 10.5 : 11);
     ctx.restore();
@@ -1353,7 +1656,7 @@ function visionCircles(sim: Sim): [number, number, number][] {
     const r = sim.visionOf(e);
     if (r > 0) out.push([e.x, e.y, r]);
   }
-  for (const z of sim.zones) if (z.kind === 'lantern' && z.owner === 0) out.push([z.x, z.y, z.r]);
+  for (const z of sim.zones) if ((z.kind === 'lantern' || z.kind === 'eye') && z.owner === 0) out.push([z.x, z.y, z.r]);
   return out;
 }
 
@@ -1571,6 +1874,22 @@ function hpBar(ctx: CanvasRenderingContext2D, cx: number, y: number, w: number, 
   ctx.fillStyle = color;
   ctx.fillRect(cx - w / 2, y - 1.5, w * f, 3);
   ctx.restore();
+}
+
+/** Wrap text over up to `maxLines` lines. */
+function wrap(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lineH: number, maxLines: number): void {
+  const words = text.split(' ');
+  let line = '';
+  let n = 0;
+  for (let i = 0; i < words.length; i++) {
+    const test = line ? `${line} ${words[i]}` : words[i];
+    if (ctx.measureText(test).width > maxW && line) {
+      ctx.fillText(n === maxLines - 1 ? fit(ctx, `${line} ${words.slice(i).join(' ')}`, maxW) : line, x, y + n * lineH);
+      if (++n >= maxLines) return;
+      line = words[i];
+    } else line = test;
+  }
+  if (line) ctx.fillText(line, x, y + n * lineH);
 }
 
 function fit(ctx: CanvasRenderingContext2D, text: string, maxW: number): string {

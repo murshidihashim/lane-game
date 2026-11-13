@@ -4,7 +4,7 @@
 //   node --experimental-strip-types --no-warnings scripts/heroes-doc.mjs --check  fail if one is out of date
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
-const { HEROES, HERO_IDS, MANA, MATCH, HERO_RULES, SPECIES, SPECIES_IDS, CLASSES, UNITS, ITEMS, ITEM_IDS, ITEM_SLOTS, VISION, WAVES, NEUTRALS, FURY, WARDS, RELICS, BOUNTY } = await import('../src/game/rules.ts');
+const { HEROES, HERO_IDS, MANA, MATCH, HERO_RULES, SPECIES, SPECIES_IDS, CLASSES, UNITS, ITEMS, ITEM_IDS, ITEM_SLOTS, VISION, WAVES, NEUTRALS, FURY, WARDS, RELICS, BOUNTY, ACTION, RALLY, UPGRADES, ULT_AIMS, CALLS, CALL_IDS } = await import('../src/game/rules.ts');
 const OUT = 'docs/design/heroes.md';
 const OUT2 = 'docs/design/species.md';
 const sec = (t) => `${+(t / 20).toFixed(1)} s`;
@@ -14,11 +14,15 @@ const orderName = { push: 'Push', defend: 'Defend', gank: 'Gank', farm: 'Farm' }
 const L = [];
 L.push('# Heroes · roster v2 (20 heroes)', '');
 L.push('_Generated from `src/game/rules.ts` by `scripts/heroes-doc.mjs`. Do not edit by hand: change the game data and run the script._', '');
-L.push('Decisions: DEC-006 (folk-tale world and names), DEC-007 (power system), DEC-011 (heroes start on the map; ultimates are called). Plans: PLAN-002, PLAN-004. All numbers are first values to tune in play tests.', '');
+L.push('Decisions: DEC-006 (folk-tale world and names), DEC-007 (power system), DEC-011 (heroes start on the map; ultimates are called), DEC-023 (strategy and action). Plans: PLAN-002, PLAN-004, PLAN-015. All numbers are first values to tune in play tests.', '');
 L.push('## How powers work', '');
 L.push(`- **Trait**: always on.`);
-L.push(`- **Power**: fires by itself when its trigger happens, then waits its cooldown. Ranks 1–3 follow the hero's level.`);
-L.push(`- **Ultimate**: unlocks at level ${HERO_RULES.ultLevel}, once per life (ready again after respawn). The ULT button glows at a good moment (the "best moment" below); tap it and the hero fires at the next good moment. Belang's is always on.`);
+L.push(`- **Power**: fires by itself when its trigger happens, then waits its cooldown. When it is ready it waits ${sec(ACTION.autoDelay)} for you first: tap the hero's Power gem to fire it **on cue**, ${ACTION.cuePct - 100}% stronger (PLAN-015).`);
+L.push(`- **Level-up choices** (PLAN-015): at levels 2 and 3 pick the hero's own upgrade (the "Lv 2" and "Lv 3" text below, in order) or a general one: **Quick** at level 2 (the Power comes back ${100 - UPGRADES.quickPct}% sooner) or **Strong** at level 3 (the Power does ${UPGRADES.strongPct - 100}% more). If you don't choose within ${sec(UPGRADES.window)}, the hero's own upgrade is chosen.`);
+L.push(`- **Ultimate**: unlocks at level ${HERO_RULES.ultLevel}, once per life (ready again after respawn). The ULT button glows at a good moment (the "best moment" below); tap it and the hero fires at the next good moment. ${Object.keys(ULT_AIMS).length} ultimates can also be **aimed**: drag the ULT button onto the map (see "Aim" below). Belang's is always on.`);
+L.push(`- **Warning rings** (PLAN-015): Riptide, Moon Kite, Stampede and Dawn Freeze land ${sec(ACTION.ringTicks)} after a ring appears; Duel and Coil lock on after ${sec(ACTION.lockTicks)} and miss a target that got ${ACTION.lockSlack} past their reach. Both sides see every ring.`);
+L.push(`- **Dodge dash**: flick one of your heroes on the map to dash ${ACTION.dashDist} that way, once every ${sec(ACTION.dashCooldown)}.`);
+L.push(`- **Combo chains**: Power and ultimate damage from different heroes on the same enemy within ${sec(ACTION.comboWindow)} chains: +${ACTION.comboStepPct}% for the second hero, +${ACTION.comboStepPct * ACTION.comboMax}% after that.`);
 L.push(`- **Best order**: +${HERO_RULES.bestOrderPercent}% damage while following it (gankers keep it for a few seconds after arriving).`);
 L.push(`- **Heroes on the map**: you pick ${HERO_RULES.heroesPerPlayer} heroes before the match; both start at your Pusaka. You command them and buy them items with ${MANA.name}. Species, lane troops, items and map rewards: see \`species.md\`.`, '');
 L.push('## Roster', '');
@@ -36,6 +40,7 @@ for (const id of HERO_IDS) {
   L.push(`- **Trait: ${h.trait.name}.** ${h.trait.text}`);
   L.push(`- **Power: ${h.power.name}** (${h.power.when}). ${h.power.text}`);
   L.push(`- **Ultimate: ${h.ult.name}** (best moment: ${h.ult.when}). ${h.ult.text}`);
+  if (ULT_AIMS[id]) L.push(`- **Aim:** ${ULT_AIMS[id].text}`);
   L.push(`- Strong vs ${h.strong}. Weak vs ${h.weak}.`);
   L.push(`- Inspired by: ${h.inspired}.`, '');
 }
@@ -45,7 +50,7 @@ const text = L.join('\n');
 const S = [];
 S.push('# Species, lane troops, items and map rewards · v2', '');
 S.push('_Generated from `src/game/rules.ts` by `scripts/heroes-doc.mjs`. Do not edit by hand: change the game data and run the script._', '');
-S.push('Decisions: DEC-008 (species and lane waves), DEC-009 (hero orders and map rewards), DEC-011 (no hand cards; items), DEC-012 (fog of war). Plans: PLAN-003, PLAN-004. All numbers are first values to tune in play tests.', '');
+S.push('Decisions: DEC-008 (species and lane waves), DEC-009 (hero orders and map rewards), DEC-011 (no hand cards; items), DEC-012 (fog of war), DEC-024 (commander calls). Plans: PLAN-003, PLAN-004, PLAN-015. All numbers are first values to tune in play tests.', '');
 S.push('## How species work', '');
 S.push(`- Before the match each player picks one of ${SPECIES_IDS.length} species (and 2 heroes). The species decides what can march in your lanes.`);
 S.push(`- Every ${sec(WAVES.every)} (first at ${sec(WAVES.first)}) each lane sends a **wave** of the class you chose for that lane. Waves are the only troops (no hand cards) and get ${WAVES.growPctPerMinute}% stronger each minute. Tap a wave chip to change the next waves in that lane.`, '');
@@ -71,6 +76,14 @@ for (const id of SPECIES_IDS) {
 S.push('## Hero orders', '');
 S.push('Tap a hero (its panel or the hero on the map) to open its orders, pick one, then tap a lit-up target (DEC-017): **Move** (go and hold a spot; it fights what comes within ' + HERO_RULES.moveLeash + '), **Attack** (go after an enemy you can see, then back to its job), **Push** or **Gank** a lane, **Defend** a tower, **Farm** a grove, den, Gajah Mina or relic, **Ward** a cairn, **Retreat** home to heal. Farm, Ward and Attack are errands: when done, the hero goes back to its last job. Dragging a portrait onto the map is a quick shortcut.', '');
 S.push(`Heroes think for themselves a little: they walk through their own side, wait outside an enemy tower until their own troops are in its reach, head home to heal below ${HERO_RULES.fallbackBelowPct}% health while pushing (and go back at ${HERO_RULES.fallbackUntilPct}%), and go for enemy heroes in reach first, then the weakest enemy.`, '');
+S.push('## Rally the waves (PLAN-015)', '');
+S.push(`Each wave chip has a HOLD toggle. A held lane keeps its waves at your end of the lane (they fight only what comes within ${RALLY.leash}); up to ${RALLY.max} waves. Tap GO to release them together: for ${sec(RALLY.buffTicks)} they move ${RALLY.hastePct}% faster and hit ${RALLY.dmgPct}% harder. The next wave after ${RALLY.max} releases them by itself. The enemy sees the build-up only with vision there.`, '');
+S.push('## Commander calls (DEC-024)', '');
+S.push(`Before the match pick 2 of ${CALL_IDS.length}. In the match they cost ${MANA.name} (like items) and then cool down. Not cards: no hand, no deck, nothing random.`, '');
+S.push('| Call | Cost | Cooldown | Aim | What it does |', '|---|---|---|---|---|');
+const aimText = { none: 'none', spot: 'any spot', seen: 'a spot you can see', lane: 'a lane you can see', tower: 'your tower or Pusaka' };
+for (const id of CALL_IDS) S.push(`| ${CALLS[id].name} | ${CALLS[id].cost} | ${sec(CALLS[id].cooldown)} | ${aimText[CALLS[id].aim]} | ${CALLS[id].text} |`);
+S.push('', `Gajah Mina also slams the ground every ${sec(ACTION.slamEvery)} while fought: a warning ring, then ${ACTION.slamDamage} damage and a ${sec(ACTION.slamStun)} stun to everyone still inside (radius ${ACTION.slamRadius}).`, '');
 S.push('## Items', '');
 S.push(`Bought with ${MANA.name} in the Shop, for one hero, ${ITEM_SLOTS} slots each, kept through death. No random rewards. ${MANA.name} starts at ${sp(MANA.start)}, refills 1 every ${sec(MANA.perMana / MANA.regenPerTick)} (twice as fast in the last minute) and holds at most ${sp(MANA.max)}.`, '');
 S.push('| Item | Cost | What it does |', '|---|---|---|');

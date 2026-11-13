@@ -2,13 +2,17 @@
 
 _Generated from `src/game/rules.ts` by `scripts/heroes-doc.mjs`. Do not edit by hand: change the game data and run the script._
 
-Decisions: DEC-006 (folk-tale world and names), DEC-007 (power system), DEC-011 (heroes start on the map; ultimates are called). Plans: PLAN-002, PLAN-004. All numbers are first values to tune in play tests.
+Decisions: DEC-006 (folk-tale world and names), DEC-007 (power system), DEC-011 (heroes start on the map; ultimates are called), DEC-023 (strategy and action). Plans: PLAN-002, PLAN-004, PLAN-015. All numbers are first values to tune in play tests.
 
 ## How powers work
 
 - **Trait**: always on.
-- **Power**: fires by itself when its trigger happens, then waits its cooldown. Ranks 1–3 follow the hero's level.
-- **Ultimate**: unlocks at level 4, once per life (ready again after respawn). The ULT button glows at a good moment (the "best moment" below); tap it and the hero fires at the next good moment. Belang's is always on.
+- **Power**: fires by itself when its trigger happens, then waits its cooldown. When it is ready it waits 1.5 s for you first: tap the hero's Power gem to fire it **on cue**, 20% stronger (PLAN-015).
+- **Level-up choices** (PLAN-015): at levels 2 and 3 pick the hero's own upgrade (the "Lv 2" and "Lv 3" text below, in order) or a general one: **Quick** at level 2 (the Power comes back 25% sooner) or **Strong** at level 3 (the Power does 30% more). If you don't choose within 8 s, the hero's own upgrade is chosen.
+- **Ultimate**: unlocks at level 4, once per life (ready again after respawn). The ULT button glows at a good moment (the "best moment" below); tap it and the hero fires at the next good moment. 11 ultimates can also be **aimed**: drag the ULT button onto the map (see "Aim" below). Belang's is always on.
+- **Warning rings** (PLAN-015): Riptide, Moon Kite, Stampede and Dawn Freeze land 1 s after a ring appears; Duel and Coil lock on after 0.6 s and miss a target that got 150 past their reach. Both sides see every ring.
+- **Dodge dash**: flick one of your heroes on the map to dash 400 that way, once every 10 s.
+- **Combo chains**: Power and ultimate damage from different heroes on the same enemy within 2 s chains: +15% for the second hero, +30% after that.
 - **Best order**: +15% damage while following it (gankers keep it for a few seconds after arriving).
 - **Heroes on the map**: you pick 3 heroes before the match; both start at your Pusaka. You command them and buy them items with Semangat. Species, lane troops, items and map rewards: see `species.md`.
 
@@ -43,6 +47,7 @@ Ganker · best order **Gank** · ranged
 - **Trait: Forest Step.** 30% faster in the jungle. When an enemy spots her, she stays hidden 2 s longer.
 - **Power: Volley** (every 10 s, when enemies are in range). Arrows hit the 3 nearest enemies for 105. Lv 2: 4 enemies. Lv 3: also slows them 30% for 2 s.
 - **Ultimate: Hunter’s Mark** (best moment: call it, then her next Ambush hit). The target takes +50% damage from all your units for 6 s.
+- **Aim:** Drag onto an enemy within 900 to mark it now.
 - Strong vs lone heroes, Pemanah, supports. Weak vs Seri (reveal), Benteng (Stomp).
 - Inspired by: Dota’s invisible gankers with a first-strike bonus; Clash Royale’s ranged support troops.
 
@@ -52,6 +57,7 @@ Defender · best order **Defend** · melee
 - **Trait: Hold the Gate.** Near a friendly tower he takes 30% less damage, and that tower attacks 20% faster.
 - **Power: Stomp** (every 12 s, when enemies are close). Hits everything around him for 100 and slows it 40% for 3 s. Lv 2: bigger area. Lv 3: also stuns 0.5 s.
 - **Ultimate: Unbreakable** (best moment: when a tower near him falls below 30%). Gives that tower a 1,000 shield for 8 s.
+- **Aim:** Drag onto any of your towers to shield it.
 - Strong vs swarms, Gergasi, ganks into his lane. Weak vs Senja (out-ranges and silences him), Dalang.
 - Inspired by: Dota’s stomping tank initiators; Clash Royale’s splash melee and tower defence.
 
@@ -61,6 +67,7 @@ Initiator · best order **Defend** · ranged
 - **Trait: Net.** His hits slow by 20% for 1 s.
 - **Power: Hook** (every 12 s). Pulls the most dangerous visible enemy within 700 to his feet: heroes first, then the biggest troop. Lv 2: reach 850. Lv 3: the target is stunned 1 s.
 - **Ultimate: Riptide** (best moment: when 4 or more enemies are within 600). A wave pushes every enemy near him in his lane back 400 and slows them 40% for 3 s.
+- **Aim:** Drag onto a spot within 800: the wave hits there after its warning ring.
 - Strong vs Gergasi and Kerbau (drags them into tower fire), lone heroes. Weak vs swarms, Pelanduk (a hooked decoy is a wasted hook).
 - Inspired by: Dota’s hook-and-pull heroes; Clash Royale’s knock-back spells that undo a push.
 
@@ -97,6 +104,7 @@ Summoner · best order **Push** · ranged
 - **Trait: Behind the Screen.** Keeps behind your front troops in his lane, and waits at the river when there are none.
 - **Power: Shadow Play** (every 14 s). Summons 2 shadow puppets for 14 s. Lv 2: 3 puppets. Lv 3: the puppets copy the troop class of the lane he is in, at a third of its health and half its damage.
 - **Ultimate: Grand Performance** (best moment: when a big enemy troop is within 600). Takes control of it for 10 s.
+- **Aim:** Drag onto an enemy troop within 700 to take control of it.
 - Strong vs Gergasi, Kerbau, single-target heroes. Weak vs Senja, Benteng, Petir (splash).
 - Inspired by: Dota’s summoners and mind control; Clash Royale’s spawners and copy cards; wayang kulit shadow puppetry.
 
@@ -115,6 +123,7 @@ Healer · best order **Defend** · ranged
 - **Trait: Monsoon.** Allies within 400 of her regain 1% health a second.
 - **Power: Healing Rain** (every 10 s, when an ally near her is hurt). Heals allies within 350 for 150. Lv 2: 220. Lv 3: also repairs nearby towers for 100.
 - **Ultimate: Flash Flood** (best moment: when 4 or more enemies attack a tower in her lane). Floods the lane for 6 s: enemies slowed 50%, your troops 30% faster.
+- **Aim:** Drag onto any lane to flood it.
 - Strong vs long fights, poke. Weak vs Belang, Pendekar, Senja (silence).
 - Inspired by: Dota’s healers; Clash Royale’s healing troops; the monsoon.
 
@@ -124,6 +133,7 @@ Diver · best order **Gank** · melee · flies
 - **Trait: On the Wind.** Flies. Only ranged units, towers and spells can hit her. Never hidden: everyone sees her coming.
 - **Power: Dive** (every 10 s). Swoops on the weakest enemy within 600 for 150. Lv 2: 225. Lv 3: flies back to where she was after the hit.
 - **Ultimate: Moon Kite** (best moment: call it, then order a Gank). Crosses to the lane instantly and stuns enemies within 300 for 1 s.
+- **Aim:** Drag onto any spot: she lands there after a warning ring.
 - Strong vs Gergasi, Dalang, back-line heroes (Senja, Hujan). Weak vs Pemanah, towers, Rimba.
 - Inspired by: Clash Royale’s flying troops (only some cards hit air); Dota’s global gankers; the wau bulan moon kite.
 
@@ -133,6 +143,7 @@ Duelist · best order **Gank** · melee
 - **Trait: Silat Guard.** Every 4 s, fully blocks the next hit.
 - **Power: Keris Strike** (every 10 s, when a target is within 600). Dashes to the nearest visible enemy hero (or biggest troop), hits it for 120 and silences it for 2 s. Lv 2: 3 s. Lv 3: 180 damage.
 - **Ultimate: Duel** (best moment: when an enemy hero is within 400). Locks both heroes in a 4 s duel where only they can hit each other. If he wins, he keeps +10% damage for the match.
+- **Aim:** Drag onto an enemy hero within 600 to challenge it.
 - Strong vs Belang, Senja, Hujan. Weak vs Benteng, Kail, swarms.
 - Inspired by: Dota’s duel and anti-carry heroes; Clash Royale’s dashing champions; silat martial art.
 
@@ -160,6 +171,7 @@ Charger · best order **Push** · melee
 - **Trait: Thick Hide.** Takes 25% less damage from towers and the Pusaka.
 - **Power: Charge** (every 12 s, when an enemy is within 600). Charges into it: enemies around the impact take 100, are knocked back and stunned 0.5 s. Lv 2: 150. Lv 3: stun 1 s.
 - **Ultimate: Stampede** (best moment: when the enemy tower in his lane is within 2,000). Charges to the tower, hits it for 200 and stuns enemies around it for 1.5 s.
+- **Aim:** Drag onto a spot within 1,600: he charges there after a warning ring.
 - Strong vs Pemanah, Hujan, packed defences. Weak vs Kail, Dalang (taken over), Tedung.
 - Inspired by: Clash Royale’s charging riders and rams; Dota’s charging initiators; the Sumatran rhino.
 
@@ -169,6 +181,7 @@ Assassin · best order **Gank** · ranged
 - **Trait: Venom.** Her hits poison: 2% of the target’s health a second for 3 s.
 - **Power: Spit** (every 8 s, when enemies are within 500). Spits at the 2 nearest enemies: poison (4% a second for 3 s) and a 30% slow for 2 s. Lv 2: 3 enemies. Lv 3: poison doubled.
 - **Ultimate: Coil** (best moment: when an enemy hero within 400 is below 50%). Stuns it 2 s and poisons it for 6% a second for 3 s.
+- **Aim:** Drag onto an enemy hero within 500 to strike it at any health.
 - Strong vs tanks, healers, Saudagar. Weak vs Hujan (heals poison off), Benteng, Pemanah.
 - Inspired by: Dota’s poison heroes; Clash Royale’s Poison spell; the king cobra.
 
@@ -196,6 +209,7 @@ Controller · best order **Defend** · ranged
 - **Trait: Morning Mist.** Enemies within 400 of her are 15% slower.
 - **Power: Fog Bank** (every 14 s, when 2 or more enemies are within 800). Fog covers them for 6 s: enemies inside are 40% slower, and your heroes inside are hard to see. Lv 2: lasts 8 s. Lv 3: bigger fog.
 - **Ultimate: Dawn Freeze** (best moment: when 5 or more enemies are within 600). Freezes every enemy within 600 for 1.5 s.
+- **Aim:** Drag onto a spot within 700: the freeze lands after a warning ring.
 - Strong vs big pushes, swarms, Badak. Weak vs Helang, Rimba, Tedung.
 - Inspired by: Dota’s area controllers; Clash Royale’s Freeze spell; mountain morning mist.
 
@@ -205,6 +219,7 @@ Pusher · best order **Push** · ranged
 - **Trait: High Tide.** Your troops in her lane near her move 15% faster.
 - **Power: Surge** (every 12 s, when enemies are ahead of her). A wave rolls 900 up her lane: enemies take 110 and are pushed back 250. Lv 2: 150. Lv 3: also slows them 30% for 2 s.
 - **Ultimate: King Tide** (best moment: when 3 or more of your troops are in her lane). For 10 s, your troops in her lane deal 30% more damage and move 30% faster.
+- **Aim:** Drag onto any lane to raise the tide there.
 - Strong vs slow defences, Benteng, Tukang. Weak vs Embun, Senja, Kail.
 - Inspired by: Dota’s wave pushers; Clash Royale’s Rage and The Log; the king tides of the coast.
 

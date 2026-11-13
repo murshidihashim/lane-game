@@ -59,6 +59,14 @@
       .tile .nm { font: 700 12px var(--serif); }
       .tile .rl { color: var(--muted); font-size: 10.5px; }
       .tile.sel { border-color: var(--ink); background: var(--gold); }
+      /* Commander calls (DEC-024): pick 2 before the match. */
+      .calls-head { margin: 10px 0 2px; font: 700 15px var(--serif); }
+      .calls-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin: 4px 0 8px; }
+      .call { display: grid; gap: 1px; justify-items: start; text-align: left; padding: 6px 7px; border-radius: 9px; background: #fbf6ea;
+        border: 2px solid var(--parchment-dark); color: var(--ink); font-size: 10.5px; line-height: 1.2; }
+      .call .nm { font: 700 12px var(--serif); }
+      .call .cost { color: #7b3fb0; font-weight: 700; }
+      .call.sel { border-color: var(--ink); background: var(--gold); }
       .detail { background: #fbf6ea; border: 1.5px solid var(--parchment-dark); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; line-height: 1.4; }
       .detail h3 { margin: 0 0 2px; font: 700 16px var(--serif); }
       .detail p { margin: 4px 0; font-size: 13.5px; }
@@ -160,7 +168,7 @@
         <p class="muted">Test build, no sound. You are blue (bottom); the bot is red (top).</p>
         <h2>You command, you don't deploy</h2>
         <ul>
-          <li>Before the match you pick a <b>species</b> (Kampung, Hutan, Sungai, Serangga or Batu), then draft 3 <b>heroes</b>, taking turns with the bot: a hero can only be on one side. All three start on the map, one heading for each lane.</li>
+          <li>Before the match you pick a <b>species</b> (Kampung, Hutan, Sungai, Serangga or Batu) and two <b>commander calls</b>, then draft 3 <b>heroes</b>, taking turns with the bot: a hero can only be on one side. All three start on the map, one heading for each lane.</li>
           <li>Every 20 s each lane sends a <b>wave</b> of one of your species' troop classes. Tap a wave chip (above your heroes) to change what marches in that lane. Waves grow stronger every minute.</li>
           <li>There are no troop cards: you win with your lane choices and your heroes.</li>
         </ul>
@@ -172,6 +180,20 @@
           <li>Each hero has a <b>Trait</b> (always on) and a <b>Power</b> that fires by itself. The ★ order is the hero's best: +15% damage.</li>
           <li><b>Ultimate</b>: unlocks at level 4, usually about a minute and a half in (heroes gain XP from fights and the jungle, and a little every second just by being alive), once per life. The <b>ULT</b> button glows when it is a good moment. Tap it and the hero fires at the next good moment (tap again to cancel).</li>
           <li><b>Shop</b>: spend Semangat (spirit, the purple count) on items for your heroes, 3 each. Semangat refills slowly; kills, towers, groves and relics pay more.</li>
+        </ul>
+        <h2>Your hands in the fight</h2>
+        <ul>
+          <li><b>Aim an ultimate</b>: hold a <b>ULT ⤴</b> button and drag it onto the map, then let go on the target or spot (11 ultimates can be aimed). A tap still fires it at the next good moment.</li>
+          <li><b>Warning rings</b>: big attacks (some ultimates, and Gajah Mina's slam) show a ring about a second before they land: red for the enemy's, gold for yours. Get out in time.</li>
+          <li><b>Dash</b>: flick one of your heroes on the map and it dashes that way (» dash on its panel; every 10 s).</li>
+          <li><b>Power on cue</b>: when a hero's <b>✦</b> gem glows, tap it to fire the Power now, 20% stronger. Leave it and the Power fires by itself a moment later.</li>
+          <li><b>Combos</b>: Powers and ultimates from two of your heroes hitting the same enemy within 2 s chain into a COMBO: +15%, then +30%.</li>
+        </ul>
+        <h2>Bigger choices</h2>
+        <ul>
+          <li><b>Rally the waves</b>: tap a lane chip's <b>HOLD</b> to keep its waves at home (up to 3), then <b>GO</b> to send them together with a war-drum boost. The enemy only sees the build-up with vision there. Fake one lane, hit another.</li>
+          <li><b>Level-up choices</b>: at levels 2 and 3 a hero's level badge glows: tap it and pick its own upgrade or a general one (Quick, then Strong). Wait 8 s and its own upgrade is picked.</li>
+          <li><b>Commander calls</b>: your two picks sit beside the Shop. They cost Semangat and then cool down. Some fire at once (War Drum, Penawar); for the others tap the button, then tap the spot, lane or tower (or drag the button there).</li>
         </ul>
         <h2>Seeing the map</h2>
         <ul>
@@ -201,6 +223,9 @@
         <p class="muted">Your species decides which troops march in your lanes. Then you draft 3 heroes against the bot.</p>
         <div class="species-grid" id="species-grid"></div>
         <div class="detail" id="species-detail"></div>
+        <div class="calls-head">Commander calls · pick 2</div>
+        <p class="muted" id="calls-help">Two special moves for the match, paid with Semangat (tap two).</p>
+        <div class="calls-grid" id="calls-grid"></div>
         <button class="primary" id="species-go">Choose heroes ›</button>
       </div>
     </div>

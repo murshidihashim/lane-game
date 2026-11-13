@@ -1,6 +1,6 @@
 # Current state · Lane Game
 
-Updated 2026-11-13 12:30 (Asia/Kuala_Lumpur) by the app steward.
+Updated 2026-11-13 13:20 (Asia/Kuala_Lumpur) by the app steward.
 
 ## Where we are
 - **Stage:** playable prototype. You draft 3 heroes against the bot, then command them and choose
@@ -23,6 +23,9 @@ Updated 2026-11-13 12:30 (Asia/Kuala_Lumpur) by the app steward.
   are implemented.
 - **Awaiting the owner:** DEC-020 "Make the map more engaging": five ideas in REP-013 (monsoon and
   night, kampung outposts, pasar malam merchant, lalang grass and birds, living paper map).
+- **Awaiting the owner:** DEC-023 "Make matches feel like a strategy and action game": eight
+  mechanics in REP-018. Suggested start: the action pack (aim your ultimate; warning rings and a
+  dodge dash), then the strategy pack (rally the waves; level-up choices).
 - **Decided:** DEC-021 (hero controls): the order ring round the thumb, the owner's choice; implemented.
 - **Decided:** DEC-022 (character designs at the Dota 2 quality bar, our own): implemented.
 
@@ -75,8 +78,8 @@ Updated 2026-11-13 12:30 (Asia/Kuala_Lumpur) by the app steward.
 - **Uncommitted:** none after this commit.
 - **Active approvals:** PLAN-001 to PLAN-007 and PLAN-009 to PLAN-014, all implemented.
 - **Checks:** verify, soak and phone check pass. Balance last ran in PLAN-013 (identical); no rule change since.
-- **Blocker:** owner playtest; owner's choice on DEC-020.
-- **Next step:** the owner tries the new designs and picks map ideas (DEC-020); then plan the chosen ones.
+- **Blocker:** owner playtest; owner's choices on DEC-020 and DEC-023.
+- **Next step:** the owner picks mechanics (DEC-023) and map ideas (DEC-020); then plan the chosen ones.
 
 ## Resume instruction
 "Read the project instructions and current state. Inspect the current Git state. Tell me where we
@@ -86,4 +89,5 @@ stopped and recommend the next small task. Wait for my approval before implement
 ## Pending approvals (generated)
 
 - DEC-020: Make the map more engaging (awaiting approval)
+- DEC-023: Make matches feel like a strategy and action game (awaiting approval)
 <!-- appkit:pending:end -->

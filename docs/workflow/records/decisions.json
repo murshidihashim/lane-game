@@ -603,6 +603,38 @@
         "REP-017"
       ],
       "reviewTrigger": "Figures read worse at play size, phones slow down, or the owner wants a different direction."
+    },
+    {
+      "id": "DEC-023",
+      "title": "Make matches feel like a strategy and action game",
+      "question": "Which new mechanics should make matches feel more like a strategy and action game?",
+      "options": [
+        "1. Aim your ultimate: hold ULT, drag onto the target or spot, let go (a tap still fires it at a good moment). About half the ultimates gain an aim, e.g. Coil, Duel, Dawn Freeze, Moon Kite, Riptide",
+        "2. Warning rings and a dodge dash: big enemy attacks show a red paper ring about 1 s before they land; flick a hero to dash out (one dash every 10 s)",
+        "3. Power on your cue: tap a hero's Power gem to fire it now for +20%; left alone it still fires by itself",
+        "4. Combo chains: powers and ultimates from different heroes that hit the same enemies within 2 s chain into a combo (+15% a step, a paper COMBO stamp)",
+        "5. Rally the waves: hold a lane's waves at your fort (up to 3), then release them as one big push; hidden by the fog unless the enemy has a ward there",
+        "6. Level-up choices: at levels 2 and 3 each hero offers two upgrades for its Power; pick on the panel (auto-pick after 8 s)",
+        "7. Commander calls: pick 2 of about 6 commander abilities before the match (e.g. War Drum, Bamboo Barricade, Spirit Eye); they cost Semangat and have long cooldowns. Not cards, but a new kind of action that needs its own decision against DEC-011",
+        "8. Buyback and bounties: pay Semangat to bring a fallen hero back at once; a hero on a kill streak carries a bounty for whoever ends it"
+      ],
+      "choice": "Not chosen yet. Suggested start: an action pack (1 and 2), then a strategy pack (5 and 6).",
+      "rationale": "Today fights, Powers and ultimates resolve by themselves, so the player's hands rarely decide a fight, and choices have few trade-offs. The research (REP-001) found that real-time card and MOBA hybrids failed by adding mental load, and that the genre leader cut cooldown abilities, so every idea keeps an automatic default and adds a few big moments rather than constant micro. Details, effort and risks: REP-018.",
+      "impact": {
+        "user": "More moments where timing, aim and choices decide a fight; every new action stays optional.",
+        "technical": "All eight change the game rules in src/game (deterministic, recorded as player moves): new tests, bot updates using only what it can see, and a balance run. Option 7 also changes DEC-011.",
+        "data": "None."
+      },
+      "cost": "RM0 (code-built).",
+      "owner": "Murshidi",
+      "approval": {
+        "status": "awaiting approval"
+      },
+      "delivery": "not started",
+      "reports": [
+        "REP-018"
+      ],
+      "reviewTrigger": "The owner picks one or more, or a phone playtest shows matches already feel active enough."
     }
   ],
   "history": [
@@ -1525,6 +1557,18 @@
     {
       "at": "2026-11-13 12:17",
       "text": "PLAN-014 implemented: 20 heroes and 22 troop types redrawn as heroic paper figures (DEC-022); T1-T7 PASS, T8-T9 wait; REP-017."
+    },
+    {
+      "at": "2026-11-13 13:18",
+      "text": "DEC-023 proposed: Make matches feel like a strategy and action game."
+    },
+    {
+      "at": "2026-11-13 13:18",
+      "text": "REP-018 written: Eight mechanics for strategy and action."
+    },
+    {
+      "at": "2026-11-13 13:19",
+      "text": "DEC-023 proposed: eight mechanics for strategy and action (REP-018); awaiting the owner's choice."
     }
   ]
 }

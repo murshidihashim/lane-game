@@ -3,9 +3,9 @@ import { Bot, type BotLevel } from '../game/bot';
 import { LANE_NAMES, type LaneId } from '../game/map';
 import { CLASSES, HEROES, ITEMS, MANA, SPECIES, TICKS_PER_SECOND, type HeroKind, type ItemId, type SpeciesId } from '../game/rules';
 import { type Command, DEFAULT_PICKS, Sim, randomPicks, randomSpecies } from '../game/sim';
-import { type Layout, type View, applyView, clampView, computeLayout, homeView, homeZoom, inField, inRect, maxZoom, overviewView, toScreen, toWorld } from './layout';
-import { COMMAND_ORDERS, type CommandAction, commandTargets, moveCommand, orderCommand, orderLabel, orderTargets, resolveCommand } from './placement';
-import { DRAG_LIFT, Renderer, type UiState, nearestTarget } from './render';
+import { type Layout, type View, applyView, clampView, computeLayout, homeView, homeZoom, inField, inRect, maxZoom, overviewView, ringCenter, ringSlotAt, toScreen, toWorld } from './layout';
+import { COMMAND_ORDERS, type CommandAction, commandTargets, orderLabel, resolveCommand } from './placement';
+import { DRAG_LIFT, Renderer, type UiState } from './render';
 
 export interface Settings {
   lanes: 2 | 3;
@@ -17,6 +17,7 @@ const STEP_MS = 1000 / TICKS_PER_SECOND;
 const TAP_SLOP = 10;
 const ZOOM_IN = 1.8; // double-tap zoom, relative to the usual full-width view (DEC-016, DEC-019)
 const DOUBLE_TAP_MS = 320;
+const HOLD_MS = 160; // holding your hero on the map this long opens its order ring; a quicker drag scrolls (DEC-021)
 
 export class Game {
   sim!: Sim;
@@ -43,7 +44,9 @@ export class Game {
   private lastTap: { x: number; y: number; at: number } | null = null;
   private ctx: CanvasRenderingContext2D;
   private renderer = new Renderer();
-  private ui: UiState = { dragHero: null, command: null, hover: null, toast: null };
+  private ui: UiState = { ring: null, command: null, aim: null, hover: null, toast: null };
+  /** What the finger that is down is doing: choosing on the order ring, or aiming an order it slid out to. */
+  private gesture: 'ring' | 'aim' | null = null;
   private acc = 0;
   private last = 0;
   private running = false;
@@ -81,7 +84,8 @@ export class Game {
     this.log = [];
     this.renderer.reset();
     if (this.base) this.setView(homeView(this.base));
-    this.ui = { dragHero: null, command: null, hover: null, toast: null };
+    this.ui = { ring: null, command: null, aim: null, hover: null, toast: null };
+    this.gesture = null;
     this.acc = 0;
     this.resultShown = false;
   }
@@ -141,6 +145,9 @@ export class Game {
   private frame(now: number): void {
     const dt = Math.min(250, now - this.last);
     this.last = now;
+    // a hold on your hero on the map has lasted long enough: open its ring (no more scrolling)
+    const ring = this.ui.ring;
+    if (ring && ring.pending && performance.now() - ring.at >= HOLD_MS) { ring.pending = false; ring.at = performance.now(); this.pan = null; }
     if (this.running && !this.sim.result) {
       this.acc += dt * this.settings.speed;
       let steps = 0;
@@ -195,16 +202,10 @@ export class Game {
   /** What a tap on the HUD buttons does (handled on release), or null. */
   private buttonAt(x: number, y: number):
     | { kind: 'gear' } | { kind: 'zoom' } | { kind: 'wave'; lane: LaneId } | { kind: 'ult'; hero: HeroKind } | { kind: 'shop'; hero: HeroKind | null }
-    | { kind: 'menu-close' } | { kind: 'menu-order'; action: CommandAction } | { kind: 'menu-cancel' } | { kind: 'menu-bg' } | null {
+    | { kind: 'menu-cancel' } | { kind: 'menu-bg' } | null {
     const l = this.layout;
-    // The command menu (DEC-017) sits on top of the map, so it comes first.
-    const cmd = this.ui.command;
-    if (cmd && cmd.action === null && inRect(l.menu.box, x, y)) {
-      if (inRect(l.menu.close, x, y)) return { kind: 'menu-close' };
-      const i = l.menu.buttons.findIndex((r) => inRect(r, x, y));
-      return i >= 0 ? { kind: 'menu-order', action: COMMAND_ORDERS[i].id } : { kind: 'menu-bg' };
-    }
-    if (cmd && cmd.action !== null && inRect(l.menu.hint, x, y)) return inRect(l.menu.cancel, x, y) ? { kind: 'menu-cancel' } : { kind: 'menu-bg' };
+    // While aiming an order, its hint strip with Cancel takes the lane chips' place (DEC-021).
+    if (this.ui.command && inRect(l.menu.hint, x, y)) return inRect(l.menu.cancel, x, y) ? { kind: 'menu-cancel' } : { kind: 'menu-bg' };
     if (inRect(l.gear, x, y)) return { kind: 'gear' };
     if (inRect(l.zoomBtn, x, y)) return { kind: 'zoom' };
     const w = l.waves.findIndex((r) => inRect(r, x, y));
@@ -232,14 +233,54 @@ export class Game {
     if (this.pointers.size === 2) { this.startPinch(); return; }
     if (this.pointers.size > 2) return;
     this.down = p;
-    if (this.buttonAt(p.x, p.y)) return; // handled on release
-    const hero = this.heroAt(p.x, p.y);
-    if (hero) {
-      this.ui.dragHero = { hero, x: p.x, y: p.y, moved: false };
-      return;
+    const ring = this.ui.ring;
+    if (ring && ring.sticky) {
+      // A press on an open ring chooses on it (tap an order, or slide out through one to aim);
+      // a press anywhere else closes it and carries on as usual.
+      if (Math.hypot(p.x - ring.cx, p.y - ring.cy) <= this.layout.menu.ringR + this.layout.menu.iconR + 10) {
+        this.gesture = 'ring';
+        ring.sel = this.ringSel(ring, p.x, p.y);
+        return;
+      }
+      this.ui.ring = null;
     }
-    if (inField(this.layout, p.x, p.y)) this.pan = { x: p.x, y: p.y, cx: this.view.cx, cy: this.view.cy, moved: false };
+    if (this.buttonAt(p.x, p.y)) return; // handled on release
+    // Press a hero's panel: its order ring opens just above it (DEC-021).
+    const hero = this.heroAt(p.x, p.y);
+    if (hero) { this.openRing(hero, p.x, p.y, false); return; }
+    const inF = inField(this.layout, p.x, p.y);
+    if (inF) this.pan = { x: p.x, y: p.y, cx: this.view.cx, cy: this.view.cy, moved: false };
+    // Press your hero on the map: its ring opens round the finger after a short hold (or a tap).
+    const onMap = inF && !this.ui.command ? this.heroOnMapAt(p.x, p.y) : null;
+    if (onMap) { this.openRing(onMap, p.x, p.y, true); return; }
     this.ui.hover = p;
+  }
+
+  /** Open a hero's order ring: round the finger on the map, or above the hero's panel. */
+  private openRing(hero: HeroKind, x: number, y: number, onMap: boolean): void {
+    const i = this.sim.players[0].picks.indexOf(hero);
+    const panel = onMap ? null : this.layout.heroes[i]?.box ?? null;
+    const [cx, cy] = ringCenter(this.layout, x, y, panel);
+    this.ui.ring = { hero, cx, cy, sel: null, sticky: false, pending: onMap, at: performance.now() };
+    this.ui.command = null;
+    this.ui.aim = null;
+    this.gesture = 'ring';
+    if (!onMap) this.lookAtHero(hero);
+  }
+
+  /** The order whose disc is under a point on the open ring, if any. */
+  private ringSel(ring: NonNullable<UiState['ring']>, x: number, y: number): CommandAction | null {
+    const i = ringSlotAt(this.layout, ring.cx, ring.cy, x, y, COMMAND_ORDERS.length);
+    return i === null ? null : COMMAND_ORDERS[i].id;
+  }
+
+  /** Take the order chosen on the ring: Retreat goes at once; the rest light up their targets. */
+  private commitRing(fingerDown: boolean): void {
+    const ring = this.ui.ring;
+    if (!ring || !ring.sel) return;
+    this.ui.ring = null;
+    this.chooseOrder(ring.hero, ring.sel);
+    this.gesture = fingerDown && this.ui.command ? 'aim' : null;
   }
 
   /** Two fingers on the field: zoom around the point between them (DEC-016). */
@@ -266,12 +307,28 @@ export class Game {
       return;
     }
     const moved = (d: { x: number; y: number }) => this.down !== null && Math.hypot(d.x - this.down.x, d.y - this.down.y) > TAP_SLOP;
-    if (this.ui.dragHero) {
-      this.ui.dragHero.x = p.x;
-      this.ui.dragHero.y = p.y;
-      if (moved(p)) this.ui.dragHero.moved = true;
-      return;
+    const ring = this.ui.ring;
+    if (this.gesture === 'ring' && ring) {
+      if (ring.pending) {
+        // moved before the hold: it was a scroll of the map after all
+        if (!moved(p)) return;
+        this.ui.ring = null;
+        this.gesture = null;
+      } else {
+        const m = this.layout.menu;
+        const d = Math.hypot(p.x - ring.cx, p.y - ring.cy);
+        const sel = this.ringSel(ring, p.x, p.y);
+        if (sel) ring.sel = sel;
+        else if (ring.sel && d > m.ringR + m.iconR + 8 && moved(p)) {
+          // slid out of the ring through an order: keep the finger down and let go on the target
+          this.commitRing(true);
+          if (this.ui.command) this.ui.aim = p; // aiming (Retreat is already sent)
+          return;
+        } else if (d < m.ringR - m.iconR) ring.sel = null;
+        return;
+      }
     }
+    if (this.gesture === 'aim') { this.ui.aim = p; return; }
     // One finger dragged on the field: look around (the camera stays inside the map).
     if (this.pan && (this.pan.moved || moved(p))) {
       this.pan.moved = true;
@@ -296,6 +353,32 @@ export class Game {
     const pan = this.pan;
     this.pan = null;
     if (!this.running || this.sim.result) { this.cancelDrag(); return; }
+    const gesture = this.gesture;
+    this.gesture = null;
+    const tap = !wasDown || Math.hypot(p.x - wasDown.x, p.y - wasDown.y) <= TAP_SLOP;
+    const ring = this.ui.ring;
+    if (gesture === 'ring' && ring) {
+      // Letting go on the order ring (DEC-021).
+      if (ring.pending) { ring.pending = false; ring.sticky = true; ring.at = performance.now(); this.lastTap = null; return; } // a quick tap on your hero
+      const m = this.layout.menu;
+      const onIcon = this.ringSel(ring, p.x, p.y);
+      if (onIcon) { ring.sel = onIcon; this.commitRing(false); return; }
+      if (!ring.sticky && tap) { ring.sticky = true; ring.sel = null; return; } // a quick tap: the ring stays open for a tap
+      if (!ring.sticky && ring.sel && Math.hypot(p.x - ring.cx, p.y - ring.cy) >= m.ringR - m.iconR) { this.commitRing(false); return; }
+      this.ui.ring = null; // let go in the middle: nothing chosen
+      return;
+    }
+    if (gesture === 'aim' && this.ui.command) {
+      // Let go on the target after sliding out of the ring: the aim point is just above the finger.
+      const cmd = this.ui.command;
+      this.ui.aim = null;
+      const ax = p.x;
+      const ay = p.y - DRAG_LIFT;
+      const order = inField(this.layout, ax, ay) ? resolveCommand(this.layout, this.sim, cmd.hero, cmd.action, ax, ay) : null;
+      if (order) { this.send(order); this.ui.command = null; this.announce(cmd.hero); }
+      else this.toast(COMMAND_ORDERS.find((o) => o.id === cmd.action)?.hint ?? 'Tap a highlighted target'); // still aiming: tap a target
+      return;
+    }
     const btn = wasDown ? this.buttonAt(wasDown.x, wasDown.y) : null;
     const same = btn && JSON.stringify(btn) === JSON.stringify(this.buttonAt(p.x, p.y));
     if (btn && same) {
@@ -305,28 +388,13 @@ export class Game {
       else if (btn.kind === 'wave') this.cycleWave(btn.lane);
       else if (btn.kind === 'ult') this.callUlt(btn.hero);
       else if (btn.kind === 'shop') document.dispatchEvent(new CustomEvent('open-shop', { detail: btn.hero ?? this.sim.players[0].picks[0] }));
-      else if (btn.kind === 'menu-close' || btn.kind === 'menu-cancel') this.ui.command = null;
-      else if (btn.kind === 'menu-order') this.chooseOrder(btn.action);
+      else if (btn.kind === 'menu-cancel') this.ui.command = null;
       return;
     }
-    if (btn?.kind === 'menu-bg') return; // a drag that started on the menu
-    const dh = this.ui.dragHero;
-    if (dh) {
-      this.ui.dragHero = null;
-      if (!dh.moved) {
-        // Tap a hero's panel: open (or close) its command menu.
-        const cur = this.ui.command;
-        this.ui.command = cur && cur.hero === dh.hero && cur.action === null ? null : { hero: dh.hero, action: null };
-        if (this.ui.command) this.lookAtHero(dh.hero);
-        return;
-      }
-      this.orderHero(dh.hero, p.x, p.y - DRAG_LIFT); // dragging a portrait onto the map: a quick order
-      this.ui.command = null;
-      return;
-    }
+    if (btn?.kind === 'menu-bg') return; // a press on the hint strip
     if (pan?.moved) { this.ui.hover = null; return; } // that was a look around, not a tap
     const cmd = this.ui.command;
-    if (cmd && cmd.action !== null && inField(this.layout, p.x, p.y)) {
+    if (cmd && inField(this.layout, p.x, p.y)) {
       // Aiming an order: the tap picks the target.
       const order = resolveCommand(this.layout, this.sim, cmd.hero, cmd.action, p.x, p.y);
       if (!order) { this.toast(COMMAND_ORDERS.find((o) => o.id === cmd.action)?.hint ?? 'Tap a highlighted target'); return; }
@@ -335,9 +403,6 @@ export class Game {
       this.announce(cmd.hero);
       return;
     }
-    const tapped = inField(this.layout, p.x, p.y) ? this.heroOnMapAt(p.x, p.y) : null;
-    if (tapped) { this.ui.command = { hero: tapped, action: null }; this.lastTap = null; return; }
-    if (cmd) { this.ui.command = null; return; } // a tap elsewhere closes the menu
     if (inField(this.layout, p.x, p.y)) {
       const now = performance.now();
       const t = this.lastTap;
@@ -362,21 +427,19 @@ export class Game {
     return best;
   }
 
-  /** A menu button: Retreat goes at once; the rest wait for a target on the map. */
-  private chooseOrder(action: CommandAction): void {
-    const cmd = this.ui.command;
-    if (!cmd) return;
+  /** An order chosen on the ring: Retreat goes at once; the rest wait for a target on the map. */
+  private chooseOrder(hero: HeroKind, action: CommandAction): void {
+    this.ui.command = null;
     if (action === 'retreat') {
-      this.send({ t: 'order', player: 0, hero: cmd.hero, order: 'retreat' });
-      this.ui.command = null;
-      this.announce(cmd.hero);
+      this.send({ t: 'order', player: 0, hero, order: 'retreat' });
+      this.announce(hero);
       return;
     }
-    if (action !== 'move' && commandTargets(this.sim, cmd.hero, action).length === 0) {
+    if (action !== 'move' && commandTargets(this.sim, hero, action).length === 0) {
       this.toast(action === 'attack' ? 'No enemy in sight' : 'Nothing to aim at right now');
       return;
     }
-    this.ui.command = { hero: cmd.hero, action };
+    this.ui.command = { hero, action };
   }
 
   /** Say what the hero is doing now (after the order is applied on the next step). */
@@ -422,20 +485,10 @@ export class Game {
   }
 
   private cancelDrag(): void {
-    this.ui.dragHero = null;
+    if (this.gesture === 'ring' && this.ui.ring && !this.ui.ring.sticky) this.ui.ring = null;
+    this.gesture = null;
+    this.ui.aim = null;
     this.down = null;
     this.pan = null;
-  }
-
-  /** Order a hero to the spot under (sx, sy): a glowing target, or else Move there. */
-  private orderHero(kind: HeroKind, sx: number, sy: number): boolean {
-    const hero = this.sim.heroOf(0, kind);
-    const t = nearestTarget(this.layout, orderTargets(this.sim, hero), sx, sy, 40);
-    if (t) { this.send(orderCommand(kind, t)); return true; }
-    if (!inField(this.layout, sx, sy)) return false;
-    const [wx, wy] = toWorld(this.layout, sx, sy);
-    this.send(moveCommand(kind, wx, wy));
-    this.toast(`${HEROES[kind].name}: hold this spot`);
-    return true;
   }
 }

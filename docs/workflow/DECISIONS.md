@@ -9,7 +9,6 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | ID | What | Status |
 |---|---|---|
 | DEC-020 | Make the map more engaging | Awaiting approval |
-| DEC-021 | Hero controls that keep the map clear | Awaiting approval |
 
 ## Decisions
 
@@ -35,7 +34,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | DEC-018 | Art direction for the full game | Approved (owner, 2026-11-12) | Implemented |
 | DEC-019 | Map view fills the screen width | Approved (owner, 2026-11-12) | Implemented |
 | DEC-020 | Make the map more engaging | Awaiting approval | Not started |
-| DEC-021 | Hero controls that keep the map clear | Awaiting approval | Not started |
+| DEC-021 | Hero controls that keep the map clear | Approved (owner, 2026-11-13) | Implemented |
 
 ## Work packages
 
@@ -52,6 +51,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | PLAN-009 | Batik paper-cut diorama look | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
 | PLAN-010 | Full-width map and paper ultimate effects | Approved (owner, 2026-11-12) | Implemented | 4/6 | Unreleased |
 | PLAN-011 | Faster levelling to the ultimate | Approved (owner, 2026-11-13) | Implemented | 4/6 | Unreleased |
+| PLAN-012 | Ring menu for hero orders | Approved (owner, 2026-11-13) | Implemented | 5/7 | Unreleased |
 
 ## Decision details
 
@@ -339,15 +339,15 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 
 - **Question:** Which way of commanding heroes should replace the pop-up order menu, which covers part of the map?
 - **Options:** 1. Order cards: tap a hero, and a row of order cards (Move, Attack, Push, Gank, Defend, Farm, Ward, Retreat) replaces the lane chips under the map; drag a card onto its target on the map · 2. Smart drag: drag a hero's portrait onto the map; the order follows what you drop it on (own tower = Defend, a lane = Push, an enemy = Attack, a camp = Farm, a cairn = Ward, home = Retreat, open ground = Move), with a label at your finger before you let go · 3. Ring menu: press and hold a hero; six small order icons fan out round your thumb; slide to one and let go on the target · 4. Tactic cards: build a deck of 8 team tactics before the match (e.g. All push left, Gank mid together, Hold the line, Jungle sweep); hold 3 in the match and play one with Semangat to order all three heroes at once, with a short bonus · 5. Lane board: a one-row strip under the map with Left, Mid, Right, Jungle and Home slots; drag hero tokens between slots to reassign them (top of a slot = push, bottom = defend)
-- **Choice:** Not chosen yet. Recommended: 1 (order cards) with 2 (smart drag) as the quick shortcut; 4 (tactic cards) later if the owner wants more card strategy.
-- **Rationale:** The current menu covers the bottom of the map. Options 1, 2, 3 and 5 keep the map clear; 1 and 4 bring cards back as orders, not as hand-placed troops, so DEC-011 (no hand-played troop cards) still holds. 4 adds a deck and a new use for Semangat, so it is the biggest change. Details: REP-014.
-- **User impact:** How every order is given.
-- **Technical impact:** Options 1-3 and 5 are screen and input code only; 4 adds rules (tactic cards, costs, bonuses), tests and a balance run.
+- **Choice:** Option 3: the ring menu. Press a hero (its panel, or the hero on the map) and its eight orders fan out in a ring round your thumb; slide onto one and let go, then tap the target, or keep sliding out of the ring onto the target and let go there. A quick tap opens the ring so you can tap an order. While aiming, the hint and Cancel sit in the lane-chip row, so nothing covers the map. Replaces the DEC-017 order menu and the portrait-drag shortcut.
+- **Rationale:** The owner chose it. It covers only a thumb's width round the finger, appears where the player is already looking, and one press-slide-release gives a complete order.
+- **User impact:** A new way to give every order; the old pop-up menu and the drag shortcut are gone.
+- **Technical impact:** Screen and input code only (src/ui/game.ts, render.ts, layout.ts, placement.ts) and the phone check. No change to src/game.
 - **Data and privacy:** None.
 - **Cost:** RM0.
-- **Approval:** Awaiting approval
-- **Delivery:** Not started
-- **Review trigger:** The owner picks an option, or playtests show the chosen one is slow or confusing.
+- **Approval:** Approved: “go with idea 3” (2026-11-13)
+- **Delivery:** Implemented
+- **Review trigger:** Players find the ring hard to discover or miss-select orders on small phones.
 
 ## History (oldest first)
 
@@ -533,3 +533,18 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 - 2026-11-13 00:20 · PLAN-011 T6: NOT RUN (Waiting for the owner's verdict.).
 - 2026-11-13 00:20 · PLAN-011 delivery: implemented.
 - 2026-11-13 00:20 · REP-014 written: Faster ultimates and five hero-control ideas.
+- 2026-11-13 08:18 · Owner approved DEC-021: "go with idea 3".
+- 2026-11-13 08:18 · PLAN-012 proposed: Ring menu for hero orders.
+- 2026-11-13 08:18 · Owner approved PLAN-012: "go with idea 3".
+- 2026-11-13 08:18 · PLAN-012 delivery: in progress.
+- 2026-11-13 08:18 · DEC-021 delivery: in progress.
+- 2026-11-13 08:32 · PLAN-012 T1: PASS (Phone check: press Kail's panel, slide onto the order, let go, tap the target: Farm (grove), Ward (cairn), Move (open spot), Push (right lane), Attack (an enemy) and Retreat (no target) each give the right order.).
+- 2026-11-13 08:32 · PLAN-012 T2: PASS (Phone check: one gesture, sliding out of the ring through Move and letting go on a spot, gives Move there; it also works on the zoomed-in map.).
+- 2026-11-13 08:32 · PLAN-012 T3: PASS (Phone check: a quick tap on a panel opens the ring and keeps it open; tapping an order on it starts aiming; tapping the middle closes it; a tap or a hold on Kail on the map opens his ring; letting go without choosing leaves it open; Cancel stops aiming.).
+- 2026-11-13 08:32 · PLAN-012 T4: PASS (The old order menu box is gone; the phone check asserts the aiming hint and Cancel sit in the lane-chip row below the map; screenshots of the ring on a panel, on the map and while aiming reviewed.).
+- 2026-11-13 08:32 · PLAN-012 T5: PASS (npm run verify: 95/95 tests; npm run soak 3/3; PHONE CHECK OK on two runs; no change in src/game.).
+- 2026-11-13 08:32 · PLAN-012 T6: NOT RUN (Not yet tried on the owner's phone.).
+- 2026-11-13 08:32 · PLAN-012 T7: NOT RUN (Waiting for the owner's verdict.).
+- 2026-11-13 08:32 · PLAN-012 delivery: implemented.
+- 2026-11-13 08:32 · DEC-021 delivery: implemented.
+- 2026-11-13 08:32 · REP-015 written: PLAN-012: the order ring.

@@ -18,9 +18,10 @@ Write down what you **saw**, not just "it's fine".
 - [ ] The draft: you and the bot take turns. Tap heroes to see them on the stage (Trait, Power,
       Ultimate tabs), lock in 3. Did it feel like a real draft? Then the versus screen.
 - [ ] In the match, all three heroes walk out, one per lane. Tap a wave chip to change a lane's troops.
-- [ ] Tap a hero (its panel at the bottom, or the hero on the map): a menu of orders opens. Try each:
-      Move, Attack (an enemy you can see), Push, Gank, Defend, Farm, Ward, Retreat. Pick one, then tap
-      a lit-up target. Is it easy? Do heroes keep moving after your orders?
+- [ ] Press a hero's panel (or hold the hero on the map): its orders fan out in a ring round your
+      thumb. Slide onto one and let go, then tap a lit-up target. Try each: Move, Attack, Push, Gank,
+      Defend, Farm, Ward, Retreat. Also try one swipe: slide out of the ring through Move and let go
+      on a spot. Does the ring feel quick, and does the map stay clear?
 - [ ] Watch a hero push alone: it should wait outside the enemy tower until your troops arrive, and
       go home to heal when badly hurt. Smart enough, or too independent?
 - [ ] Open the Shop and buy items. At level 4, watch for "ULT NOW" and tap it.

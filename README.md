@@ -6,7 +6,7 @@ heroes to move, push, gank, defend, farm and ward, buy them items, and call thei
 are no hand-played cards. A MOBA-style map with a jungle and fog of war rewards exploring. Matches
 last about 5 minutes. Portrait, one thumb. The look is a batik paper-cut diorama: paper standees on a batik-printed board.
 
-**Status:** playable prototype (PLAN-011: faster ultimates; PLAN-010: full-width map, paper ultimates),
+**Status:** playable prototype (PLAN-012: order ring round the thumb; PLAN-011: faster ultimates),
 waiting for the owner's playtest. Check balance with `npm run balance`.
 
 Run it: `npm install`, then `npm run dev` (local) or `npm run build` (one self-contained page in

@@ -88,71 +88,103 @@ async function page(browser, query) {
       else console.log(`PASS tapping the left wave chip changes the left lane wave: ${lane0} -> ${after}`);
     }
 
-    // Hero orders through the command menu (DEC-017): tap the hero, pick an order, tap a target.
+    // Hero orders through the ring (DEC-021): press a hero, slide onto an order, let go, tap a target;
+    // or slide out through the order onto the target and let go there.
     const portrait = c(s.L.heroes[ki].portrait);
     const order = () => p.evaluate(() => window.__game.sim.heroOf(0, 'kail').order);
-    const ui = () => p.evaluate(() => window.__game.ui.command);
+    const ui = () => p.evaluate(() => ({ ring: window.__game.ui.ring, command: window.__game.ui.command }));
     const ORDERS = ['move', 'attack', 'push', 'gank', 'defend', 'farm', 'ward', 'retreat'];
-    const menuBtn = (id) => c(s.L.menu.buttons[ORDERS.indexOf(id)]);
+    const slot = (id) => p.evaluate((i) => { const g = window.__game; const r = g.ui.ring; const R = g.layout.menu.ringR; const a = -Math.PI / 2 + (i * 2 * Math.PI) / 8; return [r.cx + Math.cos(a) * R, r.cy + Math.sin(a) * R]; }, ORDERS.indexOf(id));
     const tap = async (pt) => { await p.mouse.click(pt[0], pt[1]); await p.waitForTimeout(140); };
+    const slideTo = async (from, to, steps = 6) => { for (let k = 1; k <= steps; k++) await p.mouse.move(from[0] + (to[0] - from[0]) * k / steps, from[1] + (to[1] - from[1]) * k / steps); };
+    // press the portrait, slide onto an order's disc and let go there
+    const pick = async (id) => {
+      await p.mouse.move(portrait[0], portrait[1]); await p.mouse.down(); await p.waitForTimeout(80);
+      await slideTo(portrait, await slot(id)); await p.waitForTimeout(40); await p.mouse.up(); await p.waitForTimeout(120);
+    };
+    // one gesture: press the portrait, slide onto an order, keep going onto the target, let go there
+    const gesture = async (id, target) => {
+      const finger = [target[0], target[1] + 28]; // the aim point sits a little above the finger
+      await p.mouse.move(portrait[0], portrait[1]); await p.mouse.down(); await p.waitForTimeout(80);
+      const sp = await slot(id);
+      await slideTo(portrait, sp); await p.waitForTimeout(30);
+      await slideTo(sp, finger, 8); await p.waitForTimeout(60); await p.mouse.up(); await p.waitForTimeout(150);
+    };
     await tap(portrait);
-    if (JSON.stringify(await ui()) !== JSON.stringify({ hero: 'kail', action: null })) fail('tapping a hero panel did not open its menu: ' + JSON.stringify(await ui()));
-    else console.log('PASS tapping a hero panel opens its command menu');
-    await p.screenshot({ path: `${out}/3-menu.png` });
-    await tap(c(s.L.menu.close));
-    if (await ui()) fail('the ✕ did not close the menu');
+    let u = await ui();
+    if (!(u.ring && u.ring.hero === 'kail' && u.ring.sticky)) fail('a quick tap on a hero panel did not open its ring: ' + JSON.stringify(u));
+    else console.log('PASS a quick tap on a hero panel opens its order ring (it stays open for a tap)');
+    await p.screenshot({ path: `${out}/3-ring.png` });
+    await tap([u.ring.cx, u.ring.cy]);
+    if ((await ui()).ring) fail('tapping the middle of the ring did not close it');
+    else console.log('PASS tapping the middle of the ring closes it');
     const give = async (id, where, expectType, name) => {
-      await tap(portrait);
-      await tap(menuBtn(id));
-      if (id !== 'retreat' && (await ui())?.action !== id) { fail(`menu: ${id} did not start aiming`); return; }
+      await pick(id);
+      if (id !== 'retreat' && (await ui()).command?.action !== id) { fail(`ring: sliding onto ${id} did not start aiming: ` + JSON.stringify(await ui())); return; }
       if (where) await tap(where);
       const o = await order();
-      if (o.type !== expectType) fail(`menu ${id}: order is "${o.type}", expected ${expectType}`);
-      else console.log(`PASS menu → ${name} gives a ${expectType} order`);
-      if (await ui()) fail(`menu ${id}: menu still open after the order`);
+      if (o.type !== expectType) fail(`ring ${id}: order is "${o.type}", expected ${expectType}`);
+      else console.log(`PASS ring → slide onto ${name} gives a ${expectType} order`);
+      const after = await ui();
+      if (after.command || after.ring) fail(`ring ${id}: still aiming or open after the order`);
     };
     await give('farm', w2s(1260, 3470), 'farm', 'Farm, tap a fruit grove');
     await give('ward', w2s(1050, 4200), 'ward', 'Ward, tap a cairn');
     await give('move', w2s(1500, 4700), 'move', 'Move, tap an open spot');
     const mv = await order();
     if (Math.abs(mv.x - 1500) > 150 || Math.abs(mv.y - 4700) > 150) fail('Move went to the wrong spot: ' + JSON.stringify(mv));
-    // Push: the lanes light up; tap anywhere on the right lane
-    await tap(portrait);
-    await tap(menuBtn('push'));
+    // Push: the lanes light up and the hint takes the lane chips' place; tap anywhere on the right lane
+    await pick('push');
+    const hintRow = await p.evaluate(() => { const L = window.__game.layout; return { hint: L.menu.hint.y, chips: L.waves[0].y, fieldBottom: L.field.y + L.field.h }; });
+    if (hintRow.hint !== hintRow.chips || hintRow.hint < hintRow.fieldBottom) fail('the aiming hint is not in the lane-chip row: ' + JSON.stringify(hintRow));
+    else console.log('PASS while aiming, the hint and Cancel sit in the lane-chip row (nothing covers the map)');
     await p.screenshot({ path: `${out}/3b-aim-push.png` });
     await tap(w2s(3330, 3000));
     const po = await order();
     if (!(['push', 'gank'].includes(po.type) && po.lane === 2)) fail('Push on the right lane gave ' + JSON.stringify(po));
-    else console.log(`PASS menu → Push, tap the right lane gives ${po.type} lane 2`);
+    else console.log(`PASS ring → Push, tap the right lane gives ${po.type} lane 2`);
     // Attack: an enemy in sight gets a red ring; tap it
     const foeId = await p.evaluate(() => { const sim = window.__game.sim; const h = sim.heroOf(0, 'kail'); const e = sim.summon(1, 'shieldbearer', h.x + 120, h.y - 380, 0); e.speed = 0; return e.id; });
     await p.waitForTimeout(100);
-    await tap(portrait);
-    await tap(menuBtn('attack'));
+    await pick('attack');
     await p.screenshot({ path: `${out}/3c-aim-attack.png` });
     const foePt = await p.evaluate((id) => { const g = window.__game; const e = g.sim.get(id); const L = g.layout; return [L.field.x + (e.x - L.vx) * L.scale, L.field.y + (e.y - L.vy) * L.scale - 12]; }, foeId);
     await tap(foePt);
     const ao = await order();
     if (ao.type !== 'attack' || ao.target !== foeId) fail('Attack on the enemy gave ' + JSON.stringify(ao));
-    else console.log('PASS menu → Attack, tap an enemy gives an Attack order on it');
+    else console.log('PASS ring → Attack, tap an enemy gives an Attack order on it');
     await give('retreat', null, 'retreat', 'Retreat (no target needed)');
-    // Cancel, and opening the menu by tapping the hero on the map
+    // one gesture: slide out through Move onto an open spot and let go there
+    await gesture('move', w2s(1700, 4300));
+    const g1 = await order();
+    if (g1.type !== 'move' || Math.abs(g1.x - 1700) > 200 || Math.abs(g1.y - 4300) > 200) fail('one gesture through Move gave ' + JSON.stringify(g1));
+    else console.log('PASS one gesture: slide out of the ring through Move and let go on the spot gives Move there');
+    if ((await ui()).command) fail('one gesture: still aiming after the order');
+    // tap an order on the open ring, then Cancel
     await tap(portrait);
-    await tap(menuBtn('defend'));
+    await tap(await slot('defend'));
+    if ((await ui()).command?.action !== 'defend') fail('tapping Defend on the open ring did not start aiming');
     await tap(c(s.L.menu.cancel));
-    if (await ui()) fail('Cancel did not close the menu');
-    else console.log('PASS Cancel closes the menu without an order');
+    if ((await ui()).command) fail('Cancel did not stop aiming');
+    else console.log('PASS tap an order on the open ring, then Cancel stops aiming without an order');
+    // your hero on the map: a quick tap opens the ring; a hold opens it round the finger
     const kp = await p.evaluate(() => { const g = window.__game; const h = g.sim.heroOf(0, 'kail'); const L = g.layout; return [L.field.x + (h.x - L.vx) * L.scale, L.field.y + (h.y - L.vy) * L.scale - 16]; });
     await tap(kp);
-    if ((await ui())?.hero !== 'kail') fail('tapping Kail on the map did not open his menu');
-    else console.log('PASS tapping a hero on the map opens its menu');
-    await tap(c(s.L.menu.close));
-    // the quick drag shortcut still works
-    const camp = w2s(1260, 3470);
-    await drag(portrait, [camp[0], camp[1] + 28]);
-    await p.waitForTimeout(150);
-    if ((await order()).type !== 'farm') fail('dragging a portrait onto a camp no longer gives Farm');
-    else console.log('PASS the drag shortcut still works (portrait onto a camp gives Farm)');
+    u = await ui();
+    if (!(u.ring && u.ring.hero === 'kail')) fail('tapping Kail on the map did not open his ring');
+    else console.log('PASS a quick tap on a hero on the map opens its ring');
+    await tap([u.ring.cx, u.ring.cy]);
+    await p.mouse.move(kp[0], kp[1]); await p.mouse.down(); await p.waitForTimeout(320);
+    u = await ui();
+    if (!(u.ring && !u.ring.pending)) fail('holding Kail on the map did not open his ring: ' + JSON.stringify(u));
+    else console.log('PASS holding a hero on the map opens its ring round the finger');
+    await p.screenshot({ path: `${out}/3d-ring-map.png` });
+    await p.mouse.up(); await p.waitForTimeout(100);
+    u = await ui();
+    if (!(u.ring && u.ring.sticky)) fail('letting go without choosing did not leave the ring open for a tap');
+    await tap([u.ring.cx, u.ring.cy]);
+    if ((await ui()).ring) fail('tapping the middle of the ring did not close it');
+    else console.log('PASS letting go without choosing leaves the ring open; tapping its middle closes it');
 
     // shop: tap Shop, buy Capal Angin (4 Semangat, what you start with) for Kail
     await p.mouse.click(...c(s.L.shop));
@@ -211,9 +243,21 @@ async function page(browser, query) {
     v = await cam();
     if (Math.abs(v.scale - v.home) > 0.001) fail('the corner button did not come back to the full-width view: ' + (v.scale / v.home));
     else console.log('PASS the corner button comes back to the full-width view');
+    // a spot on the map with none of your heroes under it (tapping your own hero opens its ring instead)
+    const clearSpot = () => p.evaluate(() => {
+      const g = window.__game; const L = g.layout; let best = null; let bestD = -1;
+      const heroes = g.sim.heroes(0).filter((h) => h.alive).map((h) => [L.field.x + (h.x - L.vx) * L.scale, L.field.y + (h.y - L.vy) * L.scale - 16]);
+      for (let i = 1; i < 6; i++) for (let j = 1; j < 6; j++) {
+        const x = L.field.x + (L.field.w * i) / 6; const y = L.field.y + (L.field.h * j) / 6;
+        const d = Math.min(...heroes.map(([hx, hy]) => Math.hypot(hx - x, hy - y)), 999);
+        if (d > bestD) { bestD = d; best = [x, y]; }
+      }
+      return best;
+    });
     // double-tap zooms in
-    await p.mouse.click(mid[0], mid[1]);
-    await p.mouse.click(mid[0], mid[1]);
+    let spot = await clearSpot();
+    await p.mouse.click(spot[0], spot[1]);
+    await p.mouse.click(spot[0], spot[1]);
     await p.waitForTimeout(150);
     v = await cam();
     if (Math.abs(v.scale / v.home - 1.8) > 0.01) fail('double-tap did not zoom in: ' + (v.scale / v.home));
@@ -223,13 +267,13 @@ async function page(browser, query) {
     await p.evaluate(() => window.__game.sim.submit({ t: 'order', player: 0, hero: 'kail', order: 'retreat' }));
     await p.waitForTimeout(100);
     const before = await p.evaluate(() => JSON.stringify(window.__game.sim.heroOf(0, 'kail').order));
-    await drag(portrait, [mid[0], mid[1] + 28]);
-    await p.waitForTimeout(150);
+    await gesture('move', [mid[0], mid[1]]);
     const after = await p.evaluate(() => window.__game.sim.heroOf(0, 'kail').order);
-    if (JSON.stringify(after) === before) fail('dropping a hero on the zoomed map gave no new order');
+    if (JSON.stringify(after) === before) fail('an order through the ring on the zoomed map gave no new order');
     else console.log(`PASS hero orders still work while zoomed in (new order: ${after.type})`);
-    await p.mouse.click(mid[0], mid[1]);
-    await p.mouse.click(mid[0], mid[1]);
+    spot = await clearSpot();
+    await p.mouse.click(spot[0], spot[1]);
+    await p.mouse.click(spot[0], spot[1]);
     await p.waitForTimeout(150);
     v = await cam();
     if (Math.abs(v.scale - v.home) > 0.001) fail('double-tap did not come back to the full-width view');

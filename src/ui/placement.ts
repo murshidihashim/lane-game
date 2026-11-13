@@ -40,10 +40,6 @@ export function orderTargets(sim: Sim, hero: Ent | undefined): OrderTarget[] {
   return out;
 }
 
-export function orderCommand(hero: HeroKind, t: OrderTarget): Command {
-  return { t: 'order', player: 0, hero, order: t.order, lane: t.lane, camp: t.camp, target: t.target, spot: t.spot };
-}
-
 /** Move order: walk to a spot and hold it. */
 export function moveCommand(hero: HeroKind, wx: number, wy: number): Command {
   return { t: 'order', player: 0, hero, order: 'move', x: Math.round(wx), y: Math.round(wy) };
@@ -73,7 +69,7 @@ export function orderLabel(h: Ent, sim?: Sim): string {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The command menu (DEC-017): tap a hero, pick an order, tap a highlighted target.
+// Hero orders (DEC-017, DEC-021): choose an order on the ring, then tap (or let go on) a highlighted target.
 
 export type CommandAction = 'move' | 'attack' | 'push' | 'gank' | 'defend' | 'farm' | 'ward' | 'retreat';
 

@@ -6,8 +6,8 @@ import { CLASSES, HEROES, ITEMS, ITEM_SLOTS, MANA, MATCH, TICKS_PER_SECOND, UNIT
 import type { Ent, GameEvent, Sim } from '../game/sim';
 import { MapPainter, PAL, SPECIES_COLORS, batikPattern, glyph, kubu, pusaka, songket, teamColors, type Glyph } from './art';
 import { drawHeroFigure, drawPortrait, drawTroopFigure, heroScale } from './figures';
-import { type HeroPanel, type Layout, type Rect, toScreen } from './layout';
-import { COMMAND_ORDERS, type CommandAction, type OrderTarget, commandTargets, orderLabel, orderTargets } from './placement';
+import { type HeroPanel, type Layout, type Rect, ringSlot, toScreen } from './layout';
+import { COMMAND_ORDERS, type CommandAction, commandTargets, orderLabel, orderTargets } from './placement';
 import { ULT_BANNER_MS, ULT_BURST_MS, type UltFx, drawUltAura, drawUltBanner, drawUltBurst } from './ultfx';
 
 /** Ring colour of a hero = its best order. */
@@ -20,16 +20,23 @@ const HERO_H = 34; // hero figure height, CSS px (before each hero's own scale)
 const TROOP_H = 21;
 
 export interface UiState {
-  dragHero: { hero: HeroKind; x: number; y: number; moved: boolean } | null;
-  /** The hero whose command menu is open, and the order being aimed (null = choosing) (DEC-017). */
-  command: { hero: HeroKind; action: CommandAction | null } | null;
+  /**
+   * The order ring round the thumb (DEC-021): the hero, the ring's centre, the order under the
+   * finger, whether it stays open for taps (opened by a quick tap), and whether it is still waiting
+   * for a hold (pressed on the hero on the map, which could also be the start of a scroll).
+   */
+  ring: { hero: HeroKind; cx: number; cy: number; sel: CommandAction | null; sticky: boolean; pending: boolean; at: number } | null;
+  /** The order being aimed: its targets light up until one is tapped (or the finger lets go on one). */
+  command: { hero: HeroKind; action: CommandAction } | null;
+  /** The finger, while it is still down after sliding out of the ring to aim (one-gesture orders). */
+  aim: { x: number; y: number } | null;
   hover: { x: number; y: number } | null;
   toast: { text: string; until: number } | null;
 }
 
 interface Fx { ev: GameEvent; born: number; slot: number }
 
-export const DRAG_LIFT = 28; // a dragged portrait previews a little above the finger
+export const DRAG_LIFT = 28; // while aiming with the finger down, the aim point sits a little above it
 
 export class Renderer {
   private fx: Fx[] = [];
@@ -91,15 +98,12 @@ export class Renderer {
     this.drawCommandTargets(ctx, l, sim, ui, alpha, now);
     ctx.restore();
     this.drawZoomButton(ctx, l);
-    this.drawOrderTargets(ctx, l, sim, ui);
-    this.drawCommandMenu(ctx, l, sim, ui);
     this.drawTop(ctx, l, sim);
     this.drawHud(ctx, l, sim, ui);
-    if (ui.toast && ui.toast.until > now) {
-      // above the command menu or its hint strip when one is showing
-      const top = ui.command ? (ui.command.action === null ? l.menu.box.y : l.menu.hint.y) - 40 : l.waves[0].y - 46;
-      this.drawToast(ctx, l, ui.toast.text, top);
-    }
+    this.drawAimHint(ctx, l, ui);
+    this.drawRing(ctx, l, sim, ui, now);
+    // messages sit above the lane chips, or at the top of the map while a ring is open (so they never cover it)
+    if (ui.toast && ui.toast.until > now) this.drawToast(ctx, l, ui.toast.text, ui.ring && !ui.ring.pending ? l.field.y + 34 : l.waves[0].y - 46);
     ctx.restore();
   }
 
@@ -658,48 +662,13 @@ export class Renderer {
     live.forEach((u, i) => drawUltBanner(ctx, l, u, now, u.owner === 0, i, l.dpr));
   }
 
-  private drawOrderTargets(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState): void {
-    // Shown while a portrait is being dragged onto the map (the quick-order shortcut).
-    if (!ui.dragHero || !ui.dragHero.moved) return;
-    const kind = ui.dragHero.hero;
-    const hero = sim.heroOf(0, kind);
-    const targets = orderTargets(sim, hero);
-    const dragging = ui.dragHero !== null && ui.dragHero.moved;
-    const pt = dragging ? ui.dragHero : ui.hover;
-    const py = pt ? pt.y - (dragging ? DRAG_LIFT : 0) : 0;
-    const near = pt ? nearestTarget(l, targets, pt.x, py, 40) : null;
-    ctx.save();
-    ctx.fillStyle = 'rgba(20,12,6,0.25)';
-    ctx.fillRect(l.field.x, l.field.y, l.field.w, l.field.h);
-    for (const t of targets) {
-      const [x, y] = toScreen(l, t.x, t.y);
-      const on = near === t;
-      const best = hero && HEROES[hero.hero as HeroKind].best === t.order;
-      ctx.fillStyle = on ? PAL.gold : 'rgba(27,39,66,0.88)';
-      ctx.strokeStyle = best ? PAL.gold : PAL.parchmentDark;
-      ctx.lineWidth = on ? 3 : best ? 2.5 : 1.5;
-      ctx.beginPath(); ctx.arc(x, y, on ? 16 : 12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      label(ctx, t.icon, x, y + 1, on ? INK : PAL.gold, on ? 14 : 12);
-      if (on) pill(ctx, best ? `★ ${t.label}` : t.label, x, y + 27, true);
-    }
-    // Nowhere special under the finger: the hero will move there and hold the spot.
-    if (pt && !near && pt.x >= l.field.x && pt.x <= l.field.x + l.field.w && py >= l.field.y && py <= l.field.y + l.field.h) {
-      flag(ctx, pt.x, py);
-      pill(ctx, 'Move here', pt.x, py + 22, true);
-    }
-    pill(ctx, '↑ push  ⤳ gank  ⛨ defend  ✦ farm  ◉ ward  ◆ relic  ⌂ retreat', l.field.x + l.field.w / 2, l.field.y + 12, false);
-    pill(ctx, 'or drop anywhere else: Move', l.field.x + l.field.w / 2, l.field.y + 29, false);
-    ctx.restore();
-    if (pt && ui.dragHero && ui.dragHero.moved) drawPortrait(ctx, kind, pt.x, pt.y - DRAG_LIFT - 18, 15, 0, l.dpr);
-  }
+  // ---------- hero orders: the ring and aiming (DEC-021) ----------
 
-  // ---------- the command menu (DEC-017) ----------
-
-  /** The selected hero's ring, and while aiming an order, every valid target lit up. */
+  /** The chosen hero's ring on the map, and while aiming an order, every valid target lit up. */
   private drawCommandTargets(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState, alpha: number, now: number): void {
-    const cmd = ui.command;
-    if (!cmd) return;
-    const h = sim.heroOf(0, cmd.hero);
+    const kind = ui.command?.hero ?? (ui.ring && !ui.ring.pending ? ui.ring.hero : null);
+    if (!kind) return;
+    const h = sim.heroOf(0, kind);
     const pulse = 0.5 + 0.5 * Math.sin(now / 160);
     if (h && h.alive) {
       const [x, y] = toScreen(l, ...this.pos(h, alpha));
@@ -711,8 +680,21 @@ export class Renderer {
       ctx.beginPath(); ctx.ellipse(x, y + 1, 21 * g, 8 * g, 0, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
+    const cmd = ui.command;
+    if (!cmd) return;
     const action = cmd.action;
-    if (!action) return;
+    const targets = commandTargets(sim, cmd.hero, action);
+    // the aim point while the finger is still down: a little above it, so the finger doesn't hide it
+    const aim = ui.aim ? { x: ui.aim.x, y: ui.aim.y - DRAG_LIFT } : null;
+    let near: (typeof targets)[number] | null = null;
+    if (aim) {
+      let best = 44 * 44;
+      for (const t of targets) {
+        const [x, y] = toScreen(l, t.x, t.y);
+        const d = (x - aim.x) ** 2 + (y - aim.y) ** 2;
+        if (d < best) { best = d; near = t; }
+      }
+    }
     ctx.save();
     ctx.fillStyle = 'rgba(20,12,6,0.22)';
     ctx.fillRect(l.field.x, l.field.y, l.field.w, l.field.h);
@@ -724,87 +706,116 @@ export class Renderer {
       ctx.strokeStyle = action === 'push' ? `rgba(240,147,43,${0.28 + 0.12 * pulse})` : `rgba(229,83,75,${0.28 + 0.12 * pulse})`;
       for (const id of sim.lanes) { this.lanePath(ctx, l, id); ctx.stroke(); }
     }
-    for (const t of commandTargets(sim, cmd.hero, action)) {
+    for (const t of targets) {
       const [x, y] = toScreen(l, t.x, t.y);
       const e = t.ent;
+      const on = near === t;
       if (action === 'attack' && e && e.kind !== 'camp') {
         // red rings round every enemy you can go after
         const r = e.kind === 'tower' || e.kind === 'core' ? Math.max(16, e.r * l.scale * 1.2) : 13 * this.grow(l);
         const cy = e.kind === 'unit' || e.kind === 'hero' ? y - 10 * this.grow(l) : y;
-        ctx.strokeStyle = `rgba(229,83,75,${0.65 + 0.35 * pulse})`;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath(); ctx.arc(x, cy, r, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = on ? PAL.gold : `rgba(229,83,75,${0.65 + 0.35 * pulse})`;
+        ctx.lineWidth = on ? 3.5 : 2.5;
+        ctx.beginPath(); ctx.arc(x, cy, on ? r + 3 : r, 0, Math.PI * 2); ctx.stroke();
         continue;
       }
       const icon = COMMAND_ORDERS.find((o) => o.id === action)?.icon ?? '•';
-      ctx.fillStyle = 'rgba(27,39,66,0.9)';
+      ctx.fillStyle = on ? PAL.gold : 'rgba(27,39,66,0.9)';
       ctx.strokeStyle = PAL.gold;
       ctx.lineWidth = 2 + pulse;
-      ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      label(ctx, e?.kind === 'camp' && action === 'attack' ? '✦' : icon, x, y + 1, PAL.gold, 13);
+      ctx.beginPath(); ctx.arc(x, y, on ? 17 : 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      label(ctx, e?.kind === 'camp' && action === 'attack' ? '✦' : icon, x, y + 1, on ? INK : PAL.gold, 13);
+    }
+    if (aim) {
+      // the hero's portrait on the aim point, and what letting go there will do
+      ctx.strokeStyle = PAL.paperEdge;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.arc(aim.x, aim.y, 9, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      drawPortrait(ctx, cmd.hero, aim.x, aim.y - 20, 12, 0, l.dpr);
+      if (near) pill(ctx, near.label, aim.x, aim.y + 18, true);
+      else if (action === 'move') pill(ctx, 'Move here', aim.x, aim.y + 18, true);
     }
     ctx.restore();
   }
 
-  /** The menu of orders (choosing), or the hint strip with Cancel (aiming). */
-  private drawCommandMenu(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState): void {
+  /** While aiming an order: the hint and Cancel, in the lane-chip row (nothing covers the map). */
+  private drawAimHint(ctx: CanvasRenderingContext2D, l: Layout, ui: UiState): void {
     const cmd = ui.command;
     if (!cmd) return;
-    const def = HEROES[cmd.hero];
     const m = l.menu;
+    const r = m.hint;
+    const o = COMMAND_ORDERS.find((x) => x.id === cmd.action);
     ctx.save();
-    if (cmd.action === null) {
-      const b = m.box;
-      cardShadow(ctx, b.x, b.y, b.w, b.h, 10);
-      ctx.fillStyle = 'rgba(27,39,66,0.96)';
-      ctx.strokeStyle = PAL.gold;
-      ctx.lineWidth = 1.5;
-      roundRect(ctx, b.x, b.y, b.w, b.h, 10);
-      ctx.fill(); ctx.stroke();
-      songket(ctx, b.x + 8, b.y + 1, b.w - 16, 4);
-      drawPortrait(ctx, cmd.hero, b.x + 17, b.y + 17, 11, 0, l.dpr);
-      ctx.fillStyle = PAL.parchment;
-      ctx.font = 'bold 13px Georgia, serif';
-      ctx.textAlign = 'left';
+    cardShadow(ctx, r.x, r.y, r.w, r.h, 8);
+    ctx.fillStyle = 'rgba(27,39,66,0.97)';
+    ctx.strokeStyle = PAL.gold;
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, r.x, r.y, r.w, r.h, 8);
+    ctx.fill(); ctx.stroke();
+    drawPortrait(ctx, cmd.hero, r.x + 14, r.y + r.h / 2, 10, 0, l.dpr);
+    ctx.fillStyle = PAL.parchment;
+    ctx.font = 'bold 12px system-ui';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(fit(ctx, `${o?.icon ?? ''} ${o?.label ?? ''}: ${o?.hint ?? ''}`, m.cancel.x - r.x - 34), r.x + 28, r.y + r.h / 2 + 0.5);
+    const c = m.cancel;
+    ctx.fillStyle = PAL.wood;
+    ctx.strokeStyle = PAL.paperEdge;
+    roundRect(ctx, c.x + 2, c.y + 2, c.w - 4, c.h - 4, 7);
+    ctx.fill(); ctx.stroke();
+    label(ctx, 'Cancel', c.x + c.w / 2, c.y + c.h / 2 + 0.5, PAL.parchment, 12);
+    ctx.restore();
+  }
+
+  /** The ring of orders round the thumb (DEC-021): paper discs, the hero's best order marked ★,
+   *  the order under the finger raised in gold, and its name above the ring. */
+  private drawRing(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState, now: number): void {
+    const ring = ui.ring;
+    if (!ring || ring.pending) return;
+    const def = HEROES[ring.hero];
+    const { ringR: R, iconR } = l.menu;
+    const open = Math.min(1, (now - ring.at) / 120); // a quick fan-out
+    const n = COMMAND_ORDERS.length;
+    ctx.save();
+    // a soft indigo backing so the discs read on any part of the board
+    ctx.fillStyle = `rgba(17,26,47,${0.42 * open})`;
+    ctx.beginPath(); ctx.arc(ring.cx, ring.cy, (R + iconR + 6) * (0.6 + 0.4 * open), 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(251,247,236,0.55)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    drawPortrait(ctx, ring.hero, ring.cx, ring.cy, 14, 0, l.dpr);
+    COMMAND_ORDERS.forEach((o, i) => {
+      const [sx, sy] = ringSlot(l, ring.cx, ring.cy, i, n);
+      const x = ring.cx + (sx - ring.cx) * (0.55 + 0.45 * open);
+      const y = ring.cy + (sy - ring.cy) * (0.55 + 0.45 * open);
+      const sel = ring.sel === o.id;
+      const best = def.best === o.id;
+      const r = sel ? iconR + 4 : iconR;
+      // paper disc: crisp shadow, white cut edge, fill
+      ctx.fillStyle = 'rgba(5,8,20,0.45)';
+      ctx.beginPath(); ctx.arc(x + 1.2, y + 2, r + 1.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = PAL.paperEdge;
+      ctx.beginPath(); ctx.arc(x, y, r + 1.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = sel ? PAL.gold : PAL.parchment;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      if (best) { ctx.strokeStyle = PAL.goldDark; ctx.lineWidth = 2; ctx.stroke(); }
+      label(ctx, o.icon, x, y - 4, o.id === 'attack' ? PAL.foe : PAL.maroon, sel ? 15 : 13);
+      ctx.font = `bold ${sel ? 8 : 7.5}px system-ui`;
+      ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const h = sim.heroOf(0, cmd.hero);
-      ctx.fillText(fit(ctx, `${def.name} · ${h ? orderLabel(h, sim) : ''}`, b.w - 80), b.x + 34, b.y + 17);
-      label(ctx, '✕', m.close.x + m.close.w / 2, m.close.y + m.close.h / 2, PAL.parchment, 15);
-      COMMAND_ORDERS.forEach((o, i) => {
-        const r = m.buttons[i];
-        const best = def.best === o.id;
-        ctx.fillStyle = PAL.parchment;
-        ctx.strokeStyle = best ? PAL.gold : INK;
-        ctx.lineWidth = best ? 2.5 : 1.2;
-        roundRect(ctx, r.x, r.y, r.w, r.h, 8);
-        ctx.fill(); ctx.stroke();
-        label(ctx, o.icon, r.x + r.w / 2, r.y + 15, o.id === 'attack' ? PAL.foe : PAL.maroon, 16);
-        ctx.font = 'bold 11px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = INK;
-        ctx.fillText(best ? `★ ${o.label}` : o.label, r.x + r.w / 2, r.y + r.h - 10);
-      });
-    } else {
-      const r = m.hint;
-      const o = COMMAND_ORDERS.find((x) => x.id === cmd.action);
-      ctx.fillStyle = 'rgba(27,39,66,0.95)';
-      ctx.strokeStyle = PAL.gold;
-      ctx.lineWidth = 1.5;
-      roundRect(ctx, r.x, r.y, r.w, r.h, 10);
-      ctx.fill(); ctx.stroke();
-      drawPortrait(ctx, cmd.hero, r.x + 19, r.y + r.h / 2, 13, 0, l.dpr);
-      ctx.fillStyle = PAL.parchment;
-      ctx.font = 'bold 13px system-ui';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(fit(ctx, `${o?.label ?? ''}: ${o?.hint ?? ''}`, m.cancel.x - r.x - 44), r.x + 38, r.y + r.h / 2);
-      const c = m.cancel;
-      ctx.fillStyle = PAL.wood;
-      ctx.strokeStyle = INK;
-      roundRect(ctx, c.x, c.y, c.w, c.h, 8);
-      ctx.fill(); ctx.stroke();
-      label(ctx, 'Cancel', c.x + c.w / 2, c.y + c.h / 2 + 0.5, PAL.parchment, 12);
-    }
+      ctx.fillStyle = INK;
+      ctx.fillText(best ? `★${o.label}` : o.label, x, y + 9);
+    });
+    // what the finger is on, or how to use the ring
+    const h = sim.heroOf(0, ring.hero);
+    const o = COMMAND_ORDERS.find((x) => x.id === ring.sel);
+    const text = o ? (o.id === 'retreat' ? 'Retreat: let go to send home' : `${o.label}: let go, or slide on to the target`)
+      : ring.sticky ? `${def.name}: tap an order` : `${def.name}${h ? ` · ${orderLabel(h, sim)}` : ''}: slide to an order`;
+    pill(ctx, text, ring.cx, Math.max(l.field.y + 12, ring.cy - R - iconR - 16), true);
     ctx.restore();
   }
 
@@ -976,7 +987,7 @@ export class Renderer {
   private drawHeroPanel(ctx: CanvasRenderingContext2D, l: Layout, sim: Sim, ui: UiState, kind: HeroKind, p: HeroPanel): void {
     const def = HEROES[kind];
     const h = sim.heroOf(0, kind);
-    const sel = ui.command?.hero === kind || ui.dragHero?.hero === kind;
+    const sel = ui.command?.hero === kind || ui.ring?.hero === kind;
     const b = p.box;
     ctx.save();
     cardShadow(ctx, b.x, b.y, b.w, b.h, 9);
@@ -1272,17 +1283,6 @@ export function itemIcon(ctx: CanvasRenderingContext2D, id: ItemId, x: number, y
       break;
   }
   ctx.restore();
-}
-
-export function nearestTarget(l: Layout, targets: OrderTarget[], sx: number, sy: number, maxPx = 48): OrderTarget | null {
-  let best: OrderTarget | null = null;
-  let bestD = maxPx * maxPx;
-  for (const t of targets) {
-    const [x, y] = toScreen(l, t.x, t.y);
-    const d = (x - sx) * (x - sx) + (y - sy) * (y - sy);
-    if (d < bestD) { bestD = d; best = t; }
-  }
-  return best;
 }
 
 /** A crisp paper shadow under a card (an offset copy; cheap enough for every frame). */

@@ -83,7 +83,9 @@ Order colours and species colours are unchanged; see the code (`ORDER_COLORS` an
      frame, under the board.
 6. **Text:** serif (Georgia) for names and titles, sans for numbers and help.
 7. **Gold means "you can act here"**: order spots, a ULT button at its best moment, a Shop with
-   something affordable, relics.
+   something affordable, relics. The order ring (DEC-021) follows the same rules: paper discs with a
+   white cut edge and a crisp shadow, the order under the finger raised in gold, and the hero's best
+   order marked ★.
 8. **The fog of war is indigo dye.** Everything outside your vision gets an indigo wash with faint
    batik motifs and soft edges. Enemies there are not drawn. Towers, the Pusaka and their health
    stay readable above it.

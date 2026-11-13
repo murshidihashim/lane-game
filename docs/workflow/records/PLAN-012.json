@@ -1,0 +1,99 @@
+{
+  "id": "PLAN-012",
+  "title": "Ring menu for hero orders",
+  "problem": "The owner chose idea 3 (DEC-021): the pop-up order menu covers part of the map; replace it with a ring of orders round the thumb.",
+  "scope": [
+    "Press a hero's panel, or hold your hero on the map, and its eight orders fan out in a ring round the thumb; the hero's best order is marked",
+    "Slide onto an order and let go: Retreat happens at once; other orders light up their targets for a tap",
+    "Or keep sliding out of the ring onto the target and let go there: one gesture for a whole order, with a preview point just above the finger",
+    "A quick tap opens the ring and leaves it open to tap an order; a tap in the middle or outside closes it",
+    "While aiming, the hint and Cancel replace the lane chips, so nothing covers the map",
+    "Remove the old order menu and the portrait-drag shortcut; update the help text, owner checklist and phone check"
+  ],
+  "exclusions": [
+    "Changes to the game rules or the orders themselves",
+    "Tactic cards (idea 4) or other control ideas",
+    "Map ideas (DEC-020)"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "Press, slide onto an order, let go, tap the target: gives the order, for every order (phone check)",
+      "result": "PASS",
+      "evidence": "Phone check: press Kail's panel, slide onto the order, let go, tap the target: Farm (grove), Ward (cairn), Move (open spot), Push (right lane), Attack (an enemy) and Retreat (no target) each give the right order."
+    },
+    {
+      "id": "T2",
+      "text": "One gesture: press, slide out through an order onto its target, let go: gives the order (phone check)",
+      "result": "PASS",
+      "evidence": "Phone check: one gesture, sliding out of the ring through Move and letting go on a spot, gives Move there; it also works on the zoomed-in map."
+    },
+    {
+      "id": "T3",
+      "text": "A quick tap opens the ring; tapping an order works; the middle or outside closes it; holding your hero on the map opens it; Cancel works",
+      "result": "PASS",
+      "evidence": "Phone check: a quick tap on a panel opens the ring and keeps it open; tapping an order on it starts aiming; tapping the middle closes it; a tap or a hold on Kail on the map opens his ring; letting go without choosing leaves it open; Cancel stops aiming."
+    },
+    {
+      "id": "T4",
+      "text": "Nothing covers the map: no menu box; the aiming hint sits in the lane-chip row (screenshots)",
+      "result": "PASS",
+      "evidence": "The old order menu box is gone; the phone check asserts the aiming hint and Cancel sit in the lane-chip row below the map; screenshots of the ring on a panel, on the map and while aiming reviewed."
+    },
+    {
+      "id": "T5",
+      "text": "Game unchanged: verify, soak and phone check pass; no change in src/game",
+      "result": "PASS",
+      "evidence": "npm run verify: 95/95 tests; npm run soak 3/3; PHONE CHECK OK on two runs; no change in src/game."
+    },
+    {
+      "id": "T6",
+      "text": "On the owner's phone",
+      "result": "NOT RUN",
+      "evidence": "Not yet tried on the owner's phone."
+    },
+    {
+      "id": "T7",
+      "text": "Owner's verdict",
+      "result": "NOT RUN",
+      "evidence": "Waiting for the owner's verdict."
+    }
+  ],
+  "risks": [
+    "The ring is harder to discover than a menu: the first quick tap leaves it open with labels, and the help text explains it",
+    "Starting a drag on your own hero on the map now opens the ring after a short hold instead of scrolling; dragging anywhere else still scrolls"
+  ],
+  "cost": "RM0.",
+  "decisions": [
+    "DEC-021"
+  ],
+  "reports": [
+    "REP-015"
+  ],
+  "changes": {
+    "added": [
+      "The order ring round the thumb (panel press, or a tap or hold on the hero on the map)",
+      "One-gesture orders: slide out through an order and let go on the target"
+    ],
+    "changed": [
+      "The aiming hint and Cancel moved into the lane-chip row",
+      "Messages move to the top of the map while a ring is open",
+      "Help text, owner checklist, art-style guide, phone check"
+    ],
+    "fixed": [],
+    "removed": [
+      "The pop-up order menu (DEC-017)",
+      "The portrait-drag shortcut"
+    ]
+  },
+  "userNotes": [
+    "Hero orders now open as a ring round your thumb: press a hero, slide onto an order, let go, then tap the target (or slide on and let go on the target). The order menu no longer covers the map."
+  ],
+  "approval": {
+    "status": "approved",
+    "evidence": "go with idea 3",
+    "date": "2026-11-13"
+  },
+  "delivery": "implemented",
+  "release": "unreleased"
+}

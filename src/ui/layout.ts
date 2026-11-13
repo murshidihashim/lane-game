@@ -12,11 +12,11 @@ export interface HeroPanel {
   items: Rect[];
 }
 
-/** The hero command menu (DEC-017): a header, eight order buttons, and a hint strip with Cancel. */
+/** Hero orders (DEC-021): the ring of orders round the thumb, and while aiming an order, a hint
+ *  strip with Cancel that takes the lane-chip row's place, so nothing covers the map. */
 export interface CommandMenu {
-  box: Rect;
-  close: Rect;
-  buttons: Rect[]; // in COMMAND_ORDERS order
+  ringR: number; // from the ring's centre to each order's centre
+  iconR: number; // each order's paper disc
   hint: Rect;
   cancel: Rect;
 }
@@ -82,16 +82,12 @@ export function computeLayout(w: number, h: number, dpr: number): Layout {
   };
   const heroes: HeroPanel[] = [panel(0), panel(1), panel(2)];
 
-  // The command menu sits over the bottom of the map, just above the wave chips.
-  const menuH = 128;
-  const mBox: Rect = { x: cx + 8, y: hudY - menuH - 4, w: cw - 16, h: menuH };
-  const bw = (mBox.w - 10 - 3 * 6) / 4;
+  // The order ring (DEC-021) and the aiming hint, which sits where the lane chips are.
   const menu: CommandMenu = {
-    box: mBox,
-    close: { x: mBox.x + mBox.w - 34, y: mBox.y + 3, w: 30, h: 26 },
-    buttons: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ x: mBox.x + 5 + (i % 4) * (bw + 6), y: mBox.y + 32 + Math.floor(i / 4) * 48, w: bw, h: 44 })),
-    hint: { x: cx + 8, y: hudY - 46, w: cw - 16, h: 40 },
-    cancel: { x: cx + cw - 8 - 86, y: hudY - 42, w: 82, h: 32 },
+    ringR: 64,
+    iconR: 19,
+    hint: { x: cx + 8, y: waveY, w: cw - 16, h: WAVE_H - 6 },
+    cancel: { x: cx + cw - 8 - 78, y: waveY, w: 78, h: WAVE_H - 6 },
   };
 
   const bottomY = panelY + PANEL_H;
@@ -159,4 +155,36 @@ export function toWorld(l: Layout, sx: number, sy: number): [number, number] {
 
 export function inField(l: Layout, sx: number, sy: number): boolean {
   return inRect(l.field, sx, sy);
+}
+
+// ---------- the order ring (DEC-021) ----------
+
+const clampTo = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+/** Where the ring goes: round a point on the map (kept on screen), or just above a hero's panel. */
+export function ringCenter(l: Layout, x: number, y: number, abovePanel: Rect | null): [number, number] {
+  const m = l.menu.ringR + l.menu.iconR + 6;
+  if (abovePanel) {
+    return [clampTo(abovePanel.x + abovePanel.w / 2, l.col.x + m, l.col.x + l.col.w - m), Math.max(l.field.y + m, abovePanel.y - l.menu.ringR - 6)];
+  }
+  return [clampTo(x, l.col.x + m, l.col.x + l.col.w - m), clampTo(y, l.field.y + m, l.h - m)];
+}
+
+/** The centre of ring slot i of n (slot 0 at the top, then clockwise). */
+export function ringSlot(l: Layout, cx: number, cy: number, i: number, n: number): [number, number] {
+  const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+  return [cx + Math.cos(a) * l.menu.ringR, cy + Math.sin(a) * l.menu.ringR];
+}
+
+/** The ring slot under a point (within a little of its disc), or null. */
+export function ringSlotAt(l: Layout, cx: number, cy: number, x: number, y: number, n: number): number | null {
+  const reach = (l.menu.iconR + 9) ** 2;
+  let best: number | null = null;
+  let bestD = reach;
+  for (let i = 0; i < n; i++) {
+    const [sx, sy] = ringSlot(l, cx, cy, i, n);
+    const d = (sx - x) ** 2 + (sy - y) ** 2;
+    if (d <= bestD) { bestD = d; best = i; }
+  }
+  return best;
 }

@@ -106,17 +106,30 @@ function scratchCanvas(i: number, w: number, h: number): CanvasRenderingContext2
 
 /**
  * Die-cut paper: whatever `draw` paints (using ctx's current transform) is stamped onto ctx with a
- * white cut edge `edge` device px wide and a soft paper shadow. Meant for cached bitmaps, not for
- * every frame.
+ * white cut edge `edge` device px wide and a soft paper shadow; `under` (a base) goes beneath it.
+ * Meant for cached bitmaps, not for every frame.
  */
-export function cutOut(ctx: CanvasRenderingContext2D, edge: number, draw: (c: CanvasRenderingContext2D) => void): void {
+export function cutOut(ctx: CanvasRenderingContext2D, edge: number, draw: (c: CanvasRenderingContext2D) => void, under?: (c: CanvasRenderingContext2D) => void): void {
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
   const art = scratchCanvas(0, w, h);
   const rim = scratchCanvas(1, w, h);
-  if (!art || !rim) { draw(ctx); return; }
+  if (!art || !rim) { under?.(ctx); draw(ctx); return; }
   art.setTransform(ctx.getTransform());
   draw(art);
+  if (under) {
+    // drawn on its own and slipped underneath, so the figure's own shading does not touch it
+    const ub = scratchCanvas(2, w, h);
+    if (ub) {
+      ub.setTransform(ctx.getTransform());
+      under(ub);
+      art.save();
+      art.setTransform(1, 0, 0, 1, 0, 0);
+      art.globalCompositeOperation = 'destination-over';
+      art.drawImage(ub.canvas, 0, 0);
+      art.restore();
+    }
+  }
   const n = 12;
   for (let i = 0; i < n; i++) {
     const a = (i / n) * TAU;

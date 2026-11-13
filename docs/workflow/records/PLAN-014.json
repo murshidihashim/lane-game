@@ -1,0 +1,114 @@
+{
+  "id": "PLAN-014",
+  "title": "Hero and troop design overhaul",
+  "problem": "Owner: \"okay now lets do a thorough enhancement of heroes and creep design, take Dota 2 characters as the target of what we want to be\". Today heroes are cute, big-headed standees (head about a third of the height) with simple costumes.",
+  "scope": [
+    "A heroic body template: about five heads tall, broad shoulders, longer legs, with costume parts (pauldrons, chest armour, belts, skirts, bracers, boots, capes) and smaller, sharper faces",
+    "Valve's value pattern on every figure: darker towards the feet, lighter at the head and shoulders",
+    "All 20 heroes redesigned around one big signature shape each (oversized weapons, capes, horns, hats, wings), richer materials and glow accents for magic users",
+    "Troops redesigned: armoured Kampung militia with team tabards and plumes, beasts and insects with team harness or markings, glowing eyes and sharper anatomy, a golem with glowing cracks",
+    "Figures a little larger on screen (heroes 34 to 42 px, troops 21 to 24 px) and portraits framed for the new heads",
+    "Sprite-sheet and silhouette checks; docs (art-style guide, design notes)"
+  ],
+  "exclusions": [
+    "Changes to the rules or balance",
+    "Copying any Dota 2 hero, name, costume or shape",
+    "New animation frames beyond the existing poses",
+    "Paid art"
+  ],
+  "acceptance": [
+    {
+      "id": "T1",
+      "text": "Heroic template: about five heads tall, costume parts, value pattern on every figure (sprite sheets reviewed)",
+      "result": "PASS",
+      "evidence": "Sprite sheets reviewed (idle, walk, three attack beats, hurt, spawn; both teams; play size and 3x): about five heads tall, costume parts on every humanoid hero and militia troop, the value pattern on every hero and troop."
+    },
+    {
+      "id": "T2",
+      "text": "All 20 heroes redesigned, each with a signature silhouette; the silhouette sheet shows 20 distinct shapes",
+      "result": "PASS",
+      "evidence": "Silhouette sheet of all 20 heroes in black: each shows its own shape (giant hat, tower shield, umbrella, horns and club, folded wings, trader's pack, scaffold, wave, hood and blowpipe, kite, ears, cobra hood, headdress and puppet). Least distinct: Pendekar, Senja, Embun, Badak and Belang, which each keep one mark (tanjak peak, crescent hat, frost crown, horn, tail and ruff)."
+    },
+    {
+      "id": "T3",
+      "text": "All troop types redesigned for their species, team colour readable on every one",
+      "result": "PASS",
+      "evidence": "All 22 troop and summon types redrawn (sprite sheets at play size and close-ups, both teams). Team colour on every one: tabards and plumes, shield faces, collars, bands, caparisons, banners and bases."
+    },
+    {
+      "id": "T4",
+      "text": "Play size: heroes and troops readable and not crowding the lanes in match screenshots; portraits framed",
+      "result": "PASS",
+      "evidence": "Match screenshots in the usual and zoomed views, plus the draft and versus screens: heroes and troops read and do not crowd the lanes; all 20 portraits framed on the new heads (portrait sheet)."
+    },
+    {
+      "id": "T5",
+      "text": "Originality: no Dota 2 design copied (design notes list each hero's own source)",
+      "result": "PASS",
+      "evidence": "docs/design/character-art.md lists each hero's own source (Malay craft, dress, animals and tales) and signature shape. No Dota 2 hero was used as a reference shape; the avoided words appear nowhere."
+    },
+    {
+      "id": "T6",
+      "text": "Speed: 100 cached figures still draw in about 1 ms; frames within budget (measured)",
+      "result": "PASS",
+      "evidence": "Desktop test browser at iPhone 13 size: 100 cached figures 0.85 ms a frame (was 0.84); busy match frame median 4.2-4.7 ms, 90th percentile 9.7-10.7 ms (two runs; was 4.3-5.8 and 10-14). Drawing each new pose the first time: 1.65 ms against 1.31 ms before (+26%, once per pose)."
+    },
+    {
+      "id": "T7",
+      "text": "Game unchanged: verify, soak and phone check pass; no change in src/game",
+      "result": "PASS",
+      "evidence": "npm run verify: 96/96 tests and the build pass; the 100-match soak is identical to before (43/45/12, average 312 s, ultimate median 88.05 s, 0 stalls); PHONE CHECK OK (33 PASS, 0 FAIL); git diff of src/game is empty."
+    },
+    {
+      "id": "T8",
+      "text": "On the owner's phone",
+      "result": "NOT RUN",
+      "evidence": "Not yet tried on the owner's phone."
+    },
+    {
+      "id": "T9",
+      "text": "Owner's verdict",
+      "result": "NOT RUN",
+      "evidence": "Waiting for the owner's verdict."
+    }
+  ],
+  "risks": [
+    "Smaller heads hide faces at play size: silhouettes, signature shapes and colours carry identity; faces show in portraits",
+    "Bigger figures crowd the lanes: sizes checked in screenshots",
+    "Drawing cost: figures stay cached per pose; measured"
+  ],
+  "cost": "RM0.",
+  "decisions": [
+    "DEC-022"
+  ],
+  "reports": [
+    "REP-017"
+  ],
+  "changes": {
+    "added": [
+      "docs/design/character-art.md: each hero's source and signature shape; troop looks; originality check",
+      "A heroic figure template in src/ui/figures.ts: five builds and costume parts (pauldrons, chest plate, belt, skirt, bracers, boots, cape), a value pass and glowing eyes"
+    ],
+    "changed": [
+      "All 20 heroes redrawn with one signature shape each; Belang's tiger form armoured",
+      "All 22 troop and summon types redrawn: militia uniforms, team markings, glowing eyes, sharper shapes",
+      "Figures a little bigger on screen (heroes 42 px, troops 24 px); portraits framed for the new heads",
+      "Art-style guide v4 (character section), owner checklist, README"
+    ],
+    "fixed": [],
+    "removed": [
+      "The big-headed board-piece template"
+    ]
+  },
+  "userNotes": [
+    "New hero designs: taller, heroic figures with armour, capes and one big signature shape each (a giant hat, a tower shield, an umbrella, horns, wings, a wave), glowing eyes on magic users.",
+    "New troop designs: militia in helmets and team tabards, beasts and insects with team markings and sharper looks; figures are a little bigger on screen."
+  ],
+  "approval": {
+    "status": "approved",
+    "evidence": "okay now lets do a thorough enhancement of heroes and creep design, take Dota 2 characters as the target of what we want to be",
+    "date": "2026-11-13"
+  },
+  "delivery": "implemented",
+  "release": "unreleased"
+}

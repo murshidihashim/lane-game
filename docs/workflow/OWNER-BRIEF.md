@@ -34,6 +34,8 @@ Write down what you **saw**, not just "it's fine".
 - [ ] Watch a fight: arrows, stones and bolts flying; slashes; damage numbers; the dashed line to
       what each hero is hitting; pieces toppling when they die. Can you tell who hits whom?
 - [ ] Watch your heroes talk: answers to orders, "Help!", "ready!", "spotted!". Too chatty, or useful?
+- [ ] The new hero and troop designs: can you tell each hero apart at a glance by its big shape
+  (hat, shield, umbrella, horns, wings)? Do they feel heroic enough, and are faces too small?
       When a hero is off the screen, does its edge tab help? Does an ultimate's cast moment stand out?
 - [ ] Play 5 or more matches with different species and heroes. Rematch keeps your line-up.
 - [ ] Answer these questions:

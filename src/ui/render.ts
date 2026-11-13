@@ -17,8 +17,8 @@ export const ORDER_COLORS: Record<'push' | 'defend' | 'gank' | 'farm', string> =
 };
 
 const INK = PAL.ink;
-const HERO_H = 34; // hero figure height, CSS px (before each hero's own scale)
-const TROOP_H = 21;
+const HERO_H = 42; // hero figure height, CSS px (before each hero's own scale); heroic proportions (PLAN-014)
+const TROOP_H = 24;
 
 export interface UiState {
   /**

@@ -1,11 +1,12 @@
-# Art style · "Batik paper" v3
+# Art style · "Batik paper" v4
 
 Decisions:
 - DEC-018: the batik paper-cut diorama, chosen by the owner ("use the batik paper card diorama").
   It replaces the earlier Hikayat look from DEC-010.
 - DEC-013: characters, ultimate effects and tower health.
+- DEC-022: heroic character designs at the Dota 2 quality bar, all our own (PLAN-014).
 
-Plans: PLAN-009 (this look), PLAN-010 (paper ultimate effects), PLAN-004 and PLAN-006 (characters).
+Plans: PLAN-009 (this look), PLAN-010 (paper ultimate effects), PLAN-004, PLAN-006 and PLAN-014 (characters).
 
 Code:
 - `src/ui/art.ts`: palette, batik patterns, the die-cut helper, paper forts, the paper map.
@@ -15,7 +16,7 @@ Code:
 - `src/ui/draft.ts`: draft and versus screens.
 - `index.html`: menus.
 
-Research: `docs/research/art-style-options.md`.
+Research: `docs/research/art-style-options.md`. Character designs and their sources: `docs/design/character-art.md`.
 
 ## The idea in one line
 
@@ -65,10 +66,11 @@ Order colours and species colours are unchanged; see the code (`ORDER_COLORS` an
 2. **Batik print stays quiet and off the figures.**
    - Batik motifs (four-petal flowers, dot rings, crackle) print on the board, the fog, the
      menus and roofs, always at low contrast.
-   - Figures stay plain fills so they read at 20–35 px.
+   - Figures stay plain fills so they read at 20–45 px.
    - Never print motifs that could be mistaken for map markers.
 3. **Team colour is the base and a sash, never the character's own colours.** Blue for you, red for
-   the bot, as before.
+   the bot, as before. Heroes also carry a team pennant; troops wear it as a tabard, plume, collar,
+   band or caparison.
 4. **Pieces move like pieces.**
    - eight walk frames that follow distance walked;
    - idle breathing and three attack beats;
@@ -76,8 +78,8 @@ Order colours and species colours are unchanged; see the code (`ORDER_COLORS` an
    - while fighting, a piece faces its target and lunges a little on the strike; ranged pieces rock
      back instead (PLAN-013);
    - when a piece dies, its paper standee topples backwards and fades as paper scraps fly.
-   - Heroes are about 34 px tall and troops about 21 px in the usual full-width view (DEC-019); both
-     grow when you zoom in, and shrink a little in the whole-map view.
+   - Heroes are about 42 px tall and troops about 24 px in the usual full-width view (DEC-019,
+     PLAN-014); both grow when you zoom in, and shrink a little in the whole-map view.
 5. **Draw once, copy every frame.**
    - The map is painted once at the full-width scale, at up to twice the screen's sharpness (zoom
      stays crisp).
@@ -102,6 +104,23 @@ Order colours and species colours are unchanged; see the code (`ORDER_COLORS` an
 
    There are no blurred shadows or gradients in effects, so they stay cheap every frame.
 10. **No borrowed looks.** No shapes, icons, frames or colours copied from other games.
+
+## Characters (PLAN-014)
+
+Dota 2 is the quality bar; the designs are ours. Each hero's source is listed in
+`docs/design/character-art.md`.
+
+- **Heroic proportions.** About five heads tall, broad shoulders, a narrower waist, longer legs and a
+  small sharp face. Costume parts layer on top: pauldrons, chest plate, belt, skirt, bracers, boots,
+  cape.
+- **One signature shape per hero.** It must read as a black silhouette at play size: Kail's giant
+  hat, Benteng's tower shield, Hujan's umbrella, Gergasi's horns and club, Ombak's wave.
+- **Value pattern.** Light at the head and shoulders, darker towards the feet (softer on troops), so
+  the eye goes to the face and the signature shape.
+- **Glow is rare.** Only magic users and beasts get glowing eyes or props, kept small.
+- **Faces live in portraits.** At play size the silhouette and colours carry identity; the
+  portraits are framed on the smaller heads.
+- **Check before adding a piece:** a silhouette sheet, a sheet at play size, and a portrait.
 
 ## Map pieces
 

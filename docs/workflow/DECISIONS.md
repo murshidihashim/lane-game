@@ -35,6 +35,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | DEC-019 | Map view fills the screen width | Approved (owner, 2026-11-12) | Implemented |
 | DEC-020 | Make the map more engaging | Awaiting approval | Not started |
 | DEC-021 | Hero controls that keep the map clear | Approved (owner, 2026-11-13) | Implemented |
+| DEC-022 | Character design target: Dota 2 quality bar | Approved (owner, 2026-11-13) | Implemented |
 
 ## Work packages
 
@@ -53,6 +54,7 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 | PLAN-011 | Faster levelling to the ultimate | Approved (owner, 2026-11-13) | Implemented | 4/6 | Unreleased |
 | PLAN-012 | Ring menu for hero orders | Approved (owner, 2026-11-13) | Implemented | 5/7 | Unreleased |
 | PLAN-013 | Combat animation and hero feedback | Approved (owner, 2026-11-13) | Implemented | 7/9 | Unreleased |
+| PLAN-014 | Hero and troop design overhaul | Approved (owner, 2026-11-13) | Implemented | 7/9 | Unreleased |
 
 ## Decision details
 
@@ -350,6 +352,20 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 - **Delivery:** Implemented
 - **Review trigger:** Players find the ring hard to discover or miss-select orders on small phones.
 
+### DEC-022 · Character design target: Dota 2 quality bar
+
+- **Question:** Should heroes and troops keep the cute big-headed board-piece look, or move to heroic, detailed designs?
+- **Options:** Keep the cute big-headed standees · Heroic, detailed designs at the Dota 2 quality bar, still our own folk-tale characters in the batik paper style (chosen)
+- **Choice:** Heroic designs at the Dota 2 quality bar: about five heads tall, broad shoulders, layered costumes (pauldrons, chest armour, belts, skirts, bracers, boots, capes), one big signature shape per hero, the value pattern Valve describes (dark feet, light head and shoulders), glow accents on magic users, and simpler, species-themed troops in team colours. Dota 2 is the quality target only: no hero, name, costume or shape is copied; every character stays an original Malay folk-tale design, cut from paper (DEC-018).
+- **Rationale:** The owner asked for Dota 2 as the target. Valve's published character art guide stresses a silhouette readable at a glance and a value gradient from dark lower body to light head and upper body. Copying Dota 2 designs is ruled out by the project's originality rule.
+- **User impact:** Every hero and troop looks new; play is unchanged.
+- **Technical impact:** Drawing code only (src/ui/figures.ts, render sizes, portraits, draft stage). No change to src/game.
+- **Data and privacy:** None.
+- **Cost:** RM0 (code-drawn).
+- **Approval:** Approved: “okay now lets do a thorough enhancement of heroes and creep design, take Dota 2 characters as the target of what we want to be” (2026-11-13)
+- **Delivery:** Implemented
+- **Review trigger:** Figures read worse at play size, phones slow down, or the owner wants a different direction.
+
 ## History (oldest first)
 
 - 2026-11-12 08:49 · Project records started for Lane Game.
@@ -563,3 +579,22 @@ Approval and delivery are separate. Only the owner's explicit words set "approve
 - 2026-11-13 09:04 · REP-016 written: PLAN-013: combat animation and hero feedback.
 - 2026-11-13 09:06 · PLAN-013 T7: PASS (Rules unchanged: npm run verify 96/96 (determinism included); the 100-match soak gives exactly the same results as before (43/45/12, average 312 s, ultimate at 88 s); the 1,200-match balance check matches the PLAN-011 run number for number (species 47-53%, heroes 40-62%, draws 11%, early 0%); PHONE CHECK OK.).
 - 2026-11-13 09:06 · PLAN-013 delivery: implemented.
+- 2026-11-13 11:42 · DEC-022 proposed: Character design target: Dota 2 quality bar.
+- 2026-11-13 11:42 · PLAN-014 proposed: Hero and troop design overhaul.
+- 2026-11-13 11:42 · Owner approved DEC-022: "okay now lets do a thorough enhancement of heroes and creep design, take Dota 2 characters as the target of what we want to be".
+- 2026-11-13 11:42 · Owner approved PLAN-014: "okay now lets do a thorough enhancement of heroes and creep design, take Dota 2 characters as the target of what we want to be".
+- 2026-11-13 11:42 · PLAN-014 delivery: in progress.
+- 2026-11-13 11:42 · DEC-022 delivery: in progress.
+- 2026-11-13 12:16 · PLAN-014 T1: PASS (Sprite sheets reviewed (idle, walk, three attack beats, hurt, spawn; both teams; play size and 3x): about five heads tall, costume parts on every humanoid hero and militia troop, the value pattern on every hero and troop.).
+- 2026-11-13 12:16 · PLAN-014 T2: PASS (Silhouette sheet of all 20 heroes in black: each shows its own shape (giant hat, tower shield, umbrella, horns and club, folded wings, trader's pack, scaffold, wave, hood and blowpipe, kite, ears, cobra hood, headdress and puppet). Least distinct: Pendekar, Senja, Embun, Badak and Belang, which each keep one mark (tanjak peak, crescent hat, frost crown, horn, tail and ruff).).
+- 2026-11-13 12:16 · PLAN-014 T3: PASS (All 22 troop and summon types redrawn (sprite sheets at play size and close-ups, both teams). Team colour on every one: tabards and plumes, shield faces, collars, bands, caparisons, banners and bases.).
+- 2026-11-13 12:16 · PLAN-014 T4: PASS (Match screenshots in the usual and zoomed views, plus the draft and versus screens: heroes and troops read and do not crowd the lanes; all 20 portraits framed on the new heads (portrait sheet).).
+- 2026-11-13 12:16 · PLAN-014 T5: PASS (docs/design/character-art.md lists each hero's own source (Malay craft, dress, animals and tales) and signature shape. No Dota 2 hero was used as a reference shape; the avoided words appear nowhere.).
+- 2026-11-13 12:16 · PLAN-014 T6: PASS (Desktop test browser at iPhone 13 size: 100 cached figures 0.85 ms a frame (was 0.84); busy match frame median 4.2-4.7 ms, 90th percentile 9.7-10.7 ms (two runs; was 4.3-5.8 and 10-14). Drawing each new pose the first time: 1.65 ms against 1.31 ms before (+26%, once per pose).).
+- 2026-11-13 12:16 · PLAN-014 T7: PASS (npm run verify: 96/96 tests and the build pass; the 100-match soak is identical to before (43/45/12, average 312 s, ultimate median 88.05 s, 0 stalls); PHONE CHECK OK (33 PASS, 0 FAIL); git diff of src/game is empty.).
+- 2026-11-13 12:16 · PLAN-014 T8: NOT RUN (Not yet tried on the owner's phone.).
+- 2026-11-13 12:16 · PLAN-014 T9: NOT RUN (Waiting for the owner's verdict.).
+- 2026-11-13 12:16 · REP-017 written: PLAN-014: heroic hero and troop designs.
+- 2026-11-13 12:17 · PLAN-014 delivery: implemented.
+- 2026-11-13 12:17 · DEC-022 delivery: implemented.
+- 2026-11-13 12:17 · PLAN-014 implemented: 20 heroes and 22 troop types redrawn as heroic paper figures (DEC-022); T1-T7 PASS, T8-T9 wait; REP-017.
